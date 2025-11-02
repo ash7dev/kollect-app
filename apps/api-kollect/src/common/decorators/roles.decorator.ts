@@ -1,29 +1,36 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+// decorators/get-user.decorator.ts
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { UserProfile } from '../../auth/interfaces/auth.interface';
 
 /**
- * User type for request with authentication
+ * User type from JWT payload after authentication
  */
-type AuthenticatedUser = Pick<
-  UserProfile,
-  'id' | 'kindeId' | 'email' | 'isAdmin' | 'isCEO' | 'isClient'
-> & {
+export interface AuthenticatedUser {
+  id: string;
+  kindeId: string;
+  email: string;
+  isAdmin: boolean;
+  isCEO: boolean;
+  isClient: boolean;
   roles: {
     isAdmin: boolean;
     isCEO: boolean;
     isClient: boolean;
   };
-};
+  firstName?: string | null;
+  lastName?: string | null;
+  iat?: number;
+  exp?: number;
+}
 
 /**
  * Custom decorator to get the authenticated user from the request
- * This ensures type safety when accessing the user object in controllers
  */
-export const Roles = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): AuthenticatedUser | undefined => {
-    const request = ctx
-      .switchToHttp()
-      .getRequest<{ user?: AuthenticatedUser }>();
+export const GetUser = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext): AuthenticatedUser => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const request = ctx.switchToHttp().getRequest();
     return request.user;
   },
 );
