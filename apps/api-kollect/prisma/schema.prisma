@@ -1,0 +1,661 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ============================================
+// UTILISATEURS ET AUTHENTIFICATION
+// ============================================
+
+model Utilisateur {
+  id            String    @id @default(cuid())
+  kindeId       String    @unique // ID venant de Kinde
+  email         String    @unique
+  /// @zod.email()
+  firstName     String?   @db.VarChar(100)
+  lastName      String?   @db.VarChar(100)
+  phone         String?   @db.VarChar(20)
+  avatar        String?   // URL Cloudinary
+  
+  // Rôles
+  isClient      Boolean   @default(true)
+  isCEO         Boolean   @default(false)
+  isAdmin       Boolean   @default(false)
+  
+  // Push notifications
+  fcmToken      String?   @db.Text // Token Firebase Cloud Messaging
+  
+  // Adresse de livraison par défaut
+  address       String?   @db.Text
+  city          String?   @db.VarChar(100)
+  postalCode    String?   @db.VarChar(20)
+  country       String?   @db.VarChar(50) @default("Sénégal")
+  
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+  
+  // Relations
+  brand         Marque?              // 1 CEO = 1 Brand max
+  commandes     Commande[]           // Commandes passées (si client)
+  favoris       Favori[]
+  notifications Notification[]
+  reviews       Review[]
+  statusChanges HistoriqueStatutCommande[] @relation("StatusChangedBy")
+  promoCodes    CodePromo[]
+  
+  @@index([kindeId])
+  @@index([email])
+  @@index([phone])
+  @@map("users")
+}
+
+// ============================================
+// MARQUES / BOUTIQUES
+// ============================================
+
+model Marque {
+  id          String   @id @default(cuid())
+  name        String   @unique @db.VarChar(100)
+  slug        String   @unique @db.VarChar(120)
+  logo        String?  // URL Cloudinary
+  coverImage  String?  // URL Cloudinary
+  bio         String?  @db.Text
+  instagram   String?  @db.VarChar(50)
+  whatsapp    String?  @db.VarChar(20)
+  website     String?  @db.VarChar(255)
+  
+  // Propriétaire
+  userId     String   @unique
+  user       Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Statut
+  isActive    Boolean  @default(true)
+  isVerified  Boolean  @default(false) // Vérifié par l'équipe Kollect
+  
+  // Statistiques
+  followerCount Int    @default(0)
+  productCount  Int    @default(0)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  collections Collection[]
+  products    Produit[]
+  commandes   Commande[]
+  favoris     Favori[]
+  reviews     Review[]
+  categories  CategorieMarque[] // Catégories de la marque
+  promoCodes  CodePromo[]
+  
+  @@index([slug])
+  @@index([userId])
+  @@index([isActive, isVerified])
+  @@map("brands")
+}
+
+// ============================================
+// CATÉGORIES DE MARQUES
+// ============================================
+
+model Categorie {
+  id          String         @id @default(cuid())
+  name        String         @unique @db.VarChar(50)
+  slug        String         @unique @db.VarChar(60)
+  description String?        @db.Text
+  icon        String?        // Icône FontAwesome ou URL
+  isActive    Boolean        @default(true)
+  brands      CategorieMarque[]
+  
+  @@map("categories")
+}
+
+// Relation many-to-many entre Brand et Category
+model CategorieMarque {
+  brandId    String
+  brand      Marque    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Categorie @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  @@id([brandId, categoryId])
+  @@map("brand_categories")
+}
+
+// ============================================
+// COLLECTIONS / DROPS
+// ============================================
+
+model Collection {
+  id              String            @id @default(cuid())
+  name            String            @db.VarChar(100)
+  slug            String            @db.VarChar(120)
+  description     String?           @db.Text
+  
+  // Médias teaser
+  coverImage      String?           // URL Cloudinary
+  teaserVideo     String?           // URL Cloudinary
+  
+  // Statuts et dates
+  status          CollectionStatus  @default(BROUILLON)
+  launchDate      DateTime?         // Date de lancement prévue
+  launchedAt      DateTime?         // Date réelle de lancement
+  
+  // Marque
+  brandId         String
+  brand           Marque             @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  
+  // Métadonnées
+  viewCount       Int               @default(0)
+  isFeatured      Boolean           @default(false)
+  
+  // Timestamps
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // Relations
+  products        Produit[]
+  
+  @@unique([brandId, slug])
+  @@index([brandId])
+  @@index([status])
+  @@index([launchDate])
+  @@index([isFeatured])
+  @@map("collections")
+}
+
+enum CollectionStatus {
+  BROUILLON
+  TEASER
+  DISPONIBLE
+  EPUISEE
+  TERMINE
+}
+
+// ============================================
+// PRODUITS
+// ============================================
+
+model Produit {
+  id            String    @id @default(cuid())
+  name          String    @db.VarChar(200)
+  slug          String    @db.VarChar(220)
+  description   String?   @db.Text
+  price         Int       // En FCFA (centimes)
+  
+  // Images
+  images        String[]  // Array d'URLs Cloudinary
+  
+  // Stock et variantes
+  sku           String?   @unique @db.VarChar(50) // Référence unique du produit
+  stock         Int       @default(0)
+  sizes         String[]  // Ex: ["S", "M", "L", "XL"]
+  colors        String[]  // Ex: ["Noir", "Blanc"]
+  
+  // Détails
+  material      String?   @db.VarChar(100)
+  weight        Float?    // Poids en grammes
+  
+  // Relations
+  collectionId  String
+  collection    Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  
+  brandId       String
+  brand         Marque      @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  
+  // Visibilité (synchronisé avec status de la collection)
+  isVisible     Boolean    @default(false)
+  isFeatured    Boolean    @default(false)
+  
+  // Soft delete
+  isDeleted     Boolean    @default(false)
+  
+  // Statistiques
+  viewCount     Int        @default(0)
+  
+  // Timestamps
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  // Relations
+  commandeItems ArticleCommande[]
+  favoris       Favori[]
+  reviews       Review[]
+  variants      VarianteProduit[]
+  vues          VueProduit[]
+  
+  @@unique([collectionId, slug])
+  @@index([collectionId])
+  @@index([brandId])
+  @@index([isVisible, isDeleted])
+  @@index([isFeatured])
+  @@map("products")
+}
+
+// ============================================
+// VARIANTES DE PRODUITS
+// ============================================
+
+model VarianteProduit {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Produit  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  // Détails de la variante
+  name        String   @db.VarChar(100) // Ex: "Taille S - Noir"
+  sku         String   @unique @db.VarChar(50)
+  price       Int?     // Peut surcharger le prix du produit
+  stock       Int      @default(0)
+  
+  // Attributs
+  attributes  Json     // Ex: { "size": "S", "color": "Noir" }
+  
+  // Images spécifiques à la variante (optionnel)
+  images      String[] // Array d'URLs Cloudinary
+  
+  // Statut
+  isActive    Boolean  @default(true)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  commandeItems ArticleCommande[]
+  
+  @@index([productId])
+  @@index([sku])
+  @@map("product_variants")
+}
+
+// ============================================
+// COMMANDES
+// ============================================
+
+model Commande {
+  id              String         @id @default(cuid())
+  orderNumber     String         @unique // Ex: CMD-2024-001234
+  
+  // Client
+  clientId        String
+  client          Utilisateur   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  // Marque (vendeur)
+  brandId         String
+  brand           Marque          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  
+  // Adresse de livraison (copie figée)
+  shippingAddress String         @db.Text
+  shippingCity    String         @db.VarChar(100)
+  shippingPhone   String         @db.VarChar(20)
+  
+  // Montants (en FCFA centimes)
+  subtotal        Int            // Total produits
+  shippingFee     Int            @default(200000) // 2000 FCFA par défaut
+  discount        Int            @default(0)      // Réduction éventuelle
+  total           Int            // subtotal + shippingFee - discount
+  
+  // Paiement
+  paymentMethod   PaymentMethod  @default(OM)
+  paymentStatus   PaymentStatus  @default(EN_ATTENTE)
+  transactionId   String?        @db.VarChar(100) // Référence de transaction
+  
+  // Statut
+  status          CommandeStatus @default(EN_ATTENTE)
+  
+  // Suivi
+  trackingNumber  String?        @db.VarChar(50)
+  trackingUrl     String?        @db.Text
+  
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  confirmedAt     DateTime?
+  paidAt          DateTime?
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  cancelledAt     DateTime?
+  
+  // Relations
+  items           ArticleCommande[]
+  statusHistory   HistoriqueStatutCommande[]
+  
+  @@index([clientId])
+  @@index([brandId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([paymentStatus])
+  @@map("commandes")
+}
+
+enum CommandeStatus {
+  EN_ATTENTE
+  CONFIRMEE
+  EN_PREPARATION
+  PRETE_A_LIVRAISON
+  EN_LIVRAISON
+  LIVREE
+  ANNULEE
+  RETOURNEE
+  REMBOURSEE
+}
+
+enum PaymentMethod {
+  OM        // Orange Money
+  WAVE      // Wave
+  FREE_MONEY
+  CARTE     // Carte bancaire
+  ESPECES   // Paiement en espèces
+}
+
+enum PaymentStatus {
+  EN_ATTENTE
+  VALIDEE
+  ECHOUEE
+  REMBOURSEE
+  ANNULEE
+}
+
+// ============================================
+// HISTORIQUE DES STATUTS DE COMMANDE
+// ============================================
+
+model HistoriqueStatutCommande {
+  id          String        @id @default(cuid())
+  commandeId  String
+  commande    Commande      @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  status      CommandeStatus
+  details     String?       @db.Text
+  createdAt   DateTime      @default(now())
+  
+  // Utilisateur qui a effectué le changement (si applicable)
+  changedById String?
+  changedBy   Utilisateur?  @relation("StatusChangedBy", fields: [changedById], references: [id])
+  
+  @@index([commandeId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("commande_status_history")
+}
+
+// ============================================
+// ITEMS DE COMMANDE
+// ============================================
+
+model ArticleCommande {
+  id          String   @id @default(cuid())
+  
+  // Commande
+  commandeId  String
+  commande    Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  
+  // Produit
+  productId   String
+  product     Produit  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  
+  // Variante du produit (si applicable)
+  variantId   String?
+  variant     VarianteProduit? @relation(fields: [variantId], references: [id])
+  
+  // Données figées au moment de la commande
+  productName String   @db.VarChar(200)
+  price       Int      // Prix unitaire au moment de la commande
+  size        String?  @db.VarChar(50)
+  color       String?  @db.VarChar(50)
+  quantity    Int
+  
+  // Retour/remboursement
+  isReturned  Boolean  @default(false)
+  returnReason String?  @db.Text
+  
+  @@index([commandeId])
+  @@index([productId])
+  @@index([variantId])
+  @@map("commande_items")
+}
+
+// ============================================
+// FAVORIS / SUIVI
+// ============================================
+
+model Favori {
+  id        String     @id @default(cuid())
+  
+  // Utilisateur
+  userId    String
+  user      Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Type de favori
+  type      FavoriType
+  
+  // Cible (soit marque, soit produit)
+  brandId   String?
+  brand     Marque?     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  
+  productId String?
+  product   Produit?   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  // Métadonnées
+  notes     String?    @db.Text // Notes personnelles
+  
+  // Timestamp
+  createdAt DateTime   @default(now())
+  
+  @@unique([userId, type, brandId])
+  @@unique([userId, type, productId])
+  @@index([userId])
+  @@index([type])
+  @@map("favoris")
+}
+
+enum FavoriType {
+  BRAND
+  PRODUCT
+  COLLECTION
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id        String           @id @default(cuid())
+  
+  // Destinataire
+  userId    String
+  user      Utilisateur      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Contenu
+  type      NotificationType
+  title     String           @db.VarChar(200)
+  message   String           @db.Text
+  data      Json?            // Données supplémentaires (collectionId, commandeId, etc.)
+  
+  // Statut
+  read      Boolean          @default(false)
+  readAt    DateTime?
+  sentAt    DateTime         @default(now())
+  
+  // Métadonnées
+  priority  NotificationPriority @default(MEDIUM)
+  
+  @@index([userId, read])
+  @@index([type])
+  @@index([sentAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  // Produits et collections
+  TEASER_LANCE
+  DROP_DISPONIBLE
+  PRODUIT_EN_RUPTURE
+  PRODUIT_DISPONIBLE
+  
+  // Commandes
+  NOUVELLE_COMMANDE
+  COMMANDE_CONFIRMEE
+  COMMANDE_EXPEDIEE
+  COMMANDE_LIVREE
+  COMMANDE_ANNULEE
+  
+  // Compte
+  NOUVEL_ABONNE
+  MESSAGE_RECU
+  
+  // Promotions
+  PROMOTION_LANCEE
+  CODE_PROMO
+  
+  // Système
+  MAINTENANCE
+  NOUVELLE_VERSION
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ============================================
+// AVIS ET COMMENTAIRES
+// ============================================
+
+model Review {
+  id          String   @id @default(cuid())
+  
+  // Note et commentaire (validation 1-5 à faire dans l'application)
+  rating      Int
+  title       String?  @db.VarChar(200)
+  comment     String?  @db.Text
+  
+  // Images
+  images      String[] // URLs des images
+  
+  // Vérification
+  isVerified  Boolean  @default(false) // Vérifié achat
+  isApproved  Boolean  @default(true)  // Modération
+  
+  // Relations
+  userId      String
+  user        Utilisateur @relation(fields: [userId], references: [id])
+  
+  productId   String
+  product     Produit  @relation(fields: [productId], references: [id])
+  
+  brandId     String
+  brand       Marque   @relation(fields: [brandId], references: [id])
+  
+  // Réponse du vendeur
+  response    String?  @db.Text
+  respondedAt DateTime?
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([userId, productId]) // Un avis par utilisateur par produit
+  @@index([productId])
+  @@index([userId])
+  @@index([brandId])
+  @@index([rating])
+  @@index([isVerified])
+  @@map("reviews")
+}
+
+// ============================================
+// CODES PROMO ET RÉDUCTIONS
+// ============================================
+
+model CodePromo {
+  id            String     @id @default(cuid())
+  code          String     @unique @db.VarChar(50)
+  description   String?    @db.Text
+  
+  // Type de réduction
+  discountType  DiscountType
+  discountValue Int        // Montant fixe ou pourcentage
+  
+  // Limites
+  minOrderAmount Int?      // Montant minimum de commande
+  maxDiscount    Int?      // Remise maximale (pour les pourcentages)
+  
+  // Utilisation
+  usageLimit     Int?      // Nombre maximum d'utilisations
+  usageCount     Int       @default(0)
+  
+  // Période de validité
+  startsAt      DateTime   @default(now())
+  expiresAt     DateTime?
+  
+  // Restrictions
+  isActive      Boolean    @default(true)
+  isSingleUse   Boolean    @default(false)
+  
+  // Relations
+  userId        String?    // Si réservé à un utilisateur
+  user          Utilisateur? @relation(fields: [userId], references: [id])
+  
+  brandId       String?    // Si spécifique à une marque
+  brand         Marque?    @relation(fields: [brandId], references: [id])
+  
+  productIds    String[]   // Produits éligibles
+  
+  // Timestamps
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  @@index([code])
+  @@index([isActive])
+  @@index([expiresAt])
+  @@index([brandId])
+  @@map("promo_codes")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+}
+
+// ============================================
+// VUES DE PRODUITS (ANALYTIQUES)
+// ============================================
+
+model VueProduit {
+  id          String   @id @default(cuid())
+  
+  // Références
+  productId   String
+  product     Produit  @relation(fields: [productId], references: [id])
+  
+  // Informations utilisateur
+  userId      String?  // Si connecté
+  sessionId   String   // ID de session pour les utilisateurs non connectés
+  
+  // Données de localisation
+  ipAddress   String?  @db.VarChar(45) // IPv4 ou IPv6
+  userAgent   String?  @db.Text
+  
+  // Référenceur
+  referrer    String?  @db.Text
+  
+  // Timestamp
+  viewedAt    DateTime @default(now())
+  
+  @@index([productId])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([viewedAt])
+  @@map("product_views")
+}
