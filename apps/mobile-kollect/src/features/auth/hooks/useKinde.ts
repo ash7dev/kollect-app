@@ -16,12 +16,32 @@ export const useKinde = () => {
   const [error, setError] = useState<Error | null>(null);
 
   const handleResponse = async (resp: any) => {
-    if (!resp?.access_token) throw new Error('No token');
+    // Afficher la réponse complète de Kinde dans la console
+    console.log('🔑 Réponse complète de Kinde:', JSON.stringify(resp, null, 2));
+    
+    // Vérifier le token en utilisant la bonne casse (camelCase)
+    const accessToken = resp?.accessToken || resp?.access_token;
+    if (!accessToken) {
+      console.error('❌ Aucun token trouvé dans la réponse');
+      throw new Error('No token found in response');
+    }
+    
+    // Récupérer le profil utilisateur
     const profile = await getUserProfile();
+    console.log('👤 Profil utilisateur récupéré:', JSON.stringify(profile, null, 2));
+    
+    // Mettre à jour l'état
     setUser(profile);
-    setToken(resp.access_token);
-    await SecureStore.setItemAsync('ACCESS_TOKEN', resp.access_token);
-    return { user: profile, token: resp.access_token };
+    setToken(accessToken);
+    
+    // Stocker le token de manière sécurisée
+    await SecureStore.setItemAsync('ACCESS_TOKEN', accessToken);
+    console.log('✅ Token stocké avec succès');
+    
+    // Afficher le token (à des fins de débogage uniquement, à supprimer en production)
+    console.log('🔐 Token d\'accès:', accessToken);
+    
+    return { user: profile, token: accessToken };
   };
 
   // ---------- EMAIL LOGIN ----------
