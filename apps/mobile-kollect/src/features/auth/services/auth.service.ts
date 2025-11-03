@@ -1,6 +1,7 @@
 // services/auth.service.ts
 import * as SecureStore from 'expo-secure-store';
 import { Alert } from 'react-native';
+import { Platform } from 'react-native';
 
 // ============================================
 // TYPES
@@ -39,9 +40,9 @@ interface AuthResponse {
 // CONFIGURATION
 // ============================================
 
-const API_URL = __DEV__ 
-  ? 'http://localhost:3000/api'  // Développement
-  : 'https://votre-api.com'; // Production
+const API_URL = __DEV__
+  ? 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api'
+  : 'https://votre-api-production.com/api';
 
 const STORAGE_KEYS = {
   JWT_TOKEN: 'jwt_token',
@@ -63,7 +64,12 @@ class AuthService {
         kindeId: kindeUser.id,
         email: kindeUser.email,
       });
-
+      console.log('URL de la requête:', `${API_URL}/auth/sync`);
+      console.log('Données envoyées:', {
+  kindeId: kindeUser.id,
+  email: kindeUser.email,
+  // ... autres champs
+});
       const response = await fetch(`${API_URL}/auth/sync`, {
         method: 'POST',
         headers: {
@@ -77,7 +83,7 @@ class AuthService {
           avatar: kindeUser.picture,
         }),
       });
-
+      
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Sync failed: ${response.status} - ${errorText}`);

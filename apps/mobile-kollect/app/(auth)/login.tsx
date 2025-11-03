@@ -1,4 +1,5 @@
-// login.tsx - VERSION CORRIGÉE
+ 
+// login.tsx - VERSION SIMPLIFIÉE AVEC ZUSTAND
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -12,6 +13,7 @@ import {
 } from 'react-native';
 import { useTheme } from '@/app/context/ThemeContext';
 import { useKinde } from '@/src/features/auth/hooks/useKinde';
+import { useAuthStore } from '@/src/store/authStore';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import logo from '../../assets/images/LOGO-KOLLECT.png';
@@ -19,31 +21,20 @@ import logo from '../../assets/images/LOGO-KOLLECT.png';
 const { width } = Dimensions.get('window');
 const LOGO_SIZE = Math.min(width * 0.25, 120);
 
-const ERROR_MESSAGES: Record<string, string> = {
-  'Network request failed': 'Erreur de connexion. Vérifiez votre internet.',
-  'Too many requests': 'Trop de tentatives. Réessayez dans quelques minutes.',
-  'Session expired': 'Session expirée. Veuillez vous reconnecter.',
-};
-
-const getErrorMessage = (error: any): string => {
-  if (!error) return 'Une erreur est survenue';
-  const errorMessage = error.message || error.toString();
-  
-  for (const [key, value] of Object.entries(ERROR_MESSAGES)) {
-    if (errorMessage.includes(key)) return value;
-  }
-  
-  return 'Une erreur est survenue. Veuillez réessayer.';
-};
-
 export default function LoginScreen() {
-  const { login, loginWithProvider, loading, error } = useKinde();
+  const { login: kindeLogin, loginWithProvider, loading: kindeLoading, error: kindeError } = useKinde();
   const { theme, isDark } = useTheme();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // 🆕 Zustand store - Actions uniquement
+  const login = useAuthStore((state) => state.login);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const error = useAuthStore((state) => state.error);
+  
   const [localError, setLocalError] = useState<string | null>(null);
   const shakeAnimation = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // Animation d'entrée
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -52,6 +43,7 @@ export default function LoginScreen() {
     }).start();
   }, [fadeAnim]);
 
+  // Animation d'erreur
   const shakeError = useCallback(() => {
     Animated.sequence([
       Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
@@ -61,43 +53,80 @@ export default function LoginScreen() {
     ]).start();
   }, [shakeAnimation]);
 
+  // Gestion des erreurs Kinde
+  useEffect(() => {
+    if (kindeError) {
+      setLocalError(kindeError.message || 'Erreur de connexion');
+      shakeError();
+    }
+  }, [kindeError, shakeError]);
+
+  // Gestion des erreurs Zustand
   useEffect(() => {
     if (error) {
-      setLocalError(getErrorMessage(error));
+      setLocalError(error);
       shakeError();
     }
   }, [error, shakeError]);
 
+  /**
+   * 🔐 Login avec Email (Kinde + Backend via Zustand)
+   */
   const handleEmailLogin = async () => {
-    setLocalError(null);
-    setIsSubmitting(true);
     try {
-      await login();
-    } catch (err) {
-      console.error('Erreur lors de la connexion:', err);
-      setLocalError('Erreur lors de la connexion. Veuillez réessayer.');
+      setLocalError(null);
+      
+      // 1️⃣ Login avec Kinde
+      const kindeResponse = await kindeLogin();
+      
+      if (!kindeResponse?.user) {
+        throw new Error('Erreur lors de la connexion Kinde');
+      }
+
+      console.log('✅ Login Kinde réussi, synchronisation...');
+
+      // 2️⃣ Login via Zustand (qui gère le sync backend + stockage)
+      await login(kindeResponse.user);
+
+      // 3️⃣ Redirection automatique dans _layout.tsx
+      console.log('✅ Authentification complète');
+      
+    } catch (err: any) {
+      console.error('❌ Erreur login:', err);
+      setLocalError(err.message || 'Erreur lors de la connexion');
       shakeError();
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
+  /**
+   * 🌐 Login avec Provider (Google/Apple)
+   */
   const handleProviderLogin = async (provider: 'google' | 'apple') => {
-    if (loading || isSubmitting) return;
-    setLocalError(null);
-    setIsSubmitting(true);
-    
     try {
-      await loginWithProvider(provider);
-      router.replace('/(client)');
-    } catch (err) {
-      console.error(`Erreur ${provider}:`, err);
-      setLocalError(getErrorMessage(err));
+      setLocalError(null);
+      
+      // 1️⃣ Login avec Kinde
+      const kindeResponse = await loginWithProvider(provider);
+      
+      if (!kindeResponse?.user) {
+        throw new Error(`Erreur lors de la connexion avec ${provider}`);
+      }
+
+      console.log(`✅ Login ${provider} réussi, synchronisation...`);
+
+      // 2️⃣ Login via Zustand
+      await login(kindeResponse.user);
+
+      console.log('✅ Authentification complète');
+      
+    } catch (err: any) {
+      console.error(`❌ Erreur login ${provider}:`, err);
+      setLocalError(err.message || `Erreur lors de la connexion avec ${provider}`);
       shakeError();
-    } finally {
-      setIsSubmitting(false);
     }
   };
+
+  const isButtonDisabled = kindeLoading || isLoading;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -118,13 +147,13 @@ export default function LoginScreen() {
               style={[
                 styles.logo, 
                 { 
-                  width: '400%',  // Utilisation d'un pourcentage pour une meilleure adaptation
+                  width: '400%',
                   height: '400%',
-                  maxWidth: 720,   // Taille maximale pour éviter un logo trop grand
+                  maxWidth: 720,
                   maxHeight: 720,
                 },
                 isDark && { tintColor: '#FFFFFF' }
-                ]}
+              ]}
               resizeMode="contain"
             />
           </View>
@@ -162,20 +191,19 @@ export default function LoginScreen() {
 
         {/* Boutons de connexion */}
         <View style={styles.buttonsContainer}>
-          {/* Bouton principal de connexion par email */}
           <TouchableOpacity
             style={[
               styles.primaryButton,
               { 
                 backgroundColor: theme.colors.primary,
-                opacity: (loading || isSubmitting) ? 0.6 : 1
+                opacity: isButtonDisabled ? 0.6 : 1
               }
             ]}
             onPress={handleEmailLogin}
-            disabled={loading || isSubmitting}
+            disabled={isButtonDisabled}
             activeOpacity={0.8}
           >
-            {isSubmitting ? (
+            {isLoading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.primaryButtonText}>
@@ -184,14 +212,12 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Séparateur */}
           <View style={styles.separator}>
             <View style={[styles.separatorLine, { backgroundColor: theme.colors.border }]} />
             <Text style={[styles.separatorText, { color: theme.colors.textSecondary }]}>ou</Text>
             <View style={[styles.separatorLine, { backgroundColor: theme.colors.border }]} />
           </View>
 
-          {/* Boutons de connexion sociale */}
           <View style={styles.socialContainer}>
             <TouchableOpacity
               style={[
@@ -199,11 +225,11 @@ export default function LoginScreen() {
                 { 
                   backgroundColor: theme.colors.card, 
                   borderColor: theme.colors.border,
-                  opacity: (loading || isSubmitting) ? 0.6 : 1
+                  opacity: isButtonDisabled ? 0.6 : 1
                 }
               ]}
               onPress={() => handleProviderLogin('google')}
-              disabled={loading || isSubmitting}
+              disabled={isButtonDisabled}
               activeOpacity={0.7}
             >
               <Ionicons name="logo-google" size={20} color="#DB4437" />
@@ -218,11 +244,11 @@ export default function LoginScreen() {
                 { 
                   backgroundColor: theme.colors.card, 
                   borderColor: theme.colors.border,
-                  opacity: (loading || isSubmitting) ? 0.6 : 1
+                  opacity: isButtonDisabled ? 0.6 : 1
                 }
               ]}
               onPress={() => handleProviderLogin('apple')}
-              disabled={loading || isSubmitting}
+              disabled={isButtonDisabled}
               activeOpacity={0.7}
             >
               <Ionicons name="logo-apple" size={20} color={theme.colors.text} />
@@ -233,7 +259,7 @@ export default function LoginScreen() {
           </View>
         </View>
 
-        {/* Footer - Lien vers l'inscription */}
+        {/* Footer */}
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
             Vous n&apos;avez pas de compte ?{' '}
@@ -250,18 +276,9 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1 
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
+  container: { flex: 1 },
+  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  header: { alignItems: 'center', marginBottom: 40 },
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -272,22 +289,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  logo: {
-    width: 85,
-    height: 85,
-    resizeMode: 'contain',
-    marginTop: 43, // Ajustement de la marge supérieure pour descendre le logo
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 8,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 15,
-    fontWeight: '400',
-  },
+  logo: { width: 85, height: 85, resizeMode: 'contain', marginTop: 43 },
+  title: { fontSize: 28, fontWeight: '700', marginBottom: 8, letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, fontWeight: '400' },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -304,18 +308,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '500',
-    lineHeight: 18,
-  },
-  closeError: { 
-    padding: 4 
-  },
-  buttonsContainer: { 
-    marginBottom: 24,
-  },
+  errorText: { flex: 1, fontSize: 13, fontWeight: '500', lineHeight: 18 },
+  closeError: { padding: 4 },
+  buttonsContainer: { marginBottom: 24 },
   primaryButton: {
     width: '100%',
     height: 52,
@@ -335,24 +330,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
-  separator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  separatorLine: {
-    flex: 1,
-    height: 1,
-  },
-  separatorText: {
-    marginHorizontal: 12,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
+  separator: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  separatorLine: { flex: 1, height: 1 },
+  separatorText: { marginHorizontal: 12, fontSize: 13, fontWeight: '500' },
+  socialContainer: { flexDirection: 'row', gap: 12 },
   socialButton: {
     flex: 1,
     flexDirection: 'row',
@@ -363,22 +344,13 @@ const styles = StyleSheet.create({
     height: 52,
     gap: 8,
   },
-  socialButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  socialButtonText: { fontSize: 15, fontWeight: '600' },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
   },
-  footerText: { 
-    fontSize: 14,
-    fontWeight: '400',
-  },
-  footerLink: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
+  footerText: { fontSize: 14, fontWeight: '400' },
+  footerLink: { fontSize: 14, fontWeight: '700' },
 });
