@@ -170,8 +170,10 @@ export class AuthService {
         },
       });
 
+      // After registration, log the user in with their credentials
       return this.login({
         email: registerDto.email,
+        password: registerDto.password
       });
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {

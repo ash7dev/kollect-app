@@ -19,9 +19,10 @@ import { SetMetadata } from '@nestjs/common';
 
 // Décorateur pour définir les rôles requis
 const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
-import type { AuthRequest } from '../common/types/request.types';
+import { Request } from '@nestjs/common';
 import { AuthResponseWithToken } from './interfaces/auth-response.interface';
 import type { AuthenticatedUser } from '../common/decorators/roles.decorator';
+import * as requestInterface from '../common/interfaces/request.interface';
 
 @Controller('auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -67,12 +68,13 @@ export class AuthController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getProfile(@Req() req: AuthRequest): Promise<AuthResponseWithToken> {
+  async getProfile(@Req() req: requestInterface.AuthRequest): Promise<AuthResponseWithToken> {
     try {
       if (!req.user?.kindeId) {
         throw new UnauthorizedException('Invalid user data');
       }
 
+       
       return await this.authService.getUserProfile(req.user.kindeId);
     } catch (error) {
       if (error instanceof UnauthorizedException) {
