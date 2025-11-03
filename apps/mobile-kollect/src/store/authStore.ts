@@ -87,32 +87,38 @@ export const useAuthStore = create<AuthState>()(
        * 🚪 Logout complet
        */
       logout: async () => {
-        try {
-          set({ isLoading: true, error: null });
-          
-          console.log('🚪 [AuthStore] Début du logout...');
+  try {
+    set({ isLoading: true, error: null });
+    console.log('🚪 [AuthStore] Début du logout...');
 
-          // Logout du backend
-          try {
-            await authService.logout();
-          } catch (error) {
-            // On continue même si le backend répond pas
-            console.warn('⚠️ [AuthStore] Erreur backend logout (ignorée):', error);
-          }
+    // Appeler le service de déconnexion
+    await authService.logout();
+    
+    // Effacer l'état local
+    set({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+    });
 
-          // Effacer l'état local
-          await get()._clearAuth();
-
-          console.log('✅ [AuthStore] Logout réussi');
-        } catch (error: any) {
-          console.error('❌ [AuthStore] Erreur logout:', error);
-          // On force la déconnexion locale même en cas d'erreur
-          await get()._clearAuth();
-          throw error;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
+    // Effacer le stockage persistant
+    await AsyncStorage.removeItem('auth-storage');
+    
+    console.log('✅ [AuthStore] Logout réussi');
+  } catch (error) {
+    console.error('❌ [AuthStore] Erreur logout:', error);
+    // En cas d'erreur, forcer la déconnexion quand même
+    set({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+    });
+    await AsyncStorage.removeItem('auth-storage');
+    throw error;
+  } finally {
+    set({ isLoading: false });
+  }
+},
 
       /**
        * 🔄 Rafraîchir l'authentification

@@ -10,7 +10,7 @@ export default function CeoDashboardScreen() {
         Dashboard
       </Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        Vue d'ensemble de votre activité
+        Vue d&apos;ensemble de votre activité
       </Text>
     </View>
   );

@@ -1,7 +1,6 @@
 // services/auth.service.ts
 import * as SecureStore from 'expo-secure-store';
 import { Alert } from 'react-native';
-import { Platform } from 'react-native';
 
 // ============================================
 // TYPES

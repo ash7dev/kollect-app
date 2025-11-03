@@ -1,0 +1,12 @@
+# Nettoyer le cache de Watchman
+watchman watch-del-all
+
+# Supprimer les dossiers de cache
+rm -rf node_modules/.cache
+rm -rf $TMPDIR/metro-*
+
+# Réinstaller les dépendances
+yarn install
+
+# Redémarrer l'app
+yarn expo start --clear

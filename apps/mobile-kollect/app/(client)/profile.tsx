@@ -1,14 +1,18 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useTheme } from '@/app/context/ThemeContext';
-import { useKinde } from '@/src/features/auth/hooks/useKinde';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuthStore } from '@/src/store/authStore';
 
 export default function ProfileScreen() {
   const { theme } = useTheme();
-  const { user, logout, loading } = useKinde();
+  
+  // ✅ Utiliser uniquement le store Zustand
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+  const isLoading = useAuthStore((state) => state.isLoading);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     Alert.alert(
       'Déconnexion',
       'Êtes-vous sûr de vouloir vous déconnecter ?',
@@ -23,7 +27,8 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await logout();
-              router.replace('/(auth)/login');
+              // La navigation sera gérée automatiquement par _layout.tsx
+              // car isAuthenticated passera à false
             } catch (error) {
               console.error('Erreur lors de la déconnexion:', error);
               Alert.alert('Erreur', 'Une erreur est survenue lors de la déconnexion');
@@ -42,11 +47,32 @@ export default function ProfileScreen() {
             <Ionicons name="person" size={32} color="#FFFFFF" />
           </View>
           <Text style={[styles.name, { color: theme.colors.text }]}>
-            {user?.givenName} {user?.familyName}
+            {user?.firstName} {user?.lastName}
           </Text>
           <Text style={[styles.email, { color: theme.colors.textSecondary }]}>
             {user?.email}
           </Text>
+          
+          {/* Afficher les rôles pour debug */}
+          {user && (
+            <View style={styles.rolesContainer}>
+              {user.isAdmin && (
+                <View style={[styles.roleBadge, { backgroundColor: theme.colors.error }]}>
+                  <Text style={styles.roleText}>Admin</Text>
+                </View>
+              )}
+              {user.isCEO && (
+                <View style={[styles.roleBadge, { backgroundColor: theme.colors.primary }]}>
+                  <Text style={styles.roleText}>CEO</Text>
+                </View>
+              )}
+              {user.isClient && (
+                <View style={[styles.roleBadge, { backgroundColor: theme.colors.success }]}>
+                  <Text style={styles.roleText}>Client</Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         <TouchableOpacity
@@ -54,15 +80,15 @@ export default function ProfileScreen() {
             styles.logoutButton,
             { 
               backgroundColor: theme.colors.error,
-              opacity: loading ? 0.6 : 1,
+              opacity: isLoading ? 0.6 : 1,
             },
           ]}
           onPress={handleLogout}
-          disabled={loading}
+          disabled={isLoading}
         >
           <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
           <Text style={styles.logoutButtonText}>
-            {loading ? 'Déconnexion...' : 'Se déconnecter'}
+            {isLoading ? 'Déconnexion...' : 'Se déconnecter'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -99,6 +125,22 @@ const styles = StyleSheet.create({
   },
   email: {
     fontSize: 14,
+    marginBottom: 12,
+  },
+  rolesContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  roleBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  roleText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -114,4 +156,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

@@ -4,6 +4,7 @@ import { useKindeAuth } from '@kinde/expo';
 import { getUserProfile } from '@kinde/expo/utils';
 import type { UserProfile } from '@kinde/expo/utils';
 import * as SecureStore from 'expo-secure-store';
+import { router } from 'expo-router';
 
 const GOOGLE_CONN_ID = 'conn_019a3b44508a02e437ab4c788d780f20';
 const EMAIL_CONN_ID  = 'conn_019a3a0e093513699f80ca5ad9af4df1';
@@ -102,22 +103,24 @@ export const useKinde = () => {
   }, [kinde]);
 
   // ---------- LOGOUT ----------
-  const logout = useCallback(async () => {
-    setLoading(true); 
-    setError(null);
-    try {
-      await kinde.logout({ revokeToken: true });
-      setUser(null); 
-      setToken(null);
-      await SecureStore.deleteItemAsync('ACCESS_TOKEN');
-    } catch (e: any) { 
-      console.error('Erreur logout:', e);
-      setError(e); 
-      throw e; 
-    } finally { 
-      setLoading(false); 
-    }
-  }, [kinde]);
+const logout = useCallback(async () => {
+  setLoading(true); 
+  setError(null);
+  try {
+    await kinde.logout({ revokeToken: true });
+    setUser(null); 
+    setToken(null);
+    await SecureStore.deleteItemAsync('ACCESS_TOKEN');
+    // Rediriger vers la page de connexion après déconnexion réussie
+    router.replace('/(auth)/login');
+  } catch (e: any) { 
+    console.error('Erreur logout:', e);
+    setError(e); 
+    throw e; 
+  } finally { 
+    setLoading(false); 
+  }
+}, [kinde]);  // Ajouter router aux dépendances
 
   // ---------- INIT ----------
   useEffect(() => {
