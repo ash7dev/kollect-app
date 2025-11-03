@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable prettier/prettier */
  
 import {
@@ -22,7 +24,7 @@ const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 import { Request } from '@nestjs/common';
 import { AuthResponseWithToken } from './interfaces/auth-response.interface';
 import type { AuthenticatedUser } from '../common/decorators/roles.decorator';
-import * as requestInterface from '../common/interfaces/request.interface';
+import * as requestInterface from '../common/interfaces/request.requestInterface';
 
 @Controller('auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -75,6 +77,7 @@ export class AuthController {
       }
 
        
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       return await this.authService.getUserProfile(req.user.kindeId);
     } catch (error) {
       if (error instanceof UnauthorizedException) {

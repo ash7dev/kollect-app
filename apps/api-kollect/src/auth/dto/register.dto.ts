@@ -12,4 +12,5 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   lastName?: string;
+  password: string;
 }
