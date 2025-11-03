@@ -1,4 +1,3 @@
-// app/_layout.tsx
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from '@/app/context/ThemeContext';
@@ -6,7 +5,21 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SplashScreen } from '@/src/screen/SplashScreen';
 import { KindeAuthProvider, useKindeAuth } from '@kinde/expo';
+import * as SecureStore from 'expo-secure-store';
 import { kindeConfig } from '@/src/features/auth/services/kindeConfig';
+import { initializeFirebase, requestNotificationPermission, setupNotifications, getNotificationToken } from '@/firebaseConfig';
+import * as Notifications from 'expo-notifications';
+
+// Configurer le gestionnaire de notifications pour iOS/Android
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 function RootLayoutContent() {
   const { theme, isDark } = useTheme();
@@ -15,7 +28,43 @@ function RootLayoutContent() {
   const router = useRouter();
   const segments = useSegments();
 
-  // ✅ Gérer la redirection automatique basée sur l'état d'authentification
+  // Initialize Firebase and setup notifications - UNE SEULE FOIS
+  useEffect(() => {
+    const initFirebase = async () => {
+      try {
+        console.log('🚀 Démarrage de l\'initialisation...');
+        
+        await initializeFirebase();
+        
+        const hasPermission = await requestNotificationPermission();
+        
+        if (hasPermission) {
+          await setupNotifications();
+          const token = await getNotificationToken();
+          
+          if (token) {
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🎯 TOKEN REÇU DANS LAYOUT:');
+            console.log(token);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            
+            // TODO: Envoyer le token à votre backend ici
+            // await sendTokenToBackend(token);
+          } else {
+            console.log('⚠️ Aucun token reçu');
+          }
+        } else {
+          console.log('⚠️ Permissions non accordées, impossible de récupérer le token');
+        }
+      } catch (error) {
+        console.error('❌ Error initializing Firebase:', error);
+      }
+    };
+
+    initFirebase();
+  }, []); // Exécuté UNE SEULE FOIS au montage
+
+  // Gérer la redirection automatique basée sur l'état d'authentification
   useEffect(() => {
     if (!isSplashFinished) return;
 
@@ -23,15 +72,12 @@ function RootLayoutContent() {
     const inProtectedGroup = segments[0] === '(client)' || segments[0] === '(ceo)';
 
     if (!isAuthenticated && inProtectedGroup) {
-      // Utilisateur non connecté essayant d'accéder à une zone protégée
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      // Utilisateur connecté sur une page d'authentification
       router.replace('/(client)');
     }
   }, [isAuthenticated, segments, isSplashFinished, router]);
 
-  // Afficher le splash screen personnalisé pendant 1500ms
   if (!isSplashFinished) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -77,23 +123,33 @@ function RootLayoutContent() {
   );
 }
 
+function ThemedApp() {
+  return (
+    <ThemeProvider>
+      <RootLayoutContent />
+    </ThemeProvider>
+  );
+}
+
 export default function RootLayout() {
   return (
     <KindeAuthProvider
-    config={{
-      domain: kindeConfig.domain,
-      clientId: kindeConfig.clientId,
-      scopes: kindeConfig.scopes,
-    }}
-  >
-      <ThemeProvider>
-        <RootLayoutContent />
-      </ThemeProvider>
+      config={{
+        domain: kindeConfig.domain,
+        clientId: kindeConfig.clientId,
+        scopes: kindeConfig.scopes,
+      }}
+      callbacks={{
+        // This is a workaround for v0.5.2
+        // The actual storage is handled by expo-secure-store internally
+        // when using @kinde/expo
+      }}
+    >
+      <ThemedApp />
     </KindeAuthProvider>
   );
 }
 
 export const unstable_settings = {
-  // Route initiale basée sur l'authentification
   initialRouteName: '(auth)',
 };
