@@ -1,25 +1,16 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { SetMetadata } from '@nestjs/common';
-
-export const ROLES_KEY = 'roles';
+import { AuthenticatedUser } from '../decorators/roles.decorator';
 
 export type Role = 'isAdmin' | 'isCEO' | 'isClient';
-
-export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
-
-interface AuthenticatedUser {
-  id: string;
-  kindeId: string;
-  email: string;
-  roles: {
-    isAdmin: boolean;
-    isCEO: boolean;
-    isClient: boolean;
-  };
-}
+export const ROLES_KEY = 'roles';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -32,13 +23,24 @@ export class RolesGuard implements CanActivate {
     ]);
 
     if (!requiredRoles) {
-      return true; // Pas de rôles requis = accès autorisé
+      return true;
     }
 
     const request = context.switchToHttp().getRequest();
     const user = request.user as AuthenticatedUser;
 
-    // Vérifie si l'utilisateur a au moins un des rôles requis
-    return requiredRoles.some((role) => user.roles[role] === true);
+    if (!user) {
+      return false;
+    }
+
+    const hasRole = requiredRoles.some((role) => user[role] === true);
+
+    if (!hasRole) {
+      throw new ForbiddenException(
+        `Accès refusé. Rôles requis: ${requiredRoles.join(', ')}`,
+      );
+    }
+
+    return true;
   }
 }

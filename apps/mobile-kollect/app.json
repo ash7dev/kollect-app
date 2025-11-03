@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "simulator": {
+        "device": "iPhone 14 Pro"
+      },
+      "bundleIdentifier": "com.yourcompany.mobilekollect"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +23,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.yourcompany.mobilekollect",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -39,11 +45,40 @@
           }
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@react-native-firebase/app",
+        {
+          "firebase": {
+            "apiKey": "AIzaSyAyuhQZpGxhrBe0_XGGtHgWh11hzvpA9m0",
+            "authDomain": "kollect-d8c2b.firebaseapp.com",
+            "projectId": "kollect-d8c2b",
+            "storageBucket": "kollect-d8c2b.firebasestorage.app",
+            "messagingSenderId": "48925559154",
+            "appId": "1:48925559154:web:7-be442adf21028229f5eb",
+            "measurementId": "G-C44858TJMJ"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#ffffff"
+        }
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "cdfa3d3d-1030-42a9-bb1b-3fe50a96283f"
+      },
+      "router": {}
+    },
+    "owner": "ash7dev"
   }
 }
