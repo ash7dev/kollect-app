@@ -24,4 +24,5 @@ export interface UserProfile {
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date | null;
+  fcmToken?: string | null;
 }

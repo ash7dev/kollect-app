@@ -1,6 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable prettier/prettier */
+ 
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+ 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -29,6 +30,7 @@ export class AuthService {
   handleKindeWebhook(_payload: unknown) {
     throw new Error('Method not implemented.');
   }
+  
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -49,6 +51,7 @@ export class AuthService {
     city?: string | null;
     postalCode?: string | null;
     country?: string | null;
+    fcmToken?: string | null;
     createdAt: Date;
     updatedAt: Date;
     lastLoginAt?: Date | null;
@@ -74,10 +77,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * Génère un JWT complet avec kindeId et rôles
-   * ⚠️ MÉTHODE CRITIQUE - Tous les champs sont nécessaires pour jwt.strategy.ts
-   */
   private generateJwtToken(user: {
     id: string;
     kindeId: string;
@@ -88,7 +87,7 @@ export class AuthService {
   }): string {
     const payload = {
       sub: user.id,
-      kindeId: user.kindeId, // ✅ REQUIS pour jwt.strategy.ts
+      kindeId: user.kindeId,
       email: user.email,
       roles: {
         isAdmin: user.isAdmin,
@@ -104,7 +103,6 @@ export class AuthService {
       '🔑 Generating JWT with payload:',
       JSON.stringify(payload, null, 2),
     );
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.jwtService.sign(payload);
   }
 
@@ -145,7 +143,6 @@ export class AuthService {
         throw new UnauthorizedException('User not found');
       }
 
-      // ✅ Utilisation de generateJwtToken avec tous les champs
       const token = this.generateJwtToken(userProfile);
       const userProfileResponse = this.toUserProfile(userProfile);
 
@@ -173,8 +170,10 @@ export class AuthService {
         },
       });
 
+      // After registration, log the user in with their credentials
       return this.login({
         email: registerDto.email,
+        password: registerDto.password
       });
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {
@@ -187,27 +186,39 @@ export class AuthService {
     }
   }
 
+  /**
+   * Synchronise l'utilisateur et met à jour le FCM token si fourni
+   */
   async syncUser(syncUserDto: SyncUserDto): Promise<AuthResponseWithToken> {
-    const { kindeId, email, firstName, lastName, avatar } = syncUserDto;
+    const { kindeId, email, firstName, lastName, avatar, fcmToken } = syncUserDto;
 
     try {
       console.log('📥 Syncing user:', JSON.stringify(syncUserDto, null, 2));
 
+      const updateData: any = {
+        email,
+        firstName: firstName ?? null,
+        lastName: lastName ?? null,
+        avatar: avatar ?? null,
+        lastLoginAt: new Date(),
+      };
+
+      // Ajouter le FCM token si fourni
+      if (fcmToken) {
+        updateData.fcmToken = fcmToken;
+        console.log('📱 Updating FCM token:', fcmToken);
+      }
+
       const user = await this.prisma.utilisateur.upsert({
         where: { kindeId },
-        update: {
-          email,
-          firstName: firstName ?? null,
-          lastName: lastName ?? null,
-          avatar: avatar ?? null,
-          lastLoginAt: new Date(),
-        },
+        update: updateData,
         create: {
           kindeId,
           email,
           firstName: firstName ?? null,
           lastName: lastName ?? null,
           avatar: avatar ?? null,
+          fcmToken: fcmToken ?? null,
           isClient: true,
           isAdmin: false,
           isCEO: false,
@@ -215,7 +226,6 @@ export class AuthService {
         },
       });
 
-      // ✅ Utilisation de generateJwtToken avec tous les champs
       const token = this.generateJwtToken(user);
       const userProfileResponse = this.toUserProfile(user);
 
@@ -239,7 +249,6 @@ export class AuthService {
         throw new UnauthorizedException('User not found');
       }
 
-      // ✅ Utilisation de generateJwtToken avec tous les champs
       const token = this.generateJwtToken(user);
       const userProfileResponse = this.toUserProfile(user);
 

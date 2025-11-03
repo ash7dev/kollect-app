@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -13,6 +10,7 @@ interface JwtPayload {
   sub: string; // ID de l'utilisateur dans votre DB
   kindeId: string; // ID Kinde
   email: string;
+  fcmToken?: string | null;
   roles?: {
     isAdmin: boolean;
     isCEO: boolean;
@@ -39,6 +37,7 @@ interface AuthenticatedUser {
     isAdmin: boolean;
     isCEO: boolean;
     isClient: boolean;
+    fcmToken?: string | null;
   };
   firstName?: string | null;
   lastName?: string | null;

@@ -20,4 +20,8 @@ export class SyncUserDto {
   @IsString()
   @IsOptional()
   avatar?: string;
+
+  @IsString()
+  @IsOptional()
+  fcmToken?: string | null;
 }

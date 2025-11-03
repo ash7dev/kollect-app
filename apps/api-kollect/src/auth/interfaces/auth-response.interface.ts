@@ -18,5 +18,6 @@ export interface AuthResponseWithToken {
     createdAt: Date;
     updatedAt: Date;
     lastLoginAt?: Date;
+    fcmToken?: string;
   };
 }
