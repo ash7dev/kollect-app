@@ -261,4 +261,24 @@ export class AuthService {
       throw new UnauthorizedException('Failed to fetch user profile');
     }
   }
+
+ 
+async updateFcmToken(kindeId: string, fcmToken: string): Promise<void> {
+  try {
+    console.log('📱 [AUTH] Updating FCM token:', {
+      kindeId,
+      fcmToken: '***',
+    });
+
+    await this.prisma.utilisateur.update({
+      where: { kindeId },
+      data: { fcmToken },
+    });
+
+    console.log('✅ [AUTH] FCM token updated successfully');
+  } catch (error) {
+    console.error('❌ [AUTH] Error updating FCM token:', error);
+    throw new Error('Failed to update FCM token');
+  }
+}
 }

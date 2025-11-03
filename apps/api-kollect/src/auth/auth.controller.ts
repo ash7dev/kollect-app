@@ -1,5 +1,5 @@
+/* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable prettier/prettier */
- 
 import {
   Controller,
   Post,
@@ -8,6 +8,8 @@ import {
   UseGuards,
   Req,
   UnauthorizedException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
@@ -28,17 +30,16 @@ import * as requestInterface from '../common/interfaces/request.interface';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Get('admin/dashboard')
-  @Roles('isAdmin')
-  getAdminDashboard(@GetUser() user: AuthenticatedUser) {
+  /**
+   * 🆕 AMÉLIORATION : Endpoint de santé pour vérifier si l'API est accessible
+   */
+  @Public()
+  @Get('health')
+  @HttpCode(HttpStatus.OK)
+  healthCheck() {
     return {
-      message: 'Tableau de bord administrateur',
-      user: {
-        email: user.email,
-        roles: user.roles,
-        prenom: user.firstName,
-        nom: user.lastName
-      }
+      status: 'ok',
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -48,12 +49,32 @@ export class AuthController {
    */
   @Public()
   @Post('sync')
+  @HttpCode(HttpStatus.OK) // 🆕 Retourner 200 au lieu de 201
   async syncUser(
     @Body() syncUserDto: SyncUserDto,
   ): Promise<AuthResponseWithToken> {
     try {
-      return await this.authService.syncUser(syncUserDto);
+      console.log('📥 [AUTH] Sync user request:', {
+        kindeId: syncUserDto.kindeId,
+        email: syncUserDto.email,
+        fcmToken: syncUserDto.fcmToken ? '***' : 'none',
+      });
+
+      const result = await this.authService.syncUser(syncUserDto);
+      
+      console.log('✅ [AUTH] Sync successful:', {
+        userId: result.user.id,
+        roles: {
+          isAdmin: result.user.isAdmin,
+          isCEO: result.user.isCEO,
+          isClient: result.user.isClient,
+        },
+      });
+
+      return result;
     } catch (error) {
+      console.error('❌ [AUTH] Sync error:', error);
+      
       if (error instanceof Error) {
         throw new UnauthorizedException(error.message);
       }
@@ -62,20 +83,39 @@ export class AuthController {
   }
 
   /**
-   * Retourne les infos de l'utilisateur connecté avec ses rôles
-   * ET un nouveau JWT avec les rôles actualisés
+   * 🆕 AMÉLIORATION : Retourne les infos de l'utilisateur connecté avec un nouveau JWT
+   * Permet de rafraîchir le token et les rôles
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   async getProfile(@Req() req: requestInterface.AuthRequest): Promise<AuthResponseWithToken> {
     try {
       if (!req.user?.kindeId) {
+        console.error('❌ [AUTH] Invalid user data in request');
         throw new UnauthorizedException('Invalid user data');
       }
 
-       
-      return await this.authService.getUserProfile(req.user.kindeId);
+      console.log('📥 [AUTH] Get profile request:', {
+        kindeId: req.user.kindeId,
+        email: req.user.email,
+      });
+
+      const result = await this.authService.getUserProfile(req.user.kindeId);
+      
+      console.log('✅ [AUTH] Profile fetched:', {
+        userId: result.user.id,
+        roles: {
+          isAdmin: result.user.isAdmin,
+          isCEO: result.user.isCEO,
+          isClient: result.user.isClient,
+        },
+      });
+
+      return result;
     } catch (error) {
+      console.error('❌ [AUTH] Get profile error:', error);
+      
       if (error instanceof UnauthorizedException) {
         throw error;
       }
@@ -84,16 +124,104 @@ export class AuthController {
   }
 
   /**
+   * 🆕 AMÉLIORATION : Endpoint de logout pour invalider le token côté serveur
+   * (optionnel si vous voulez implémenter une blacklist de tokens)
+   */
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async logout(@Req() req: requestInterface.AuthRequest) {
+    try {
+      console.log('🚪 [AUTH] Logout request:', {
+        kindeId: req.user?.kindeId,
+        email: req.user?.email,
+      });
+
+      // TODO: Implémenter une blacklist de tokens si nécessaire
+      // await this.authService.blacklistToken(token);
+
+      return {
+        message: 'Logged out successfully',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ [AUTH] Logout error:', error);
+      throw new UnauthorizedException('Failed to logout');
+    }
+  }
+
+  /**
+   * 🆕 AMÉLIORATION : Endpoint pour mettre à jour le FCM token
+   * Permet de mettre à jour le token de notification sans refaire un login complet
+   */
+  @Post('fcm-token')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async updateFcmToken(
+    @Req() req: requestInterface.AuthRequest,
+    @Body('fcmToken') fcmToken: string,
+  ) {
+    try {
+      if (!req.user?.kindeId) {
+        throw new UnauthorizedException('Invalid user data');
+      }
+
+      if (!fcmToken) {
+        throw new UnauthorizedException('FCM token is required');
+      }
+
+      console.log('📱 [AUTH] Update FCM token:', {
+        kindeId: req.user.kindeId,
+        fcmToken: '***',
+      });
+
+      await this.authService.updateFcmToken(req.user.kindeId, fcmToken);
+
+      return {
+        message: 'FCM token updated successfully',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ [AUTH] Update FCM token error:', error);
+      throw new UnauthorizedException('Failed to update FCM token');
+    }
+  }
+
+  /**
+   * Exemple d'endpoint protégé par rôle
+   */
+  @Get('admin/dashboard')
+  @Roles('isAdmin')
+  @HttpCode(HttpStatus.OK)
+  getAdminDashboard(@GetUser() user: AuthenticatedUser) {
+    return {
+      message: 'Tableau de bord administrateur',
+      user: {
+        email: user.email,
+        roles: user.roles,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
    * Webhook Kinde (optionnel - pour sync automatique)
    * Appelé par Kinde lors d'événements (user.created, user.updated)
    */
+  @Public()
   @Post('webhook/kinde')
+  @HttpCode(HttpStatus.OK)
   handleKindeWebhook(@Body() payload: unknown): { received: boolean } {
     try {
+      console.log('🔔 [AUTH] Kinde webhook received:', payload);
+      
       this.authService.handleKindeWebhook(payload);
+      
       return { received: true };
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
+      console.error('❌ [AUTH] Webhook error:', error);
       throw new UnauthorizedException('Invalid webhook payload');
     }
   }

@@ -1,22 +1,29 @@
-// backend/src/app.module.ts
-
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { AuthModule } from './auth/auth.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { UploadModule } from './upload/upload.module';
+import { PrismaModule } from './prisma/prisma.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PrismaModule } from './prisma/prisma.module';
-import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
-    // Variables d'environnement
     ConfigModule.forRoot({
-      isGlobal: true, // Disponible partout sans import
-      envFilePath: '.env',
+      isGlobal: true,
     }),
-    // Prisma
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.register({
+      global: true,
+      secret: process.env.JWT_SECRET || 'default-secret',
+      signOptions: { expiresIn: '24h' },
+    }),
     PrismaModule,
     AuthModule,
+    NotificationsModule,
+    UploadModule, // 🆕 Ajout du module upload
   ],
   controllers: [AppController],
   providers: [AppService],
