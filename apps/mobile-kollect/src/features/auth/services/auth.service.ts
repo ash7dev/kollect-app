@@ -24,6 +24,14 @@ interface BackendUser {
   isAdmin: boolean;
   isCEO: boolean;
   isClient: boolean;
+  has_seen_creator_prompt: boolean;
+  brand: {  // ✅ Ajouter ce champ
+    id: string;
+    name: string;
+    slug: string;
+    logo: string | null;
+    isVerified: boolean;
+  } | null;
   country?: string;
   createdAt: string;
   updatedAt: string;
@@ -39,9 +47,7 @@ interface AuthResponse {
 // CONFIGURATION
 // ============================================
 
-const API_URL = __DEV__
-  ? 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api'
-  : 'https://votre-api-production.com/api';
+const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api';
 
 const STORAGE_KEYS = {
   JWT_TOKEN: 'jwt_token',
@@ -57,7 +63,7 @@ class AuthService {
   /**
    * 🔐 Étape principale : Synchroniser avec le backend après login Kinde
    */
-  async syncWithBackend(kindeUser: KindeUser): Promise<AuthResponse> {
+  async syncWithBackend(kindeUser: KindeUser, fcmToken?: string): Promise<AuthResponse> {
     try {
       console.log('📤 [AUTH] Synchronisation avec backend...', {
         kindeId: kindeUser.id,
@@ -67,6 +73,7 @@ class AuthService {
       console.log('Données envoyées:', {
   kindeId: kindeUser.id,
   email: kindeUser.email,
+
   // ... autres champs
 });
       const response = await fetch(`${API_URL}/auth/sync`, {
@@ -80,6 +87,7 @@ class AuthService {
           firstName: kindeUser.given_name,
           lastName: kindeUser.family_name,
           avatar: kindeUser.picture,
+          fcmToken: fcmToken || undefined,
         }),
       });
       
@@ -114,6 +122,50 @@ class AuthService {
   /**
    * 💾 Stocker les données d'authentification de manière sécurisée
    */
+  /**
+   * 🧭 Mettre à jour le rôle utilisateur et marquer le prompt comme vu
+   */
+  async updateUserRole(
+    userId: string,
+    role: 'client' | 'vendeur',
+    hasSeenCreatorPrompt = true
+  ): Promise<AuthResponse> {
+    try {
+      console.log('🧭 [AUTH] Mise à jour du rôle utilisateur...', { userId, role });
+
+      const token = await this.getToken();
+      if (!token) throw new Error('No JWT token found');
+
+      const response = await fetch(`${API_URL}/auth/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          choice: role,
+          hasSeenCreatorPrompt,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Update failed: ${response.status} - ${errorText}`);
+      }
+
+      const data: AuthResponse = await response.json();
+
+      // Stocker les nouvelles données et le nouveau token
+      await this.storeAuthData(data);
+
+      console.log('✅ [AUTH] Rôle mis à jour avec succès');
+      return data;
+    } catch (error) {
+      console.error('❌ [AUTH] Erreur updateUserRole:', error);
+      throw error;
+    }
+  }
+
   private async storeAuthData(authData: AuthResponse): Promise<void> {
     try {
       await SecureStore.setItemAsync(STORAGE_KEYS.JWT_TOKEN, authData.access_token);

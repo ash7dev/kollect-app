@@ -14,155 +14,75 @@ export const API_ENDPOINTS = {
   },
 
   // ============================================
-  // PRODUCTS
-  // ============================================
-  PRODUCTS: {
-    LIST: '/products',
-    DETAILS: (id: string) => `/products/${id}`,
-    CREATE: '/products',
-    UPDATE: (id: string) => `/products/${id}`,
-    DELETE: (id: string) => `/products/${id}`,
-    BY_COLLECTION: (collectionId: string) => `/products/collection/${collectionId}`,
-    BY_BRAND: (brandId: string) => `/products/brand/${brandId}`,
-    SEARCH: '/products/search',
-    FEATURED: '/products/featured',
-  },
-
-  // ============================================
-  // COLLECTIONS
-  // ============================================
-  COLLECTIONS: {
-    LIST: '/collections',
-    DETAILS: (id: string) => `/collections/${id}`,
-    CREATE: '/collections',
-    UPDATE: (id: string) => `/collections/${id}`,
-    DELETE: (id: string) => `/collections/${id}`,
-    UPCOMING: '/collections/upcoming',
-    ACTIVE: '/collections/active',
-  },
-
-  // ============================================
-  // BRANDS
+  // BRANDS (Boutiques)
   // ============================================
   BRANDS: {
+    // Routes publiques
     LIST: '/brands',
-    DETAILS: (id: string) => `/brands/${id}`,
+    BY_SLUG: (slug: string) => `/brands/slug/${slug}`,
+    
+    // Routes CEO
     CREATE: '/brands',
+    MY_BRAND: '/brands/my-brand',
+    
+    // Routes propriétaire (CEO + ownership)
     UPDATE: (id: string) => `/brands/${id}`,
-    DELETE: (id: string) => `/brands/${id}`,
-    FOLLOW: (id: string) => `/brands/${id}/follow`,
-    UNFOLLOW: (id: string) => `/brands/${id}/unfollow`,
-    FOLLOWERS: (id: string) => `/brands/${id}/followers`,
+    DEACTIVATE: (id: string) => `/brands/${id}/deactivate`,
+    REACTIVATE: (id: string) => `/brands/${id}/reactivate`,
+    STATS: (id: string) => `/brands/${id}/stats`,
+    
+    // Routes admin
+    VERIFY: (id: string) => `/brands/${id}/verify`,
+    FORCE_DELETE: (id: string) => `/brands/${id}/force-delete`,
   },
-
-  // ============================================
-  // ORDERS
-  // ============================================
-  ORDERS: {
-    LIST: '/orders',
-    DETAILS: (id: string) => `/orders/${id}`,
-    CREATE: '/orders',
-    UPDATE_STATUS: (id: string) => `/orders/${id}/status`,
-    CANCEL: (id: string) => `/orders/${id}/cancel`,
-    MY_ORDERS: '/orders/my-orders',
-  },
-
-  // ============================================
-  // FAVORITES
-  // ============================================
-  FAVORITES: {
-    LIST: '/favorites',
-    ADD: '/favorites',
-    REMOVE: (productId: string) => `/favorites/${productId}`,
-  },
-
-  // ============================================
-  // USERS
-  // ============================================
-  USERS: {
-    PROFILE: '/users/profile',
-    UPDATE_PROFILE: '/users/profile',
-    UPLOAD_AVATAR: '/users/avatar',
-  },
-
-  // ============================================
-  // NOTIFICATIONS
-  // ============================================
-  NOTIFICATIONS: {
-    LIST: '/notifications',
-    MARK_AS_READ: (id: string) => `/notifications/${id}/read`,
-    MARK_ALL_AS_READ: '/notifications/read-all',
-    DELETE: (id: string) => `/notifications/${id}`,
-  },
-
-  // ============================================
-  // CART (si vous en avez besoin)
-  // ============================================
-  CART: {
-    GET: '/cart',
-    ADD_ITEM: '/cart/items',
-    UPDATE_ITEM: (itemId: string) => `/cart/items/${itemId}`,
-    REMOVE_ITEM: (itemId: string) => `/cart/items/${itemId}`,
-    CLEAR: '/cart/clear',
-  },
-} as const;
-
-// ============================================
-// TYPE HELPERS
-// ============================================
-
-type EndpointValue = string | ((...args: any[]) => string);
-
-type FlattenEndpoints<T> = T extends Record<string, any>
-  ? {
-      [K in keyof T]: T[K] extends Record<string, EndpointValue>
-        ? FlattenEndpoints<T[K]>
-        : T[K];
-    }
-  : T;
-
-export type ApiEndpoints = FlattenEndpoints<typeof API_ENDPOINTS>;
-
-// ============================================
-// HELPER: Construire une URL avec query params
-// ============================================
-
-export const buildUrl = (
-  endpoint: string,
-  params?: Record<string, string | number | boolean | undefined>
-): string => {
-  if (!params) return endpoint;
-
-  const queryParams = new URLSearchParams();
-  
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined) {
-      queryParams.append(key, String(value));
-    }
-  });
-
-  const queryString = queryParams.toString();
-  return queryString ? `${endpoint}?${queryString}` : endpoint;
 };
 
 // ============================================
-// EXEMPLES D'UTILISATION
+// EXEMPLES D'UTILISATION (Frontend)
 // ============================================
 
 /*
-// Import
-import { API_ENDPOINTS, buildUrl } from '@/services/api/endpoints';
+// 1. Lister toutes les boutiques (public)
+const brands = await apiClient.get(API_ENDPOINTS.BRANDS.LIST);
 
-// Utilisation simple
-const url1 = API_ENDPOINTS.PRODUCTS.LIST; // '/products'
+// 2. Lister avec filtres
+const activeBrands = await apiClient.get(API_ENDPOINTS.BRANDS.LIST, {
+  params: { isActive: true, search: 'fashion' }
+});
 
-// Avec paramètre
-const url2 = API_ENDPOINTS.PRODUCTS.DETAILS('123'); // '/products/123'
+// 3. Récupérer une boutique par slug (public)
+const brand = await apiClient.get(API_ENDPOINTS.BRANDS.BY_SLUG('nike-official'));
 
-// Avec query params
-const url3 = buildUrl(API_ENDPOINTS.PRODUCTS.LIST, {
-  page: 1,
-  limit: 20,
-  category: 'sneakers'
-}); // '/products?page=1&limit=20&category=sneakers'
+// 4. Créer une boutique (CEO)
+const newBrand = await apiClient.post(API_ENDPOINTS.BRANDS.CREATE, {
+  name: 'Ma Boutique',
+  slug: 'ma-boutique',
+  bio: 'Description...',
+  // ... autres champs
+});
+
+// 5. Récupérer MA boutique (CEO dashboard)
+const myBrand = await apiClient.get(API_ENDPOINTS.BRANDS.MY_BRAND);
+
+// 6. Mettre à jour MA boutique (CEO + ownership)
+const updated = await apiClient.patch(
+  API_ENDPOINTS.BRANDS.UPDATE('brand-id-123'),
+  { bio: 'Nouvelle description' }
+);
+
+// 7. Désactiver MA boutique (CEO + ownership)
+await apiClient.delete(API_ENDPOINTS.BRANDS.DEACTIVATE('brand-id-123'));
+
+// 8. Réactiver MA boutique (CEO + ownership)
+await apiClient.patch(API_ENDPOINTS.BRANDS.REACTIVATE('brand-id-123'));
+
+// 9. Récupérer les stats (CEO + ownership)
+const stats = await apiClient.get(API_ENDPOINTS.BRANDS.STATS('brand-id-123'));
+// Retourne: { totalProducts, totalCollections, totalOrders, totalRevenue, ... }
+
+// 10. Vérifier une boutique (Admin)
+await apiClient.patch(API_ENDPOINTS.BRANDS.VERIFY('brand-id-123'));
+
+// 11. Supprimer définitivement (Admin)
+await apiClient.delete(API_ENDPOINTS.BRANDS.FORCE_DELETE('brand-id-123'));
 */

@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { UploadModule } from './upload/upload.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { BrandsModule } from './brands/brands.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -24,6 +25,7 @@ import { AppService } from './app.service';
     AuthModule,
     NotificationsModule,
     UploadModule, // 🆕 Ajout du module upload
+    BrandsModule, // Module pour la gestion des marques
   ],
   controllers: [AppController],
   providers: [AppService],

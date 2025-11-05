@@ -10,6 +10,8 @@ import {
   UnauthorizedException,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
 } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
@@ -223,6 +225,39 @@ export class AuthController {
     } catch (error) {
       console.error('❌ [AUTH] Webhook error:', error);
       throw new UnauthorizedException('Invalid webhook payload');
+    }
+  }
+
+  /**
+   * Met à jour le rôle de l'utilisateur et le statut has_seen_creator_prompt
+   */
+  @Patch('users/:id/role')
+  @HttpCode(HttpStatus.OK)
+  async updateUserRole(
+    @Param('id') userId: string,
+    @Body() body: { choice: 'client' | 'vendeur', hasSeenCreatorPrompt: boolean },
+    @GetUser() user: AuthenticatedUser
+  ): Promise<AuthResponseWithToken> {
+    // Vérifier que l'utilisateur met à jour son propre profil ou est admin
+    if (user.id !== userId && !user.isAdmin) {
+      throw new UnauthorizedException('Not authorized to update this user');
+    }
+
+    try {
+      console.log('🔄 [AUTH] Updating user role:', {
+        userId,
+        role: body.choice,
+        hasSeenCreatorPrompt: body.hasSeenCreatorPrompt
+      });
+
+      return this.authService.updateUserRole(
+        userId,
+        body.choice,
+        body.hasSeenCreatorPrompt
+      );
+    } catch (error) {
+      console.error('❌ [AUTH] Update role error:', error);
+      throw new UnauthorizedException('Failed to update user role');
     }
   }
 }

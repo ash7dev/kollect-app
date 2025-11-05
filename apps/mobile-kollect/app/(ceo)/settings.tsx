@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useTheme } from '@/app/context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore } from '@/src/store/authStore';
+import { useAuthStore } from '../../src/store/authStore';
 
 export default function ProfileScreen() {
   const { theme } = useTheme();

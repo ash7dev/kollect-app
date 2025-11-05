@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { useTheme } from '@/app/context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 
 export default function AuthLayout() {

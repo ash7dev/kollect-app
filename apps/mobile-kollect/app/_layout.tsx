@@ -1,34 +1,47 @@
-// app/_layout.tsx - VERSION AVEC DÉLAIS MINIMUM
-import { Stack, useRouter, useSegments } from 'expo-router';
+/* eslint-disable @typescript-eslint/no-require-imports */
+// app/_layout.tsx - Version optimisée avec fetch intelligent
+import { SplashScreen as ExpoSplash, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ThemeProvider, useTheme } from '@/app/context/ThemeContext';
-import { useEffect, useState, useRef } from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import OnboardingScreen from '@/app/(auth)/onboarding';
-import { SplashScreen } from '@/src/screen/SplashScreen';
-import { KindeAuthProvider } from '@kinde/expo';
-import { kindeConfig } from '@/src/features/auth/services/kindeConfig';
-import { 
-  initializeFirebase, 
-  requestNotificationPermission, 
-  setupNotifications, 
-  getNotificationToken 
-} from '@/firebaseConfig';
 import * as Notifications from 'expo-notifications';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient } from '@/src/config/queryClient';
-import { useAuthStore } from '@/src/store/authStore';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { KindeAuthProvider } from '@kinde/expo';
 
-// ⏱️ CONFIGURATION DES DÉLAIS (en millisecondes)
+// Config local
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { queryClient } from '../src/config/queryClient';
+import { useAuthStore } from '../src/store/authStore';
+import { CreatorPromptScreen } from '../src/screen/CreatorPromptScreen';
+import { kindeConfig } from '../src/features/auth/services/kindeConfig';
+
+// Composants/écrans
+import OnboardingScreen from './(auth)/onboarding';
+import { SplashScreen } from '../src/screen/SplashScreen/index';
+
+// Firebase utils
+import {
+  initializeFirebase,
+  requestNotificationPermission,
+  setupNotifications,
+  getNotificationToken,
+} from '../firebaseConfig';
+
+// Backend auth service
+import { authService } from '../src/features/auth/services/auth.service';
+
+// --- Timing
 const TIMING = {
-  SPLASH_MIN: 2000,        // Splash minimum 2 secondes
-  LOADING_MIN: 800,        // Chargement minimum 0.8 secondes
-  NAVIGATION_DELAY: 100,   // Délai avant navigation
-  TRANSITION_BUFFER: 300,  // Buffer après navigation
+  SPLASH_MIN: 800,
 };
 
-// Configuration des notifications
+const STORAGE_KEYS = {
+  JWT_TOKEN: 'jwt_token',
+};
+
+// Notifications handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -39,265 +52,223 @@ Notifications.setNotificationHandler({
   }),
 });
 
-let globalSplashShown = false;
+ExpoSplash.preventAutoHideAsync();
 
 function RootLayoutContent() {
   const { theme, isDark } = useTheme();
-  const [isSplashFinished, setIsSplashFinished] = useState(globalSplashShown);
-  const [isInitialized, setIsInitialized] = useState(false);
+
+  // États
+  const [showCustomSplash, setShowCustomSplash] = useState(true);
+  const [splashAnimationDone, setSplashAnimationDone] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
-  const [isNavigating, setIsNavigating] = useState(false);
-  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
-  
-  const router = useRouter();
-  const segments = useSegments();
-  
-  const hasInitializedRef = useRef(false);
-  const navigationAttempted = useRef(false);
-  const loadingStartTime = useRef<number | null>(null);
-  const splashStartTime = useRef<number>(Date.now());
 
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isLoading = useAuthStore((state) => state.isLoading);
-  const user = useAuthStore((state) => state.user);
-  const initAuth = useAuthStore((state) => state.initAuth);
+  const { isAuthenticated, isLoading, user, initAuth, _setAuth ,token} = useAuthStore();
 
-  // ============================================
-  // Utilitaire pour attendre un délai minimum
-  // ============================================
-  const waitMinimumTime = async (startTime: number, minimumMs: number) => {
-    const elapsed = Date.now() - startTime;
-    const remaining = minimumMs - elapsed;
-    
-    if (remaining > 0) {
-      console.log(`⏱️ [Timing] Attente de ${remaining}ms pour atteindre le minimum de ${minimumMs}ms`);
-      await new Promise(resolve => setTimeout(resolve, remaining));
-    }
-  };
+  const initOnceRef = useRef(false);
+  const startTimeRef = useRef<number | null>(null);
 
-  // ============================================
-  // 1. Initialiser l'authentification
-  // ============================================
-  useEffect(() => {
-    if (hasInitializedRef.current) return;
-    
-    const initialize = async () => {
-      console.log('🔐 [Layout] Initialisation de l\'auth store...');
-      loadingStartTime.current = Date.now();
-      
-      await initAuth();
-      
-      // Attendre le délai minimum avant de marquer comme initialisé
-      await waitMinimumTime(loadingStartTime.current, TIMING.LOADING_MIN);
-      
-      setIsInitialized(true);
-      hasInitializedRef.current = true;
-      console.log('✅ [Layout] Initialisation terminée');
-    };
-
-    initialize();
-  }, [initAuth]);
-
-  // ============================================
-  // 2. Initialiser Firebase
-  // ============================================
-  useEffect(() => {
-    const initFirebase = async () => {
-      try {
-        console.log('🚀 [Firebase] Démarrage de l\'initialisation...');
-        await initializeFirebase();
-        const hasPermission = await requestNotificationPermission();
-        
-        if (hasPermission) {
-          await setupNotifications();
-          const token = await getNotificationToken();
-          if (token) {
-            console.log('🎯 TOKEN FCM:', token);
-          }
-        }
-      } catch (error) {
-        console.error('❌ [Firebase] Erreur:', error);
-      }
-    };
-
-    if (!hasInitializedRef.current) {
-      initFirebase();
+  // Utility: check onboarding
+  const checkOnboarding = useCallback(async (): Promise<boolean> => {
+    try {
+      const raw = await AsyncStorage.getItem('@hasSeenOnboarding');
+      const result = raw === 'true';
+      setHasSeenOnboarding(result);
+      console.log('[Init] Onboarding status:', result);
+      return result;
+    } catch (err) {
+      console.warn('[Init] checkOnboarding error', err);
+      setHasSeenOnboarding(false);
+      return false;
     }
   }, []);
 
   // ============================================
-  // 3. Vérifier le statut onboarding
+  // INITIALISATION CENTRALISÉE
   // ============================================
   useEffect(() => {
-    const checkOnboarding = async () => {
-      try {
-        const hasSeen = await AsyncStorage.getItem('@hasSeenOnboarding');
-        console.log('📱 [Onboarding] Statut:', hasSeen);
-        setHasSeenOnboarding(hasSeen === 'true');
-      } catch (error) {
-        console.error('❌ [Onboarding] Erreur:', error);
-        setHasSeenOnboarding(false);
-      }
-    };
+    if (initOnceRef.current) return;
+    initOnceRef.current = true;
+    startTimeRef.current = Date.now();
 
-    checkOnboarding();
-  }, []);
+    const initializeAll = async () => {
+      console.log('🚀 [Init] Démarrage initialisation parallèle');
 
-  // ============================================
-  // 4. Gérer la navigation automatique
-  // ============================================
-  useEffect(() => {
-    if (!isSplashFinished || !isInitialized || hasSeenOnboarding === null || isLoading) {
-      return;
-    }
-
-    const inAuthGroup = segments[0] === '(auth)';
-    const inProtectedGroup = segments[0] === '(client)' || segments[0] === '(ceo)';
-
-    if (!hasSeenOnboarding) {
-      return;
-    }
-
-    const navigateSafely = async (path: string, reason: string) => {
-      if (navigationAttempted.current) return;
-      
-      navigationAttempted.current = true;
-      setIsNavigating(true);
-      setShowLoadingScreen(true);
-      
-      const navStartTime = Date.now();
-      console.log(`🚀 [Navigation] ${reason} → ${path}`);
-      
-      // Attendre le délai de navigation
-      await new Promise(resolve => setTimeout(resolve, TIMING.NAVIGATION_DELAY));
-      
-      router.replace(path as any);
-      
-      // Attendre le délai minimum de chargement
-      await waitMinimumTime(navStartTime, TIMING.LOADING_MIN);
-      
-      // Buffer de transition
-      await new Promise(resolve => setTimeout(resolve, TIMING.TRANSITION_BUFFER));
-      
-      setIsNavigating(false);
-      setShowLoadingScreen(false);
-      navigationAttempted.current = false;
-    };
-
-    // Logique de navigation inchangée
-    if (!isAuthenticated && inProtectedGroup) {
-      navigateSafely('/(auth)/login', 'Non authentifié');
-      return;
-    }
-
-    if (isAuthenticated && inProtectedGroup) {
-      if (!user) return;
-      
-      if (segments[0] === '(ceo)' && !user.isAdmin && !user.isCEO) {
-        navigateSafely('/(client)', 'Accès CEO refusé');
-        return;
-      }
-    }
-
-    if (isAuthenticated && inAuthGroup) {
-      if (!user) return;
-      
-      if (user.isAdmin || user.isCEO) {
-        navigateSafely('/(ceo)', 'Utilisateur CEO/Admin');
-      } else {
-        navigateSafely('/(client)', 'Utilisateur Client');
-      }
-      return;
-    }
-
-    if (navigationAttempted.current) {
-      setTimeout(() => {
-        navigationAttempted.current = false;
-      }, 500);
-    }
-  }, [
-    isSplashFinished,
-    isInitialized,
-    hasSeenOnboarding,
-    isAuthenticated,
-    isLoading,
-    user,
-    segments,
-    router
-  ]);
-
-  // ============================================
-  // Vérifier si on peut afficher le contenu
-  // ============================================
-  const canRenderContent = () => {
-    if (!isInitialized || isLoading || hasSeenOnboarding === null) {
-      return false;
-    }
-
-    if (isNavigating || showLoadingScreen) {
-      return false;
-    }
-
-    const inProtectedGroup = segments[0] === '(client)' || segments[0] === '(ceo)';
-    
-    if (inProtectedGroup && !isAuthenticated) {
-      return false;
-    }
-
-    if (isAuthenticated && inProtectedGroup && !user) {
-      return false;
-    }
-
-    if (isAuthenticated && segments[0] === '(ceo)' && user && !user.isAdmin && !user.isCEO) {
-      return false;
-    }
-
-    return true;
-  };
-
-  // ============================================
-  // Affichage conditionnel
-  // ============================================
-  
-  // 1. Splash Screen avec délai minimum
-  if (!isSplashFinished) {
-    return (
-      <SplashScreen 
-        onAnimationComplete={async () => {
-          // Attendre le délai minimum du splash
-          await waitMinimumTime(splashStartTime.current, TIMING.SPLASH_MIN);
-          
-          setIsSplashFinished(true);
-          globalSplashShown = true;
-          console.log('✅ [Splash] Terminé après délai minimum');
-        }} 
-      />
-    );
-  }
-
-  // 2. Onboarding
-  if (hasSeenOnboarding === false) {
-    return (
-      <OnboardingScreen 
-        onFinish={async () => {
+      // 1. Tâches parallèles de base (Firebase, Auth, Onboarding)
+      const basicTasks = [
+        // Firebase
+        (async () => {
           try {
-            console.log('✅ [Onboarding] Terminé, sauvegarde...');
-            await AsyncStorage.setItem('@hasSeenOnboarding', 'true');
-            setHasSeenOnboarding(true);
-            console.log('✅ [Onboarding] Sauvegardé');
-          } catch (error) {
-            console.error('❌ [Onboarding] Erreur sauvegarde:', error);
+            await initializeFirebase();
+            const hasPermission = await requestNotificationPermission();
+            if (hasPermission) {
+              await setupNotifications();
+              const token = await getNotificationToken();
+              if (token) console.log('🎯 [Init] FCM token obtenu');
+            }
+            return { name: 'firebase', ok: true };
+          } catch (err) {
+            console.warn('[Init] Firebase échoué (non-fatal)', err);
+            return { name: 'firebase', ok: false, err };
           }
-        }} 
+        })(),
+        
+        // Auth init (hydrate le store depuis SecureStore)
+        (async () => {
+          try {
+            await initAuth();
+            return { name: 'auth', ok: true };
+          } catch (err) {
+            console.warn('[Init] initAuth échoué', err);
+            return { name: 'auth', ok: false, err };
+          }
+        })(),
+        
+        // Onboarding check
+        (async () => {
+          try {
+            const onboarding = await checkOnboarding();
+            return { name: 'onboarding', ok: true, onboarding };
+          } catch (err) {
+            console.warn('[Init] Onboarding check échoué', err);
+            return { name: 'onboarding', ok: false, err };
+          }
+        })(),
+      ];
+
+      await Promise.allSettled(basicTasks);
+
+      // 2. Fetch explicite currentUser SI on a un token
+      // Ceci garantit qu'on a la version la plus fraîche du backend
+      try {
+        const jwtToken = await SecureStore.getItemAsync(STORAGE_KEYS.JWT_TOKEN);
+        
+        if (jwtToken) {
+          console.log('[Init] Token détecté, fetch currentUser...');
+          
+          const fetchedUser = await queryClient.fetchQuery({
+            queryKey: ['currentUser'],
+            queryFn: async () => {
+              const userData = await authService.getUserData();
+              console.log('[Init] User fetched:', {
+                email: userData?.email,
+                isCEO: userData?.isCEO,
+                hasBrand: !!userData?.brand,
+              });
+              return userData;
+            },
+            staleTime: 0, // Fresh fetch pour init
+            gcTime: 1000 * 60 * 5, // Cache 5 min
+            retry: false,
+          });
+
+          // Vérifier si on doit hydrater le store
+          const currentStoreUser = useAuthStore.getState().user;
+          
+          if (fetchedUser) {
+            // Si le store n'a pas de user OU si le user est différent
+            const needsSync = !currentStoreUser || 
+                             currentStoreUser.id !== fetchedUser.id ||
+                             currentStoreUser.brand !== fetchedUser.brand;
+            
+            if (needsSync) {
+              console.log('[Init] 🔄 Synchronisation user store → backend');
+              await _setAuth(fetchedUser, jwtToken);
+            } else {
+              console.log('[Init] ✅ User déjà à jour dans le store');
+            }
+          }
+        } else {
+          console.log('[Init] Pas de token, skip fetch currentUser');
+        }
+      } catch (err) {
+        console.warn('[Init] Fetch currentUser échoué (non-fatal)', err);
+        // Continue quand même - l'app peut fonctionner avec le user du store
+      }
+
+      // 3. Garantir temps minimum de splash
+      const elapsed = Date.now() - (startTimeRef.current || Date.now());
+      const remaining = Math.max(0, TIMING.SPLASH_MIN - elapsed);
+      if (remaining > 0) {
+        console.log(`⏱️ [Init] Attente ${remaining}ms pour splash minimum`);
+        await new Promise(res => setTimeout(res, remaining));
+      }
+
+      // 4. Marquer comme prêt
+      setIsReady(true);
+      console.log('✅ [Init] Application PRÊTE');
+    };
+
+    initializeAll().catch(err => {
+      console.error('[Init] Erreur non gérée', err);
+      setHasSeenOnboarding(prev => prev === null ? false : prev);
+      setIsReady(true);
+    });
+  }, [checkOnboarding, initAuth, _setAuth]);
+
+  // ============================================
+  // GESTION DU SPLASH
+  // ============================================
+  useEffect(() => {
+    const tryHideSplash = async () => {
+      if (!splashAnimationDone || !isReady) return;
+
+      try {
+        await ExpoSplash.hideAsync();
+      } catch (err) {
+        console.warn('[Splash] hideAsync échoué', err);
+      }
+      
+      setShowCustomSplash(false);
+      console.log('👋 [Splash] Splash caché');
+    };
+
+    tryHideSplash();
+  }, [splashAnimationDone, isReady]);
+
+  // ============================================
+  // LOG CHANGEMENTS USER (DEBUG)
+  // ============================================
+  // DEBUG: Log l'état complet avant chaque décision de navigation
+  useEffect(() => {
+    console.log('🎯 [Navigation] État actuel:', {
+      isReady,
+      hasSeenOnboarding,
+      isLoading,
+      isAuthenticated,
+      hasToken: !!token,
+      hasUser: !!user,
+      userEmail: user?.email,
+      isCEO: user?.isCEO,
+      hasBrand: !!user?.brand,
+    });
+  }, [isReady, hasSeenOnboarding, isLoading, isAuthenticated, token, user]);
+
+  // ============================================
+  // PAS DE FORCAGE NAVIGATION - Le Stack avec initialRouteName devrait suffire
+  // ============================================
+
+  // ============================================
+  // RENDU CONDITIONNEL
+  // ============================================
+
+  // 1. Splash personnalisé
+  if (showCustomSplash) {
+    return (
+      <SplashScreen
+        onAnimationComplete={() => {
+          console.log('[Splash] Animation terminée');
+          setSplashAnimationDone(true);
+        }}
       />
     );
   }
 
-  // 3. Écran de chargement avec minimum garanti
-  if (!canRenderContent()) {
+  // 2. Loader si pas prêt
+  if (!isReady || hasSeenOnboarding === null || isLoading) {
     return (
-      <View style={{ 
-        flex: 1, 
+      <View style={{
+        flex: 1,
         backgroundColor: theme.colors.background,
         justifyContent: 'center',
         alignItems: 'center',
@@ -307,37 +278,152 @@ function RootLayoutContent() {
     );
   }
 
-  // 4. Navigation principale
+  // 3. Onboarding
+  if (hasSeenOnboarding === false) {
+    return (
+      <OnboardingScreen
+        onFinish={async () => {
+          try {
+            await AsyncStorage.setItem('@hasSeenOnboarding', 'true');
+            setHasSeenOnboarding(true);
+            console.log('✅ [Onboarding] Complété');
+          } catch (err) {
+            console.error('[Onboarding] Erreur sauvegarde', err);
+          }
+        }}
+      />
+    );
+  }
+
+  // 4. Non authentifié → Stack Auth
+  console.log('🔍 [Layout] Vérification condition 4 - Non authentifié:', {
+    isAuthenticated,
+    hasToken: !!token,
+    condition: !isAuthenticated || !token,
+  });
+  if (!isAuthenticated || !token) {
+    console.log('✅ [Layout] Condition 4 VRAIE - Retour Stack Auth');
+    return (
+      <>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: theme.colors.background },
+          }}
+          initialRouteName="(auth)"
+        >
+          <Stack.Screen name="(auth)" />
+        </Stack>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </>
+    );
+  }
+
+  // 5. Authentifié mais user pas chargé (défensif)
+  console.log('🔍 [Layout] Vérification condition 5 - User pas chargé:', {
+    isAuthenticated,
+    hasUser: !!user,
+    condition: isAuthenticated && !user,
+  });
+  if (isAuthenticated && !user) {
+    console.log('✅ [Layout] Condition 5 VRAIE - Retour Loader');
+    return (
+      <View style={{
+        flex: 1,
+        backgroundColor: theme.colors.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  // 6. CreatorPrompt (sélection de rôle)
+  // ⚠️ IMPORTANT: Vérifier isAuthenticated ET token avant de vérifier user
+  console.log('🔍 [Layout] Vérification condition 6 - CreatorPrompt:', {
+    isAuthenticated,
+    hasToken: !!token,
+    hasUser: !!user,
+    hasSeenPrompt: user?.has_seen_creator_prompt,
+    condition: isAuthenticated && token && user && user.has_seen_creator_prompt === false,
+  });
+  if (isAuthenticated && token && user && user.has_seen_creator_prompt === false) {
+    console.log('✅ [Layout] Condition 6 VRAIE - Retour CreatorPrompt');
+    return (
+      <View style={{ flex: 1, backgroundColor: 'white' }}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <CreatorPromptScreen />
+      </View>
+    );
+  }
+
+  // 7. CEO sans marque → CreateBrand
+  // ⚠️ IMPORTANT: Vérifier isAuthenticated ET token avant de vérifier user.isCEO
+  console.log('🔍 [Layout] Vérification condition 7 - CEO sans marque:', {
+    isAuthenticated,
+    hasToken: !!token,
+    hasUser: !!user,
+    isCEO: user?.isCEO,
+    hasBrand: !!user?.brand,
+    condition: isAuthenticated && token && user && user.isCEO && !user.brand,
+  });
+  if (isAuthenticated && token && user && user.isCEO && !user.brand) {
+    console.log('✅ [Layout] Condition 7 VRAIE - Retour CreateBrand');
+    try {
+      const { CreateBrandScreen } = require('../src/screen/CreateBrandScreen');
+      return (
+        <View style={{ flex: 1, backgroundColor: 'white' }}>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <CreateBrandScreen />
+        </View>
+      );
+    } catch (err) {
+      console.error('[Layout] CreateBrandScreen import échoué', err);
+      // Fallback: ne PAS naviguer vers CEO si erreur, retourner vers Auth
+      return (
+        <>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" />
+          </Stack>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+        </>
+      );
+    }
+  }
+
+  // 8. CEO avec marque → Stack CEO
+  console.log('🔍 [Layout] Vérification condition 8 - CEO avec marque:', {
+    isAuthenticated,
+    hasToken: !!token,
+    hasUser: !!user,
+    isCEO: user?.isCEO,
+    hasBrand: !!user?.brand,
+    condition: isAuthenticated && token && user?.isCEO && !!user?.brand,
+  });
+  if (isAuthenticated && token && user?.isCEO && !!user?.brand) {
+    console.log('✅ [Layout] Condition 8 VRAIE - Retour Stack CEO');
+    console.log('✅ [User] CEO avec marque:', {
+      email: user.email,
+      isCEO: user.isCEO,
+      hasBrand: !!user.brand,
+    });
+    return (
+      <>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(ceo)" />
+        </Stack>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </>
+    );
+  }
+
+  // 9. Client par défaut → Stack Client
+  console.log('✅ [Layout] Aucune condition CEO/Prompt - Retour Stack Client (défaut)');
   return (
     <>
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: theme.colors.card,
-          },
-          headerTintColor: theme.colors.text,
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-          contentStyle: {
-            backgroundColor: theme.colors.background,
-          },
-          headerShadowVisible: false,
-          animation: 'fade',
-        }}
-      >
-        <Stack.Screen 
-          name="(auth)" 
-          options={{ headerShown: false }} 
-        />
-        <Stack.Screen 
-          name="(ceo)" 
-          options={{ headerShown: false }} 
-        />
-        <Stack.Screen 
-          name="(client)" 
-          options={{ headerShown: false }} 
-        />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(client)" />
       </Stack>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </>

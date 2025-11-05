@@ -99,6 +99,8 @@ export const useCreateBrand = () => {
       // Invalider les queries
       queryClient.invalidateQueries({ queryKey: brandKeys.myBrand() });
       queryClient.invalidateQueries({ queryKey: brandKeys.lists() });
+      // ⚠️ NE PAS invalider currentUser ici - cela déclencherait la navigation avant l'Alert
+      // La mise à jour du user sera faite via refreshAuth() dans le onPress de l'Alert
     },
     onError: (error: any) => {
       console.error('❌ [Mutation] Erreur création marque:', error);

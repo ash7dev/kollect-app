@@ -1,3 +1,4 @@
+/* eslint-disable import/no-unresolved */
  
 // login.tsx - VERSION SIMPLIFIÉE AVEC ZUSTAND
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -11,9 +12,9 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
-import { useTheme } from '@/app/context/ThemeContext';
-import { useKinde } from '@/src/features/auth/hooks/useKinde';
-import { useAuthStore } from '@/src/store/authStore';
+import { useTheme } from '../context/ThemeContext';
+import { useKinde } from '../../src/features/auth/hooks/useKinde';
+import { useAuthStore } from '@/store/authStore';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import logo from '../../assets/images/LOGO-KOLLECT.png';

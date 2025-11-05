@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState } from 'react';
+import { StyleSheet } from 'react-native';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +18,7 @@ import { BrandLogoUploader } from '../features/brands/components/BrandLogoUpload
 import { PrimaryButton } from '../features/brands/components/common/PrimaryButton';
 import { CreateBrandFormData } from '../features/brands/services/brand.service';
 import { useTheme } from '../../app/context/ThemeContext';
+import { useAuthStore } from '../../src/store/authStore';
 
 export const CreateBrandScreen = () => {
   const { theme, isDark } = useTheme();
@@ -141,75 +142,163 @@ export const CreateBrandScreen = () => {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-    Alert.alert('Erreur', 'Veuillez corriger les erreurs dans le formulaire');
-    return;
-  }
+      Alert.alert('Erreur', 'Veuillez corriger les erreurs dans le formulaire');
+      return;
+    }
 
-  // ✅ Créer un objet PROPRE avec UNIQUEMENT les champs autorisés
-  const brandData: CreateBrandFormData = {
-    name: formData.name.trim(),
-    slug: formData.slug.trim(),
+    // ✅ Créer un objet PROPRE avec UNIQUEMENT les champs autorisés
+    const brandData: CreateBrandFormData = {
+      name: formData.name.trim(),
+      slug: formData.slug.trim(),
+    };
+
+    // Ajouter les champs optionnels UNIQUEMENT s'ils sont remplis
+    if (formData.bio?.trim()) {
+      brandData.bio = formData.bio.trim();
+    }
+
+    if (formData.instagram?.trim()) {
+      brandData.instagram = formData.instagram.trim();
+    }
+
+    if (formData.whatsapp?.trim()) {
+      brandData.whatsapp = formData.whatsapp.trim();
+    }
+
+    if (formData.website?.trim()) {
+      brandData.website = formData.website.trim();
+    }
+
+    if (logo) {
+      brandData.logo = logo;
+    }
+
+    console.log('🔍 [CreateBrand] Données à envoyer:', Object.keys(brandData));
+
+    try {
+      // Créer la marque
+      await new Promise((resolve, reject) => {
+        createBrand(
+          {
+            ...brandData,
+            logo: logo || undefined
+          },
+          {
+            onSuccess: (brand) => {
+              console.log('✅ [CreateBrand] Marque créée:', brand);
+              resolve(brand);
+            },
+            onError: (error) => {
+              console.error('❌ [CreateBrand] Erreur création marque:', error);
+              reject(error);
+            },
+          }
+        );
+      });
+
+      Alert.alert(
+        '🎉 Félicitations !',
+        `Ta boutique "${formData.name}" est créée avec succès !`,
+        [
+          {
+            text: 'Découvrir mon espace',
+            onPress: async () => {
+              console.log('🚀 [CreateBrand] Mise à jour du user et navigation vers CEO');
+              await useAuthStore.getState().refreshAuth();
+              // Naviguer vers l'espace CEO; le layout CEO acceptera myBrand (store)
+              router.replace('/(ceo)');
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error creating brand:', error);
+      Alert.alert('Erreur', 'Une erreur est survenue lors de la création de la marque');
+    }
   };
 
-  // Ajouter les champs optionnels UNIQUEMENT s'ils sont remplis
-  if (formData.bio?.trim()) {
-    brandData.bio = formData.bio.trim();
-  }
+  // ========================================
+  // STYLES
+  // ========================================
 
-  if (formData.instagram?.trim()) {
-    brandData.instagram = formData.instagram.trim();
-  }
-
-  if (formData.whatsapp?.trim()) {
-    brandData.whatsapp = formData.whatsapp.trim();
-  }
-
-  if (formData.website?.trim()) {
-    brandData.website = formData.website.trim();
-  }
-
-  if (logo) {
-    brandData.logo = logo;
-  }
-
-  console.log('🔍 [CreateBrand] Données à envoyer:', Object.keys(brandData));
-
-    createBrand(
-      {
-        ...brandData,
-        logo: logo || undefined
-      },
-      {
-        onSuccess: async (brand) => {
-          console.log('✅ [CreateBrand] Marque créée:', brand);
-
-          // Afficher un message de succès
-          Alert.alert(
-            '🎉 Félicitations !',
-            `Ta boutique "${brand.name}" est créée avec succès !`,
-            [
-              {
-                text: 'Découvrir mon espace',
-                onPress: () => {
-                  // Rediriger vers le dashboard CEO
-                  console.log('🚀 [CreateBrand] Redirection vers dashboard CEO');
-                  router.replace('/(ceo)' as any);
-                },
-              },
-            ]
-          );
-        },
-        onError: (error: any) => {
-          console.error('❌ [CreateBrand] Erreur création marque:', error);
-          
-          Alert.alert(
-            'Erreur',
-            error?.message || 'Impossible de créer la boutique. Réessaye plus tard.'
-          );
-        },
-      }
-    );
-  };
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    keyboardView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 50,
+    },
+    header: {
+      marginTop: 24,
+      marginBottom: 32,
+    },
+    headerBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+      gap: 8,
+    },
+    badgeDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    badgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 1.2,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: '800',
+      letterSpacing: -0.5,
+      marginBottom: 12,
+    },
+    subtitle: {
+      fontSize: 16,
+      fontWeight: '400',
+      lineHeight: 24,
+      letterSpacing: -0.2,
+    },
+    form: {
+      marginTop: 8,
+    },
+    formSection: {
+      padding: 20,
+      borderRadius: 16,
+      marginBottom: 16,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+      marginBottom: 20,
+    },
+    divider: {
+      height: 1,
+      marginVertical: 8,
+    },
+    actions: {
+      marginTop: 24,
+    },
+    termsText: {
+      marginTop: 20,
+      fontSize: 13,
+      fontWeight: '400',
+      textAlign: 'center',
+      lineHeight: 20,
+      letterSpacing: -0.1,
+    },
+    termsLink: {
+      fontWeight: '600',
+      textDecorationLine: 'underline',
+    },
+  });
 
   // ========================================
   // RENDER
@@ -350,86 +439,3 @@ export const CreateBrandScreen = () => {
     </SafeAreaView>
   );
 };
-
-// ========================================
-// STYLES
-// ========================================
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 50,
-  },
-  header: {
-    marginTop: 24,
-    marginBottom: 32,
-  },
-  headerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
-  },
-  badgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: '400',
-    lineHeight: 24,
-    letterSpacing: -0.2,
-  },
-  form: {
-    marginTop: 8,
-  },
-  formSection: {
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginBottom: 20,
-  },
-  divider: {
-    height: 1,
-    marginVertical: 8,
-  },
-  actions: {
-    marginTop: 24,
-  },
-  termsText: {
-    marginTop: 20,
-    fontSize: 13,
-    fontWeight: '400',
-    textAlign: 'center',
-    lineHeight: 20,
-    letterSpacing: -0.1,
-  },
-  termsLink: {
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-});

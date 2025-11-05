@@ -19,6 +19,7 @@ interface JwtPayload {
   isAdmin: boolean;
   isCEO: boolean;
   isClient: boolean;
+  has_seen_creator_prompt: boolean;
   iat?: number;
   exp?: number;
 }
@@ -33,6 +34,7 @@ interface AuthenticatedUser {
   isAdmin: boolean;
   isCEO: boolean;
   isClient: boolean;
+  has_seen_creator_prompt: boolean;
   roles: {
     isAdmin: boolean;
     isCEO: boolean;
@@ -98,6 +100,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         email: user.email,
         isAdmin: user.isAdmin,
         isCEO: user.isCEO,
+        has_seen_creator_prompt: user.has_seen_creator_prompt ?? false,
         isClient: user.isClient,
         roles: {
           isAdmin: user.isAdmin,

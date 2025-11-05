@@ -1,8 +1,12 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/app/context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import { Platform } from 'react-native';
 import { useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useAuthStore } from '../../src/store/authStore';
+import { useBrandStore } from '../../src/features/brands/store/brandStore';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -52,6 +56,76 @@ const TabBarIcon = ({
 
 export default function CeoLayout() {
   const { theme, isDark } = useTheme();
+  const router = useRouter();
+  const { isAuthenticated, token, user, isLoading } = useAuthStore();
+  const hasMyBrand = useBrandStore((state) => !!state.myBrand);
+
+  // ⚠️ GUARD: Vérifications complètes d'authentification et de rôle
+  useEffect(() => {
+    if (!isLoading) {
+      // 1. Vérifier l'authentification
+      if (!isAuthenticated || !token || !user) {
+        console.log('🚫 [CEO Layout] Utilisateur non authentifié - Redirection vers (auth)/login');
+        router.replace('/(auth)/login');
+        return;
+      }
+      
+      // 2. Vérifier si l'utilisateur est CEO
+      if (!user.isCEO) {
+        console.log('🚫 [CEO Layout] Utilisateur n\'est pas CEO - Redirection vers (client)');
+        router.replace('/(client)');
+        return;
+      }
+      
+      // 3. Vérifier si CEO a une marque (depuis user OU store) - sinon afficher CreateBrand
+      if (user.isCEO && !user.brand && !hasMyBrand) {
+        console.log('🚫 [CEO Layout] CEO sans marque - Redirection vers CreateBrand');
+        // Note: On ne peut pas naviguer vers une route qui n'est pas dans le Stack
+        // On va plutôt afficher CreateBrandScreen directement
+        return;
+      }
+    }
+  }, [isAuthenticated, token, user, hasMyBrand, isLoading, router]);
+
+  // Afficher un loader pendant la vérification
+  if (isLoading || !isAuthenticated || !token || !user || !user.isCEO) {
+    return (
+      <View style={{
+        flex: 1,
+        backgroundColor: theme.colors.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  // ⚠️ CEO sans marque → Afficher CreateBrandScreen
+  if (user.isCEO && !user.brand && !hasMyBrand) {
+    console.log('🏪 [CEO Layout] CEO sans marque - Affichage CreateBrandScreen');
+    try {
+      const { CreateBrandScreen } = require('../../src/screen/CreateBrandScreen');
+      return (
+        <View style={{ flex: 1, backgroundColor: 'white' }}>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <CreateBrandScreen />
+        </View>
+      );
+    } catch (err) {
+      console.error('[CEO Layout] CreateBrandScreen import échoué', err);
+      return (
+        <View style={{
+          flex: 1,
+          backgroundColor: theme.colors.background,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      );
+    }
+  }
 
   return (
     <Tabs

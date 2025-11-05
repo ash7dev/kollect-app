@@ -1,35 +1,42 @@
-// src/store/authStore.ts - VERSION AMÉLIORÉE
+/* eslint-disable no-unused-labels */
+/* eslint-disable no-unused-expressions */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// src/store/authStore.ts
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { authService, BackendUser } from '@/src/features/auth/services/auth.service';
+import { authService, BackendUser, AuthResponse } from '../features/auth/services/auth.service';
+
+const STORAGE_KEYS = {
+  JWT_TOKEN: 'jwt_token',
+  USER_DATA: 'user_data',
+  REFRESH_TIME: 'token_refresh_time',
+};
 
 // ============================================
 // TYPES
 // ============================================
 
-interface AuthState {
-  // État
+export interface AuthState {
   user: BackendUser | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
 
-  // Actions principales
-  login: (kindeUser: any) => Promise<void>;
+  login: (kindeUser: any, fcmToken?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
   initAuth: () => Promise<void>;
-  
-  // Actions internes (ne pas utiliser directement dans les composants)
+  updateUserRole: (role: 'client' | 'vendeur') => Promise<AuthResponse>;
+
   _setAuth: (user: BackendUser, token: string) => Promise<void>;
   _clearAuth: () => Promise<void>;
   _setError: (error: string | null) => void;
   _setLoading: (isLoading: boolean) => void;
-  
-  // Helpers
+
   hasRole: (role: 'isAdmin' | 'isCEO' | 'isClient') => boolean;
 }
 
@@ -40,250 +47,165 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      // État initial
       user: null,
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      isInitialized: false,
       error: null,
 
       // ============================================
       // ACTIONS PUBLIQUES
       // ============================================
 
-      /**
-       * 🔐 Login complet (Kinde + Backend)
-       */
-      login: async (kindeUser) => {
+      updateUserRole: async (role) => {
+        const { user, _setAuth } = get();
+        if (!user) throw new Error("Aucun utilisateur connecté");
+
         try {
           set({ isLoading: true, error: null });
-          
-          console.log('🔐 [AuthStore] Début du login...', kindeUser.email);
+          const updatedData = await authService.updateUserRole(user.id, role, true);
+          await _setAuth(updatedData.user, updatedData.access_token);
+          return updatedData;
+        } catch (error: any) {
+          set({ error: error?.message || "Erreur lors de la mise à jour du rôle" });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
-          // Synchroniser avec le backend
+      login: async (kindeUser, fcmToken?: string) => {
+        try {
+          set({ isLoading: true, error: null });
           const authData = await authService.syncWithBackend({
             id: kindeUser.id,
             email: kindeUser.email || '',
             given_name: kindeUser.givenName || null,
             family_name: kindeUser.familyName || null,
             picture: kindeUser.picture || null,
-          });
-
-          // Stocker les données
-          await get()._setAuth(authData.user, authData.access_token);
-
-          console.log('✅ [AuthStore] Login réussi');
-        } catch (error: any) {
-          console.error('❌ [AuthStore] Erreur login:', error);
-          const message = error?.response?.data?.message || error?.message || 'Erreur de connexion';
-          set({ error: message, isLoading: false });
-          throw error; // Propager l'erreur pour que le composant puisse la gérer
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-
-      /**
-       * 🚪 Logout complet
-       */
-      logout: async () => {
-  try {
-    set({ isLoading: true, error: null });
-    console.log('🚪 [AuthStore] Début du logout...');
-
-    // Appeler le service de déconnexion
-    await authService.logout();
-    
-    // Effacer l'état local
-    set({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-    });
-
-    // Effacer le stockage persistant
-    await AsyncStorage.removeItem('auth-storage');
-    
-    console.log('✅ [AuthStore] Logout réussi');
-  } catch (error) {
-    console.error('❌ [AuthStore] Erreur logout:', error);
-    // En cas d'erreur, forcer la déconnexion quand même
-    set({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-    });
-    await AsyncStorage.removeItem('auth-storage');
-    throw error;
-  } finally {
-    set({ isLoading: false });
-  }
-},
-
-      /**
-       * 🔄 Rafraîchir l'authentification
-       */
-      refreshAuth: async () => {
-        const { token } = get();
-
-        if (!token) {
-          console.warn('⚠️ [AuthStore] Pas de token pour rafraîchir');
-          return;
-        }
-
-        try {
-          set({ isLoading: true, error: null });
-          
-          console.log('🔄 [AuthStore] Rafraîchissement...');
-
-          const authData = await authService.refreshProfile();
+          }, fcmToken);
 
           await get()._setAuth(authData.user, authData.access_token);
-
-          console.log('✅ [AuthStore] Rafraîchissement réussi');
         } catch (error: any) {
-          console.error('❌ [AuthStore] Erreur refresh:', error);
-          
-          // Si 401, déconnecter l'utilisateur
-          if (error?.response?.status === 401) {
-            console.warn('🔒 [AuthStore] Session expirée, déconnexion...');
-            await get().logout();
-            throw new Error('Session expirée');
-          }
-          
+          set({ error: error?.message || 'Erreur de connexion' });
           throw error;
         } finally {
           set({ isLoading: false });
         }
       },
 
-      /**
-       * 🚀 Initialiser l'authentification au démarrage
-       */
-      initAuth: async () => {
+      logout: async () => {
         try {
           set({ isLoading: true, error: null });
-          
-          console.log('🚀 [AuthStore] Initialisation...');
-
-          // Récupérer le JWT backend
-          const jwtToken = await SecureStore.getItemAsync('JWT_TOKEN');
-          
-          if (!jwtToken) {
-            console.log('ℹ️ [AuthStore] Pas de token, utilisateur non authentifié');
-            set({ isAuthenticated: false, isLoading: false });
-            return;
-          }
-
-          // Récupérer les données utilisateur
-          const userData = await authService.getUserData();
-
-          if (!userData) {
-            console.warn('⚠️ [AuthStore] Token présent mais pas de données utilisateur');
-            await get()._clearAuth();
-            return;
-          }
-
-          // Restaurer la session
-          set({
-            user: userData,
-            token: jwtToken,
-            isAuthenticated: true,
-          });
-
-          console.log('✅ [AuthStore] Session restaurée');
-
-          // Vérifier si on doit rafraîchir
-          const shouldRefresh = await authService.shouldRefreshToken();
-          if (shouldRefresh) {
-            console.log('🔄 [AuthStore] Token ancien, rafraîchissement...');
-            await get().refreshAuth();
-          }
-        } catch (error: any) {
-          console.error('❌ [AuthStore] Erreur init:', error);
-          
-          // En cas d'erreur, on efface tout
+          await authService.logout();
+          await get()._clearAuth();
+        } catch (error) {
           await get()._clearAuth();
         } finally {
           set({ isLoading: false });
         }
       },
 
+      refreshAuth: async () => {
+        const { token } = get();
+        if (!token) return;
+
+        try {
+          set({ isLoading: true, error: null });
+          const authData = await authService.refreshProfile();
+          await get()._setAuth(authData.user, authData.access_token);
+        } catch (error: any) {
+          if (error?.response?.status === 401) {
+            await get().logout();
+          }
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      initAuth: async (options?: { silent?: boolean }) => {
+  const state = get();
+  if (state.isInitialized) return;
+
+  try {
+    if (!options?.silent) {
+      set({ isLoading: true });
+    }
+    
+    const jwtToken = await SecureStore.getItemAsync(STORAGE_KEYS.JWT_TOKEN);
+
+    if (!jwtToken) {
+      // ✅ Pas de token = CLEAR complet du store
+      await get()._clearAuth();
+      set({ 
+        isAuthenticated: false, 
+        user: null,
+        token: null,
+        isInitialized: true, 
+        isLoading: false 
+      });
+      return;
+    }
+
+    // ✅ Si token existe, valider avec le backend
+    const userData = await authService.getUserData();
+    if (!userData) {
+      await get()._clearAuth();
+      return;
+    }
+
+    set({
+      user: userData,
+      token: jwtToken,
+      isAuthenticated: true,
+      isInitialized: true,
+    });
+  } catch (error) {
+    console.error('[initAuth] Erreur:', error);
+    await get()._clearAuth();
+  } finally {
+    set({ isLoading: false, isInitialized: true });
+  }
+},
       // ============================================
       // ACTIONS INTERNES
       // ============================================
 
-      /**
-       * 💾 Définir l'authentification (interne)
-       */
       _setAuth: async (user, token) => {
-        try {
-          // Stocker le JWT backend en SecureStore
-          await SecureStore.setItemAsync('JWT_TOKEN', token);
-          
-          set({
-            user,
-            token,
-            isAuthenticated: true,
-            error: null,
-          });
-
-          console.log('✅ [AuthStore] Auth établie', {
-            userId: user.id,
-            roles: { isAdmin: user.isAdmin, isCEO: user.isCEO, isClient: user.isClient },
-          });
-        } catch (error) {
-          console.error('❌ [AuthStore] Erreur _setAuth:', error);
-          throw error;
-        }
+        await SecureStore.setItemAsync(STORAGE_KEYS.JWT_TOKEN, token);
+        set({
+          user,
+          token,
+          isAuthenticated: true,
+          isInitialized: true,
+          error: null,
+        });
       },
 
-      /**
-       * 🗑️ Effacer l'authentification (interne)
-       */
       _clearAuth: async () => {
-        try {
-          // Supprimer tous les tokens
-          await Promise.all([
-            SecureStore.deleteItemAsync('ACCESS_TOKEN').catch(() => {}), // Token Kinde
-            SecureStore.deleteItemAsync('JWT_TOKEN').catch(() => {}),    // JWT Backend
-          ]);
-          
-          set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            error: null,
-          });
-
-          console.log('✅ [AuthStore] Auth effacée');
-        } catch (error) {
-          console.error('❌ [AuthStore] Erreur _clearAuth:', error);
-          throw error;
-        }
+        // ✅ 1. Supprimer le token SecureStore
+        await SecureStore.deleteItemAsync(STORAGE_KEYS.JWT_TOKEN).catch(() => {});
+        
+        // ✅ 2. Nettoyer AsyncStorage (persistence Zustand)
+        await AsyncStorage.removeItem('auth-storage').catch(() => {});
+        
+        // ✅ 3. Reset complet du state
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isInitialized: true,
+          error: null,
+        });
+        
+        console.log('🧹 [Auth] State complètement nettoyé');
       },
 
-      /**
-       * 🔴 Définir une erreur
-       */
-      _setError: (error) => {
-        set({ error });
-      },
+      _setError: (error) => set({ error }),
+      _setLoading: (isLoading) => set({ isLoading }),
 
-      /**
-       * ⏳ Définir l'état de chargement
-       */
-      _setLoading: (isLoading) => {
-        set({ isLoading });
-      },
-
-      // ============================================
-      // HELPERS
-      // ============================================
-
-      /**
-       * 🎭 Vérifier si l'utilisateur a un rôle spécifique
-       */
       hasRole: (role) => {
         const { user } = get();
         return user ? user[role] : false;
@@ -293,35 +215,11 @@ export const useAuthStore = create<AuthState>()(
       name: 'auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-        // On persiste uniquement les données non sensibles
-        user: state.user,
-        // Le token est géré par SecureStore
+         user: state.user,
+  token: state.token,  // ⬅️ Ajout critique
+  isAuthenticated: state.isAuthenticated, 
+       
       }),
     }
   )
 );
-
-// ============================================
-// HOOKS UTILITAIRES
-// ============================================
-
-/**
- * Hook pour vérifier si l'utilisateur a un rôle spécifique
- */
-export const useHasRole = (role: 'isAdmin' | 'isCEO' | 'isClient') => {
-  return useAuthStore((state) => state.hasRole(role));
-};
-
-/**
- * Hook pour obtenir l'utilisateur actuel
- */
-export const useCurrentUser = () => {
-  return useAuthStore((state) => state.user);
-};
-
-/**
- * Hook pour obtenir l'état d'authentification
- */
-export const useIsAuthenticated = () => {
-  return useAuthStore((state) => state.isAuthenticated);
-};

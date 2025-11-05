@@ -22,6 +22,12 @@ type UserWithRoles = {
   isClient: boolean;
   kindeId: string;
   password?: string;
+  brand?: {
+    id: string;
+    slug: string;
+    name: string;
+    isVerified: boolean;
+  } | null;
 };
 
 @Injectable()
@@ -48,6 +54,13 @@ export class AuthService {
     isCEO: boolean;
     isClient: boolean;
     address?: string | null;
+    has_seen_creator_prompt?: boolean;
+    brand?: {
+      id: string;
+      slug: string;
+      name: string;
+      isVerified: boolean;
+    } | null;
     city?: string | null;
     postalCode?: string | null;
     country?: string | null;
@@ -67,6 +80,8 @@ export class AuthService {
       isAdmin: user.isAdmin,
       isCEO: user.isCEO,
       isClient: user.isClient,
+      has_seen_creator_prompt: user.has_seen_creator_prompt ?? false,
+      brand: user.brand ?? null,
       address: user.address ?? undefined,
       city: user.city ?? undefined,
       postalCode: user.postalCode ?? undefined,
@@ -84,7 +99,10 @@ export class AuthService {
     isAdmin: boolean;
     isCEO: boolean;
     isClient: boolean;
-  }): string {
+    has_seen_creator_prompt?: boolean;
+  },
+   brand: { id: string; slug: string; name: string; isVerified: boolean } | null = null
+): string {
     const payload = {
       sub: user.id,
       kindeId: user.kindeId,
@@ -97,6 +115,8 @@ export class AuthService {
       isAdmin: user.isAdmin,
       isCEO: user.isCEO,
       isClient: user.isClient,
+      has_seen_creator_prompt: user.has_seen_creator_prompt ?? false,
+      brand: brand ?? null,
     };
 
     console.log(
@@ -104,6 +124,61 @@ export class AuthService {
       JSON.stringify(payload, null, 2),
     );
     return this.jwtService.sign(payload);
+  }
+
+  private async getBrandForToken(userId: string) {
+  try {
+    const brand = await this.prisma.marque.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        isVerified: true,
+      },
+    });
+    return brand || null;
+  } catch {
+    return null;
+  }
+}
+
+
+  async updateUserRole(
+    userId: string, 
+    role: 'client' | 'vendeur',
+    hasSeenCreatorPrompt: boolean
+  ): Promise<AuthResponseWithToken> {
+    try {
+      // Pour 'vendeur', nous mettons isCEO à true et isClient à false
+      // Car dans votre schéma, vous avez isCEO et isClient comme rôles principaux
+      const updatedUser = await this.prisma.utilisateur.update({
+        where: { id: userId },
+        data: {
+          isClient: role === 'client',
+          isCEO: role === 'vendeur',
+          has_seen_creator_prompt: hasSeenCreatorPrompt,
+        },
+      });
+
+      const token = this.generateJwtToken({
+        id: updatedUser.id,
+        kindeId: updatedUser.kindeId,
+        email: updatedUser.email,
+        isAdmin: updatedUser.isAdmin,
+        isCEO: updatedUser.isCEO,
+        isClient: updatedUser.isClient,
+        has_seen_creator_prompt: updatedUser.has_seen_creator_prompt,
+      });
+
+      return {
+        access_token: token,
+        user: this.toUserProfile(updatedUser),
+      };
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      throw new Error('Failed to update user role');
+    }
   }
 
   async validateUser(email: string): Promise<UserWithRoles | null> {
@@ -142,14 +217,29 @@ export class AuthService {
       if (!userProfile) {
         throw new UnauthorizedException('User not found');
       }
+      const brand = await this.getBrandForToken(userProfile.id);
+      // Générer le token JWT avec les informations de l'utilisateur et de la marque
+  const token = this.generateJwtToken(
+    {
+      id: userProfile.id,
+      kindeId: userProfile.kindeId,
+      email: userProfile.email,
+      isAdmin: userProfile.isAdmin,
+      isCEO: userProfile.isCEO,
+      isClient: userProfile.isClient,
+      has_seen_creator_prompt: userProfile.has_seen_creator_prompt,
+    },
+    brand // Passez les informations de la marque ici
+  );
+     const userProfileResponse = {
+  ...this.toUserProfile(userProfile),
+  brand: brand  // Add brand to the user object
+};
 
-      const token = this.generateJwtToken(userProfile);
-      const userProfileResponse = this.toUserProfile(userProfile);
-
-      return {
-        access_token: token,
-        user: userProfileResponse,
-      };
+return {
+  access_token: token,
+  user: userProfileResponse,
+};
     } catch (error) {
       console.error('Login error:', error);
       throw new UnauthorizedException('Authentication failed');
@@ -209,6 +299,8 @@ export class AuthService {
         console.log('📱 Updating FCM token:', fcmToken);
       }
 
+
+    
       const user = await this.prisma.utilisateur.upsert({
         where: { kindeId },
         update: updateData,
@@ -226,13 +318,19 @@ export class AuthService {
         },
       });
 
-      const token = this.generateJwtToken(user);
+      const brand = await this.getBrandForToken(user.id);
+      console.log('Brand:', brand);
+
+      const token = this.generateJwtToken(user, brand);
       const userProfileResponse = this.toUserProfile(user);
 
       return {
-        access_token: token,
-        user: userProfileResponse,
-      };
+  access_token: token,
+  user: {
+    ...userProfileResponse,
+    brand,  // Now it's correctly placed inside user
+  },
+};
     } catch (error) {
       console.error('Sync error:', error);
       throw new UnauthorizedException('Sync failed');
@@ -249,12 +347,17 @@ export class AuthService {
         throw new UnauthorizedException('User not found');
       }
 
-      const token = this.generateJwtToken(user);
+      // 🔄 Inclure la marque dans le token et la réponse
+      const brand = await this.getBrandForToken(user.id);
+      const token = this.generateJwtToken(user, brand);
       const userProfileResponse = this.toUserProfile(user);
 
       return {
         access_token: token,
-        user: userProfileResponse,
+        user: {
+          ...userProfileResponse,
+          brand, // joindre la marque au profil
+        },
       };
     } catch (error) {
       console.error('Get user profile error:', error);

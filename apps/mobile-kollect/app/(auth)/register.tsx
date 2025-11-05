@@ -10,9 +10,10 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
-import { useTheme } from '@/app/context/ThemeContext';
-import { useKinde } from '@/src/features/auth/hooks/useKinde';
-import { useAuthStore } from '@/src/store/authStore';
+import { useTheme } from '../context/ThemeContext';
+import { useKinde } from '../../src/features/auth/hooks/useKinde';
+import { useAuthStore } from '../../src/store/authStore';
+import type { AuthState } from '../../src/store/authStore';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import logo from '../../assets/images/LOGO-KOLLECT.png';
@@ -25,9 +26,9 @@ export default function RegisterScreen() {
   const { theme, isDark } = useTheme();
   
   // 🆕 Zustand store - Actions uniquement
-  const login = useAuthStore((state) => state.login);
-  const isLoading = useAuthStore((state) => state.isLoading);
-  const error = useAuthStore((state) => state.error);
+  const login = useAuthStore((state: AuthState) => state.login);
+  const isLoading = useAuthStore((state: AuthState) => state.isLoading);
+  const error = useAuthStore((state: AuthState) => state.error);
   
   const [localError, setLocalError] = useState<string | null>(null);
   const shakeAnimation = useRef(new Animated.Value(0)).current;

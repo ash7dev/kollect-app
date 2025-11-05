@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Animated,
 } from 'react-native';
-import { useTheme } from '@/app/context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 

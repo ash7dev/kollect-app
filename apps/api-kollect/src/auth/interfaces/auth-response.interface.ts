@@ -10,6 +10,13 @@ export interface AuthResponseWithToken {
     avatar?: string;
     isAdmin: boolean;
     isCEO: boolean;
+    has_seen_creator_prompt: boolean;
+    brand: {
+      id: string;
+      slug: string;
+      name: string;
+      isVerified: boolean;
+    } | null;
     isClient: boolean;
     address?: string;
     city?: string;

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { theme as baseTheme, colors as baseColors, type Theme } from '@/src/theme';
+import { theme as baseTheme, colors as baseColors, type Theme } from '../../src/theme';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 
@@ -23,6 +23,7 @@ type AdaptiveTheme = Omit<Theme, 'colors'> & {
 };
 
 interface ThemeContextType {
+  colors: any;
   theme: AdaptiveTheme;
   themeMode: ThemeMode;
   isDark: boolean;
@@ -150,6 +151,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     isDark,
     setThemeMode,
     toggleTheme,
+    colors: undefined
   };
 
   return (

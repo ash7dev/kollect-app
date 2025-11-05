@@ -22,7 +22,7 @@ model Utilisateur {
   lastName      String?   @db.VarChar(100)
   phone         String?   @db.VarChar(20)
   avatar        String?   // URL Cloudinary
-  
+  has_seen_creator_prompt Boolean  @default(false)
   // Rôles
   isClient      Boolean   @default(true)
   isCEO         Boolean   @default(false)

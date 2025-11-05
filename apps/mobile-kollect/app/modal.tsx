@@ -11,10 +11,10 @@ import {
   StatusBar as RNStatusBar,
   ViewToken
 } from 'react-native';
-import { useTheme } from '@/app/context/ThemeContext';
-import slide1 from '@/assets/images/slide1.png';
-import slide2 from '@/assets/images/slide2.png';
-import slide3 from '@/assets/images/slide3.png';
+import { useTheme } from './context/ThemeContext';
+import slide1 from '../assets/images/slide1.png';
+import slide2 from '../assets/images/slide2.png';
+import slide3 from '../assets/images/slide3.png';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -11,10 +11,12 @@ import {
   StatusBar as RNStatusBar,
   ViewToken
 } from 'react-native';
-import { useTheme } from '@/app/context/ThemeContext';
-import slide1 from '@/assets/images/slide1.png';
-import slide2 from '@/assets/images/slide2.png';
-import slide3 from '@/assets/images/slide3.png';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
+import slide1 from '../../assets/images/slide1.png';
+import slide2 from '../../assets/images/slide2.png';
+import slide3 from '../../assets/images/slide3.png';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -43,18 +45,20 @@ interface OnboardingScreenProps {
   onFinish: () => Promise<void>;
 }
 
-export default function OnboardingScreen({ onFinish }: OnboardingScreenProps) {
+const OnboardingScreen = ({ onFinish }: OnboardingScreenProps) => {
   const { theme, isDark } = useTheme();
+  const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isNavigating, setIsNavigating] = useState(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList>(null);
-  
+
   const viewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     if (viewableItems.length > 0 && viewableItems[0].index !== null) {
       setCurrentIndex(viewableItems[0].index);
     }
   }).current;
-  
+
   const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
   const scrollTo = () => {
@@ -65,14 +69,39 @@ export default function OnboardingScreen({ onFinish }: OnboardingScreenProps) {
     }
   };
 
+  const handleNavigation = useCallback(async () => {
+    if (isNavigating) return;
+    
+    try {
+      setIsNavigating(true);
+      console.log('✅ [Onboarding] Terminé, sauvegarde...');
+      await AsyncStorage.setItem('@hasSeenOnboarding', 'true');
+      console.log('✅ [Onboarding] Sauvegardé');
+      
+      // Call the parent's onFinish first
+      await onFinish();
+      
+      // Then navigate to login
+      console.log('🚀 [Navigation] Redirection vers /(auth)/login');
+      router.replace('/(auth)/login');
+    } catch (error) {
+      console.error('❌ [Onboarding] Erreur sauvegarde:', error);
+      // Still try to navigate even if there was an error
+      await onFinish();
+      router.replace('/(auth)/login');
+    } finally {
+      setIsNavigating(false);
+    }
+  }, [isNavigating, onFinish, router]);
+
   const handleSkip = async () => {
     console.log('⏭️ [Onboarding] Skip cliqué');
-    await onFinish();
+    await handleNavigation();
   };
 
   const handleFinish = async () => {
     console.log('✅ [Onboarding] Commencer cliqué');
-    await onFinish();
+    await handleNavigation();
   };
 
   return (
@@ -98,8 +127,6 @@ export default function OnboardingScreen({ onFinish }: OnboardingScreenProps) {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        bounces={false}
-        keyExtractor={item => item.id}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { x: scrollX } } }],
           { useNativeDriver: false }
@@ -108,277 +135,137 @@ export default function OnboardingScreen({ onFinish }: OnboardingScreenProps) {
         viewabilityConfig={viewConfig}
         scrollEventThrottle={32}
         renderItem={({ item, index }) => (
-          <OnboardingSlide 
-            item={item} 
-            index={index} 
-            scrollX={scrollX} 
-            primaryColor={theme.colors.accent}
-            textColor={theme.colors.text}
-            secondaryTextColor={theme.colors.textSecondary}
-          />
+          <View style={[styles.slide, { width: SCREEN_WIDTH }]}>
+            <Image source={item.image} style={styles.image} />
+            <View style={styles.textContainer}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>{item.title}</Text>
+              <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
+                {item.description}
+              </Text>
+            </View>
+          </View>
         )}
+        keyExtractor={(item) => item.id}
       />
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        {/* Pagination Dots */}
-        <View style={styles.pagination}>
-          {onboardingData.map((_, i) => {
-            const inputRange = [(i - 1) * SCREEN_WIDTH, i * SCREEN_WIDTH, (i + 1) * SCREEN_WIDTH];
-            
-            const dotWidth = scrollX.interpolate({
-              inputRange,
-              outputRange: [8, 24, 8],
-              extrapolate: 'clamp'
-            });
-
-            const opacity = scrollX.interpolate({
-              inputRange,
-              outputRange: [0.3, 1, 0.3],
-              extrapolate: 'clamp'
-            });
-
-            return (
-              <Animated.View
-                key={i}
-                style={[
-                  styles.dot,
-                  { 
-                    width: dotWidth, 
-                    opacity,
-                    backgroundColor: theme.colors.accent
-                  }
-                ]}
-              />
-            );
-          })}
-        </View>
-
-        {/* CTA Button */}
-        <TouchableOpacity 
-          style={[
-            styles.button,
-            { backgroundColor: theme.colors.primary }
-          ]}
-          onPress={scrollTo}
-        >
-          <Text style={[styles.buttonText, { color: theme.colors.textDark }]}>
-            {currentIndex === onboardingData.length - 1 ? 'Commencer' : 'Suivant'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-interface OnboardingSlideProps {
-  item: {
-    id: string;
-    title: string;
-    description: string;
-    image: any;
-  };
-  index: number;
-  scrollX: Animated.Value;
-  primaryColor: string;
-  textColor: string;
-  secondaryTextColor: string;
-}
-
-function OnboardingSlide({ item, index, scrollX, primaryColor, textColor, secondaryTextColor }: OnboardingSlideProps) {
-  const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
-
-  const imageScale = scrollX.interpolate({
-    inputRange,
-    outputRange: [0.8, 1, 0.8],
-    extrapolate: 'clamp'
-  });
-
-  const imageOpacity = scrollX.interpolate({
-    inputRange,
-    outputRange: [0.5, 1, 0.5],
-    extrapolate: 'clamp'
-  });
-
-  const titleTranslateY = scrollX.interpolate({
-    inputRange,
-    outputRange: [50, 0, 50],
-    extrapolate: 'clamp'
-  });
-
-  return (
-    <View style={styles.slide}>
-      <View style={styles.slideContent}>
-        {/* Image avec animation */}
-        <Animated.View 
-          style={[
-            styles.imageContainer,
-            { 
-              transform: [{ scale: imageScale }],
-              opacity: imageOpacity
-            }
-          ]}
-        >
-          <Image 
-            source={item.image}
-            style={styles.image}
-            resizeMode="contain"
-          />
+      {/* Dots */}
+      <View style={styles.dotsContainer}>
+        {onboardingData.map((_, i) => {
+          const inputRange = [(i - 1) * SCREEN_WIDTH, i * SCREEN_WIDTH, (i + 1) * SCREEN_WIDTH];
           
-          {/* Badge décoratif avec accent color (rouge) */}
-          <View style={[styles.badge, { backgroundColor: primaryColor }]}>
-            <Text style={styles.badgeText}>{index + 1}/3</Text>
-          </View>
-        </Animated.View>
+          const dotWidth = scrollX.interpolate({
+            inputRange,
+            outputRange: [8, 24, 8],
+            extrapolate: 'clamp',
+          });
 
-        {/* Texte avec animation */}
-        <Animated.View 
-          style={[
-            styles.textContainer,
-            { transform: [{ translateY: titleTranslateY }] }
-          ]}
-        >
-          <Text style={[styles.title, { color: textColor }]}>
-            {item.title}
-          </Text>
-          <Text style={[styles.description, { color: secondaryTextColor }]}>
-            {item.description}
-          </Text>
-        </Animated.View>
+          const opacity = scrollX.interpolate({
+            inputRange,
+            outputRange: [0.3, 1, 0.3],
+            extrapolate: 'clamp',
+          });
 
-        {/* Decoration circles avec accent color */}
-        <View style={[styles.circleDecor1, { backgroundColor: `${primaryColor}15` }]} />
-        <View style={[styles.circleDecor2, { backgroundColor: `${primaryColor}10` }]} />
+          return (
+            <Animated.View
+              key={i}
+              style={[
+                styles.dot,
+                {
+                  width: dotWidth,
+                  opacity,
+                  backgroundColor: theme.colors.primary,
+                }
+              ]}
+            />
+          );
+        })}
       </View>
+
+      {/* Next/Get Started Button */}
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: theme.colors.primary }]}
+        onPress={scrollTo}
+      >
+        <Text style={styles.buttonText}>
+          {currentIndex === onboardingData.length - 1 ? 'Commencer' : 'Suivant'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   skipButton: {
     position: 'absolute',
-    top: 50,
+    top: 60,
     right: 20,
-    zIndex: 10,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20
+    borderRadius: 20,
+    zIndex: 10,
   },
   skipText: {
     fontSize: 14,
     fontWeight: '600',
   },
   slide: {
-    width: SCREEN_WIDTH,
-    flex: 1
-  },
-  slideContent: {
-    flex: 1,
+    width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingTop: 80
-  },
-  imageContainer: {
-    width: SCREEN_WIDTH * 0.75,
-    height: 300,
-    marginBottom: 40,
-    position: 'relative'
+    paddingHorizontal: 20,
   },
   image: {
-    width: '100%',
-    height: '110%'
-  },
-  badge: {
-    position: 'absolute',
-    top: -10,
-    right: -10,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700'
+    width: SCREEN_WIDTH * 0.8,
+    height: SCREEN_WIDTH * 0.8,
+    resizeMode: 'contain',
+    marginBottom: 40,
   },
   textContainer: {
     alignItems: 'center',
-    paddingHorizontal: 20
+    paddingHorizontal: 20,
   },
   title: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: 'bold',
     textAlign: 'center',
-    lineHeight: 36,
     marginBottom: 16,
-    letterSpacing: -0.5,
+    lineHeight: 36,
   },
   description: {
     fontSize: 16,
     textAlign: 'center',
+    paddingHorizontal: 20,
     lineHeight: 24,
-    paddingHorizontal: 20
   },
-  circleDecor1: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    top: -50,
-    left: -80,
-    opacity: 0.3
-  },
-  circleDecor2: {
-    position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    bottom: 100,
-    right: -50,
-    opacity: 0.2
-  },
-  footer: {
-    paddingHorizontal: 32,
-    paddingBottom: 50,
-    paddingTop: 20
-  },
-  pagination: {
+  dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
-    height: 8
+    marginVertical: 30,
   },
   dot: {
     height: 8,
     borderRadius: 4,
-    marginHorizontal: 4
+    marginHorizontal: 4,
+    backgroundColor: '#007AFF',
   },
   button: {
+    width: '80%',
     height: 56,
     borderRadius: 28,
-    alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5
+    alignItems: 'center',
+    marginBottom: 40,
   },
   buttonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.5
-  }
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
+
+export default OnboardingScreen;

@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '@/app/context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ProductsScreen() {
   const { theme } = useTheme();

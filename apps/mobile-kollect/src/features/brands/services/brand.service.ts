@@ -98,7 +98,13 @@ class BrandService {
    * 🔑 Récupérer le token JWT
    */
   private async getToken(): Promise<string> {
-    const token = await SecureStore.getItemAsync('JWT_TOKEN');
+    // Aligner sur la clé utilisée par l'auth store et ajouter des fallbacks
+    const token =
+      (await SecureStore.getItemAsync('jwt_token')) ||
+      (await SecureStore.getItemAsync('JWT_TOKEN')) ||
+      (await SecureStore.getItemAsync('ACCESS_TOKEN')) ||
+      null;
+
     if (!token) throw new Error('No authentication token');
     return token;
   }
@@ -134,7 +140,7 @@ class BrandService {
    */
   private async authenticatedFetchFormData(
     endpoint: string,
-    formData: FormData,
+    formData: FormData & { entries: () => IterableIterator<[string, FormDataEntryValue]> },
     method: 'POST' | 'PATCH' = 'POST'
   ): Promise<Response> {
     const token = await this.getToken();
@@ -171,7 +177,12 @@ class BrandService {
     imageAsset?: ImagePicker.ImagePickerAsset,
     imageFieldName: string = 'logo'
   ): FormData {
-    const formData = new FormData();
+    // Type assertion to tell TypeScript that FormData has entries()
+    // This is safe because the method exists at runtime in React Native
+    type FormDataWithEntries = FormData & {
+      entries: () => IterableIterator<[string, FormDataEntryValue]>;
+    };
+    const formData = new FormData() as FormDataWithEntries;
 
     // Ajouter les champs texte
     Object.entries(data).forEach(([key, value]) => {
@@ -245,54 +256,43 @@ class BrandService {
    * 🏪 Créer une marque avec logo
    * POST /brands
    */
-  // Dans brand.service.ts
-async createBrand(createBrandDto: CreateBrandFormData): Promise<CreateBrandResponse> {
+  async createBrand(createBrandDto: CreateBrandFormData): Promise<CreateBrandResponse> {
   try {
     console.log('🏪 [Brand Service] Création de la marque...', { 
       name: createBrandDto.name,
       hasLogo: !!createBrandDto.logo 
     });
     
-    console.log('🔍 [DEBUG] Données reçues:', Object.keys(createBrandDto));
-    
     const token = await this.getToken();
     
     // ✅ Liste STRICTE des champs autorisés par le backend
     const allowedFields = ['name', 'slug', 'bio', 'instagram', 'whatsapp', 'website'] as const;
     
-    // Créer un objet propre avec UNIQUEMENT les champs autorisés
-    const cleanData: Record<string, string> = {};
-    
-    allowedFields.forEach(field => {
-      const value = createBrandDto[field];
-      if (value !== undefined && value !== null && value !== '') {
-        cleanData[field] = String(value);
-        console.log(`✅ [CleanData] ${field}:`, value);
-      }
-    });
-    
-    // Gestion du logo
+    // Gestion avec ou sans logo
     if (createBrandDto.logo) {
+      // CAS 1 : Avec logo (FormData)
+      const formData = new FormData();
+      
+      // Ajouter le logo
       const uriParts = createBrandDto.logo.uri.split('.');
       const fileType = uriParts[uriParts.length - 1];
       const fileName = `logo-${Date.now()}.${fileType}`;
       
-      // Créer FormData avec UNIQUEMENT les données nettoyées
-      const formData = new FormData();
-      
-      // Ajouter le logo en premier
-      const file = {
+      formData.append('logo', {
         uri: createBrandDto.logo.uri,
         name: fileName,
         type: `image/${fileType}`,
-      };
-      formData.append('logo', file as any);
-      console.log('✅ [FormData] Logo ajouté');
+      } as any);
       
-      // Ajouter les champs nettoyés
-      Object.entries(cleanData).forEach(([key, value]) => {
-        formData.append(key, value);
-        console.log(`✅ [FormData] ${key}:`, value);
+      console.log('✅ Logo ajouté au FormData');
+      
+      // Ajouter uniquement les champs autorisés et non vides
+      allowedFields.forEach(field => {
+        const value = createBrandDto[field];
+        if (value !== undefined && value !== null && value !== '') {
+          formData.append(field, String(value));
+          console.log(`✅ [FormData] ${field}:`, value);
+        }
       });
       
       console.log('📤 Envoi FormData à:', `${API_URL}/brands`);
@@ -313,32 +313,41 @@ async createBrand(createBrandDto: CreateBrandFormData): Promise<CreateBrandRespo
       }
       
       const result = await response.json();
-      console.log('✅ [Brand Service] Marque créée avec logo:', result);
+      console.log('✅ Marque créée avec logo:', result);
+      return result;
+    } else {
+      // CAS 2 : Sans logo (JSON)
+      const cleanData: Record<string, string> = {};
+      
+      allowedFields.forEach(field => {
+        const value = createBrandDto[field];
+        if (value !== undefined && value !== null && value !== '') {
+          cleanData[field] = String(value);
+          console.log(`✅ [JSON] ${field}:`, value);
+        }
+      });
+      
+      console.log('📤 Envoi JSON à:', `${API_URL}/brands`);
+      
+      const response = await fetch(`${API_URL}/brands`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(cleanData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Erreur serveur:', errorData);
+        throw new Error(errorData.message || `Request failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Marque créée sans logo:', result);
       return result;
     }
-
-    // Si pas de logo, envoyer en JSON
-    console.log('📤 Envoi JSON à:', `${API_URL}/brands`);
-    console.log('📦 Données:', cleanData);
-    
-    const response = await fetch(`${API_URL}/brands`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(cleanData),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('❌ Erreur serveur:', errorData);
-      throw new Error(errorData.message || `Request failed: ${response.status}`);
-    }
-
-    const result = await response.json();
-    console.log('✅ [Brand Service] Marque créée sans logo:', result);
-    return result;
     
   } catch (error) {
     console.error('❌ [Brand Service] Erreur création marque:', error);
@@ -399,7 +408,7 @@ async createBrand(createBrandDto: CreateBrandFormData): Promise<CreateBrandRespo
 
     const response = await this.authenticatedFetchFormData(
       `/brands/${brandId}`,
-      formData,
+      formData as FormData & { entries: () => IterableIterator<[string, FormDataEntryValue]> },
       'PATCH'
     );
     const brand = await response.json();

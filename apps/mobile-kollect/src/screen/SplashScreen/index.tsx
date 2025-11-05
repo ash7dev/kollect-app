@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Easing, Image, Dimensions } from 'react-native';
-import { useTheme } from '@/app/context/ThemeContext';
+import { useTheme } from '../../../app/context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
