@@ -23,6 +23,9 @@ export interface SendNotificationResult {
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
+  create(arg0: { userId: any; type: string; title: string; message: string; data: { commandeId: string; }; priority: string; }) {
+      throw new Error('Method not implemented.');
+  }
   private readonly logger = new Logger(NotificationsService.name);
   private isInitialized = false;
 

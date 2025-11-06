@@ -1,3 +1,4 @@
+/* eslint-disable import/no-duplicates */
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';

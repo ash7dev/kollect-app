@@ -473,6 +473,11 @@ export default function RootLayout() {
         clientId: kindeConfig.clientId,
         scopes: kindeConfig.scopes,
       }}
+      tokenStorage={{
+        getItem: SecureStore.getItemAsync,
+        setItem: SecureStore.setItemAsync,
+        removeItem: SecureStore.deleteItemAsync,
+      }}
       callbacks={{}}
     >
       <QueryClientProvider client={queryClient}>

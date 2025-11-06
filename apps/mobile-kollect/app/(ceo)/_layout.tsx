@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable import/no-duplicates */
 import { Tabs, useRouter } from 'expo-router';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { Platform } from 'react-native';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../../src/store/authStore';
@@ -57,12 +60,22 @@ const TabBarIcon = ({
 export default function CeoLayout() {
   const { theme, isDark } = useTheme();
   const router = useRouter();
-  const { isAuthenticated, token, user, isLoading } = useAuthStore();
+  const { isAuthenticated, token, user, isLoading: isAuthLoading } = useAuthStore();
   const hasMyBrand = useBrandStore((state) => !!state.myBrand);
+  const [isAppLoading, setIsAppLoading] = useState(true);
+  
+  // Simuler un chargement d'application
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsAppLoading(false);
+    }, 1500); // Temps de chargement simulé
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   // ⚠️ GUARD: Vérifications complètes d'authentification et de rôle
   useEffect(() => {
-    if (!isLoading) {
+    if (!isAppLoading) {
       // 1. Vérifier l'authentification
       if (!isAuthenticated || !token || !user) {
         console.log('🚫 [CEO Layout] Utilisateur non authentifié - Redirection vers (auth)/login');
@@ -85,10 +98,12 @@ export default function CeoLayout() {
         return;
       }
     }
-  }, [isAuthenticated, token, user, hasMyBrand, isLoading, router]);
+  }, [isAuthenticated, token, user, hasMyBrand, isAppLoading, router]);
 
-  // Afficher un loader pendant la vérification
-  if (isLoading || !isAuthenticated || !token || !user || !user.isCEO) {
+  // Afficher un loader stylisé pendant la vérification ou le chargement
+  const isLoadingState = isAuthLoading || !isAuthenticated || !token || !user || !user.isCEO || isAppLoading;
+  
+  if (isLoadingState) {
     return (
       <View style={{
         flex: 1,
@@ -96,7 +111,26 @@ export default function CeoLayout() {
         justifyContent: 'center',
         alignItems: 'center',
       }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Animated.View 
+          style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            backgroundColor: theme.colors.card,
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: theme.colors.primary,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 8,
+            elevation: 5,
+          }}
+        >
+          <ActivityIndicator 
+            size="large" 
+            color={theme.colors.primary} 
+          />
+        </Animated.View>
       </View>
     );
   }
@@ -128,22 +162,35 @@ export default function CeoLayout() {
   }
 
   return (
+    <BottomSheetModalProvider>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.colors.accent,
         tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarStyle: {
           backgroundColor: theme.colors.card,
-          borderTopColor: theme.colors.border,
-          borderTopWidth: 0.5,
-          height: Platform.OS === 'ios' ? 85 : 65,
+          borderTopWidth: 0, // Suppression du trait supérieur
+          borderTopColor: 'transparent',
+          height: Platform.OS === 'ios' ? 85 : 70,
           paddingBottom: Platform.OS === 'ios' ? 25 : 10,
           paddingTop: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: isDark ? 0.3 : 0.1,
-          shadowRadius: 8,
-          elevation: 8,
+          borderTopLeftRadius: 20, // Coins arrondis en haut à gauche
+          borderTopRightRadius: 20, // Coins arrondis en haut à droite
+          marginTop: -10, // Pour masquer le bord supérieur
+          shadowColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.2,
+          shadowRadius: 12,
+          elevation: 10,
+          // Effet de flou pour iOS
+          ...Platform.select({
+            ios: {
+              shadowColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.15)',
+              shadowOffset: { width: 0, height: -5 },
+              shadowOpacity: 0.3,
+              shadowRadius: 15,
+            },
+          }),
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -238,5 +285,6 @@ export default function CeoLayout() {
         }}
       />
     </Tabs>
+    </BottomSheetModalProvider>
   );
 }

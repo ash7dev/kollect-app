@@ -339,13 +339,8 @@ model Commande {
 enum CommandeStatus {
   EN_ATTENTE
   CONFIRMEE
-  EN_PREPARATION
-  PRETE_A_LIVRAISON
-  EN_LIVRAISON
   LIVREE
   ANNULEE
-  RETOURNEE
-  REMBOURSEE
 }
 
 enum PaymentMethod {

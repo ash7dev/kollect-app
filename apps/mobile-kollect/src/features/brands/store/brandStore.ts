@@ -2,29 +2,29 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { brandService, Brand, CreateBrandResponse } from '../services/brand.service';
-
+import { brandService, Brand, CreateBrandResponse, EnhancedBrandStats } from '../services/brand.service';
+// Dans brandStore.ts - ajouter le caching des stats
 interface BrandState {
-  // État
   myBrand: Brand | null;
+  stats: EnhancedBrandStats | null;
   isLoading: boolean;
   error: string | null;
 
-  // Actions
   setMyBrand: (brand: Brand | null) => void;
+  setStats: (stats: EnhancedBrandStats | null) => void;
   loadMyBrand: () => Promise<void>;
   clearBrand: () => void;
-  
-  // Helpers
   hasBrand: () => boolean;
   getBrandId: () => string | null;
 }
+
 
 export const useBrandStore = create<BrandState>()(
   persist(
     (set, get) => ({
       // État initial
       myBrand: null,
+      stats: null,
       isLoading: false,
       error: null,
 
@@ -35,11 +35,8 @@ export const useBrandStore = create<BrandState>()(
       /**
        * 💾 Définir la marque dans le store
        */
-      setMyBrand: (brand) => {
-        set({ myBrand: brand, error: null });
-        console.log('💾 [Brand Store] Marque définie:', brand?.id);
-      },
-
+      setMyBrand: (brand: Brand | null) => set({ myBrand: brand }),
+      setStats: (stats: EnhancedBrandStats | null) => set({ stats }),
       /**
        * 🔄 Charger ma marque depuis l'API
        */
@@ -67,6 +64,7 @@ export const useBrandStore = create<BrandState>()(
         }
       },
 
+      
       /**
        * 🗑️ Effacer la marque du store
        */

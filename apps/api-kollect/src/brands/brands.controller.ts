@@ -231,28 +231,7 @@ export class BrandsController {
     return await this.brandsService.reactivate(userId, id);
   }
 
-  /**
-   * 📊 Récupérer les statistiques de MA boutique
-   * GET /brands/:id/stats
-   * Nécessite : JWT + Rôle CEO + Propriétaire
-   * 
-   * Retourne :
-   * - Nombre de produits, collections, commandes
-   * - Revenus totaux
-   * - Nombre de followers et reviews
-   * - Note moyenne
-   */
-  @Get(':id/stats')
-  @Roles('isCEO')
-  @UseGuards(BrandOwnerGuard)
-  @HttpCode(HttpStatus.OK)
-  async getStats(
-    @GetUser('id') userId: string,
-    @Param('id') id: string,
-  ): Promise<BrandStats> {
-    return await this.brandsService.getStats(userId, id);
-  }
-
+  
   // ========================================
   // ROUTES ADMIN (à implémenter)
   // ========================================
@@ -281,6 +260,41 @@ export class BrandsController {
     };
   }
 
+  /**
+ * 📊 Récupérer les statistiques de MA boutique
+ * GET /brands/:id/stats
+ */
+@Get(':id/stats')
+@Roles('isCEO')
+@UseGuards(BrandOwnerGuard)
+@HttpCode(HttpStatus.OK)
+async getStats(
+  @GetUser('id') userId: string,
+  @Param('id') id: string,
+): Promise<BrandStats & {
+  ordersThisMonth: number;
+  ordersChange: number;
+  followersChange: number;
+  conversionRate: number;
+}> {
+  return await this.brandsService.getStats(userId, id);
+}
+
+/**
+ * 📈 Récupérer les données de ventes par période
+ * GET /brands/:id/sales-data?period=7days
+ */
+@Get(':id/sales-data')
+@Roles('isCEO')
+@UseGuards(BrandOwnerGuard)
+@HttpCode(HttpStatus.OK)
+async getSalesData(
+  @GetUser('id') userId: string,
+  @Param('id') id: string,
+  @Query('period') period: '7days' | '30days' | '90days' = '7days',
+) {
+  return await this.brandsService.getSalesData(userId, id, period);
+}
   /**
    * 🗑️ Supprimer définitivement une marque (Admin uniquement)
    * DELETE /brands/:id/force-delete

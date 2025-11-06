@@ -6,6 +6,7 @@ import * as Notifications from 'expo-notifications';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { KindeAuthProvider } from '@kinde/expo';
@@ -96,15 +97,27 @@ function RootLayoutContent() {
 
       // 1. Tâches parallèles de base (Firebase, Auth, Onboarding)
       const basicTasks = [
-        // Firebase
+        // Firebase (éviter la configuration notifications sur simulateur)
         (async () => {
           try {
             await initializeFirebase();
-            const hasPermission = await requestNotificationPermission();
-            if (hasPermission) {
-              await setupNotifications();
-              const token = await getNotificationToken();
-              if (token) console.log('🎯 [Init] FCM token obtenu');
+            const isPhysicalDevice = (() => {
+              try {
+                const Device = require('expo-device');
+                return !!Device?.isDevice;
+              } catch {
+                return false;
+              }
+            })();
+            if (isPhysicalDevice) {
+              const hasPermission = await requestNotificationPermission();
+              if (hasPermission) {
+                await setupNotifications();
+                const token = await getNotificationToken();
+                if (token) console.log('🎯 [Init] FCM token obtenu');
+              }
+            } else {
+              console.log('[Init] Skip notifications setup on iOS Simulator');
             }
             return { name: 'firebase', ok: true };
           } catch (err) {
@@ -446,10 +459,18 @@ export default function RootLayout() {
         clientId: kindeConfig.clientId,
         scopes: kindeConfig.scopes,
       }}
+      // @ts-expect-error: tokenStorage prop is supported at runtime by @kinde/expo
+      tokenStorage={{
+        getItem: SecureStore.getItemAsync,
+        setItem: SecureStore.setItemAsync,
+        removeItem: SecureStore.deleteItemAsync,
+      }}
       callbacks={{}}
     >
       <QueryClientProvider client={queryClient}>
-        <ThemedApp />
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <ThemedApp />
+        </GestureHandlerRootView>
       </QueryClientProvider>
     </KindeAuthProvider>
   );

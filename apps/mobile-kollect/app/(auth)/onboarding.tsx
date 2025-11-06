@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useRef, useState, useCallback } from 'react';
 import { 
   View, 
@@ -11,6 +12,7 @@ import {
   StatusBar as RNStatusBar,
   ViewToken
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
@@ -18,7 +20,7 @@ import slide1 from '../../assets/images/slide1.png';
 import slide2 from '../../assets/images/slide2.png';
 import slide3 from '../../assets/images/slide3.png';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const onboardingData = [
   {
@@ -52,6 +54,9 @@ const OnboardingScreen = ({ onFinish }: OnboardingScreenProps) => {
   const [isNavigating, setIsNavigating] = useState(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
+  const { width, height } = Dimensions.get('window');
+  const isSmallDevice = height < 700 || width < 360;
 
   const viewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     if (viewableItems.length > 0 && viewableItems[0].index !== null) {
@@ -82,13 +87,13 @@ const OnboardingScreen = ({ onFinish }: OnboardingScreenProps) => {
       await onFinish();
       
       // Then navigate to login
-      console.log('🚀 [Navigation] Redirection vers /(auth)/login');
-      router.replace('/(auth)/login');
+      console.log('🚀 [Navigation] Push vers /(auth)/login');
+      router.push('/(auth)/login');
     } catch (error) {
       console.error('❌ [Onboarding] Erreur sauvegarde:', error);
       // Still try to navigate even if there was an error
       await onFinish();
-      router.replace('/(auth)/login');
+      router.push('/(auth)/login');
     } finally {
       setIsNavigating(false);
     }
@@ -105,13 +110,20 @@ const OnboardingScreen = ({ onFinish }: OnboardingScreenProps) => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}> 
       <RNStatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       
       {/* Skip Button */}
       {currentIndex < onboardingData.length - 1 && (
         <TouchableOpacity 
-          style={[styles.skipButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+          style={[
+            styles.skipButton,
+            { 
+              top: insets.top + 12,
+              right: 16,
+              backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
+            }
+          ]}
           onPress={handleSkip}
         >
           <Text style={[styles.skipText, { color: theme.colors.textSecondary }]}>
@@ -135,11 +147,42 @@ const OnboardingScreen = ({ onFinish }: OnboardingScreenProps) => {
         viewabilityConfig={viewConfig}
         scrollEventThrottle={32}
         renderItem={({ item, index }) => (
-          <View style={[styles.slide, { width: SCREEN_WIDTH }]}>
-            <Image source={item.image} style={styles.image} />
+          <View style={[styles.slide, { width }]}> 
+            <Image 
+              source={item.image} 
+              style={[
+                styles.image,
+                {
+                  width: width * 0.82,
+                  height: Math.min(width * 0.82, height * 0.45),
+                  marginBottom: isSmallDevice ? 20 : 40,
+                }
+              ]}
+            />
             <View style={styles.textContainer}>
-              <Text style={[styles.title, { color: theme.colors.text }]}>{item.title}</Text>
-              <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
+              <Text 
+                style={[
+                  styles.title,
+                  { 
+                    color: theme.colors.text,
+                    fontSize: isSmallDevice ? 22 : 28,
+                    lineHeight: isSmallDevice ? 30 : 36,
+                    marginBottom: isSmallDevice ? 12 : 16,
+                    paddingHorizontal: isSmallDevice ? 10 : 0,
+                  }
+                ]}
+              >
+                {item.title}
+              </Text>
+              <Text style={[
+                styles.description,
+                { 
+                  color: theme.colors.textSecondary,
+                  fontSize: isSmallDevice ? 14 : 16,
+                  lineHeight: isSmallDevice ? 20 : 24,
+                  paddingHorizontal: isSmallDevice ? 10 : 20,
+                }
+              ]}> 
                 {item.description}
               </Text>
             </View>
@@ -149,9 +192,9 @@ const OnboardingScreen = ({ onFinish }: OnboardingScreenProps) => {
       />
 
       {/* Dots */}
-      <View style={styles.dotsContainer}>
+      <View style={[styles.dotsContainer, { marginVertical: isSmallDevice ? 16 : 30 }]}>
         {onboardingData.map((_, i) => {
-          const inputRange = [(i - 1) * SCREEN_WIDTH, i * SCREEN_WIDTH, (i + 1) * SCREEN_WIDTH];
+          const inputRange = [(i - 1) * width, i * width, (i + 1) * width];
           
           const dotWidth = scrollX.interpolate({
             inputRange,
@@ -183,26 +226,33 @@ const OnboardingScreen = ({ onFinish }: OnboardingScreenProps) => {
 
       {/* Next/Get Started Button */}
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: theme.colors.primary }]}
+        style={[
+          styles.button,
+          { 
+            backgroundColor: theme.colors.primary,
+            height: isSmallDevice ? 50 : 56,
+            marginBottom: isSmallDevice ? 20 : 40,
+            width: isSmallDevice ? '88%' : '80%'
+          }
+        ]}
         onPress={scrollTo}
       >
-        <Text style={styles.buttonText}>
-          {currentIndex === onboardingData.length - 1 ? 'Commencer' : 'Suivant'}
+        <Text style={[styles.buttonText, { fontSize: isSmallDevice ? 15 : 16 }]}>
+          {currentIndex === onboardingData.length - 1 ? 'Rejoindre la communauté' : 'Suivant'}
         </Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
   },
   skipButton: {
     position: 'absolute',
-    top: 60,
     right: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -216,13 +266,10 @@ const styles = StyleSheet.create({
   slide: {
     width: '100%',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   image: {
-    width: SCREEN_WIDTH * 0.8,
-    height: SCREEN_WIDTH * 0.8,
     resizeMode: 'contain',
-    marginBottom: 40,
   },
   textContainer: {
     alignItems: 'center',
@@ -255,11 +302,10 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '80%',
-    height: 56,
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40,
+    alignSelf: 'center',
   },
   buttonText: {
     color: 'white',

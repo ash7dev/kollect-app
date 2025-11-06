@@ -69,17 +69,7 @@ export const useBrandBySlug = (slug: string) => {
   });
 };
 
-/**
- * 📊 Hook pour récupérer les stats de MA marque
- */
-export const useBrandStats = (brandId: string) => {
-  return useQuery({
-    queryKey: brandKeys.stats(brandId),
-    queryFn: () => brandService.getBrandStats(brandId),
-    enabled: !!brandId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
-};
+
 
 /**
  * 🏪 Hook pour créer une marque avec upload de logo
@@ -164,5 +154,33 @@ export const useReactivateBrand = () => {
       setMyBrand(brand);
       queryClient.invalidateQueries({ queryKey: brandKeys.myBrand() });
     },
+  });
+};
+
+/**
+ * 📊 Hook pour récupérer les stats complètes de MA marque
+ */
+export const useBrandStats = (brandId: string) => {
+  return useQuery({
+    queryKey: brandKeys.stats (brandId),
+    queryFn: () => brandService.getBrandStats(brandId),
+    enabled: !!brandId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: 5 * 60 * 1000, // Rafraîchir toutes les 5 minutes
+  });
+};
+
+/**
+ * 📈 Hook pour récupérer les données de ventes par période
+ */
+export const useSalesData = (
+  brandId: string, 
+  period: '7days' | '30days' | '90days' = '7days'
+) => {
+  return useQuery({
+    queryKey: [...brandKeys.stats(brandId), 'sales', period],
+    queryFn: () => brandService.getSalesData(brandId, period),
+    enabled: !!brandId,
+    staleTime: 2 * 60 * 1000,
   });
 };

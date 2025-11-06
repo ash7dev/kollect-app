@@ -1,9 +1,22 @@
  
 import * as SecureStore from 'expo-secure-store';
-// eslint-disable-next-line import/no-unresolved
+ 
 import * as ImagePicker from 'expo-image-picker';
 
 // Types
+
+export interface EnhancedBrandStats extends BrandStats {
+  ordersThisMonth: number;
+  ordersChange: number;
+  followersChange: number;
+  conversionRate: number;
+}
+
+export interface SalesDataPoint {
+  label: string;
+  value: number;
+  date?: string;
+}
 export interface Brand {
   id: string;
   name: string;
@@ -354,6 +367,39 @@ class BrandService {
     throw error;
   }
 }
+
+/**
+ * 📊 Récupérer les stats complètes de MA marque
+ * GET /brands/:id/stats
+ */
+async getBrandStats(brandId: string): Promise<EnhancedBrandStats> {
+  console.log('📊 [Brand Service] Récupération des stats:', brandId);
+
+  const response = await this.authenticatedFetch(`/brands/${brandId}/stats`);
+  const stats = await response.json();
+
+  console.log('✅ [Brand Service] Stats récupérées');
+  return stats;
+}
+
+/**
+ * 📈 Récupérer les données de ventes par période
+ * GET /brands/:id/sales-data?period=7days
+ */
+async getSalesData(
+  brandId: string, 
+  period: '7days' | '30days' | '90days' = '7days'
+): Promise<SalesDataPoint[]> {
+  console.log('📈 [Brand Service] Récupération sales data:', { brandId, period });
+
+  const response = await this.authenticatedFetch(
+    `/brands/${brandId}/sales-data?period=${period}`
+  );
+  const data = await response.json();
+
+  console.log('✅ [Brand Service] Sales data récupérées:', data.length);
+  return data;
+}
   /**
    * 🏠 Récupérer MA marque (CEO Dashboard)
    * GET /brands/my-brand
@@ -449,19 +495,7 @@ class BrandService {
     return brand;
   }
 
-  /**
-   * 📊 Récupérer les stats de MA marque
-   * GET /brands/:id/stats
-   */
-  async getBrandStats(brandId: string): Promise<BrandStats> {
-    console.log('📊 [Brand Service] Récupération des stats:', brandId);
-
-    const response = await this.authenticatedFetch(`/brands/${brandId}/stats`);
-    const stats = await response.json();
-
-    console.log('✅ [Brand Service] Stats récupérées');
-    return stats;
-  }
+  
 
   // ========================================
   // ROUTES ADMIN

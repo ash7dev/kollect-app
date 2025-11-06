@@ -27,6 +27,6 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "apps/api-kollect/src/commandes/commandes.service.ts", "apps/api-kollect"],
   "exclude": ["node_modules", "dist"]
 }
