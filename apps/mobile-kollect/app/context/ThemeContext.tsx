@@ -15,15 +15,23 @@ type AdaptiveColors = {
   textDisabled: string;
   border: string;
   divider: string;
+  borderLight: string;
+  borderDarkSubtle: string;
+  overlay: string;
+  overlayLight: string;
+  overlayDark: string;
+  shadowLight: string;
+  shadowDark: string;
+  highlight: string;
+  highlightDark: string;
 };
 
-// Type du thème avec couleurs adaptatives
+// Type du thème avec couleurs adaptatives - simplifié pour inclure toutes les couleurs
 type AdaptiveTheme = Omit<Theme, 'colors'> & {
-  colors: Omit<typeof baseColors, keyof AdaptiveColors> & AdaptiveColors;
+  colors: typeof baseColors;
 };
 
 interface ThemeContextType {
-  colors: any;
   theme: AdaptiveTheme;
   themeMode: ThemeMode;
   isDark: boolean;
@@ -44,6 +52,15 @@ function getAdaptiveColors(isDark: boolean): AdaptiveColors {
       textDisabled: baseColors.textDisabledDark,
       border: baseColors.borderDark,
       divider: baseColors.dividerDark,
+      borderLight: baseColors.borderDarkSubtle,
+      borderDarkSubtle: baseColors.borderDarkSubtle,
+      overlay: baseColors.overlayDark,
+      overlayLight: baseColors.overlayDark,
+      overlayDark: baseColors.overlayDark,
+      shadowLight: baseColors.shadowDark,
+      shadowDark: baseColors.shadowDark,
+      highlight: baseColors.highlightDark,
+      highlightDark: baseColors.highlightDark,
     };
   }
   
@@ -56,6 +73,15 @@ function getAdaptiveColors(isDark: boolean): AdaptiveColors {
     textDisabled: baseColors.textDisabled,
     border: baseColors.border,
     divider: baseColors.divider,
+    borderLight: baseColors.borderLight,
+    borderDarkSubtle: baseColors.borderLight,
+    overlay: baseColors.overlay,
+    overlayLight: baseColors.overlayLight,
+    overlayDark: baseColors.overlay,
+    shadowLight: baseColors.shadowLight,
+    shadowDark: baseColors.shadowDark,
+    highlight: baseColors.highlight,
+    highlightDark: baseColors.highlight,
   };
 }
 
@@ -112,38 +138,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     theme: {
       ...baseTheme,
       colors: {
-        // Copie toutes les couleurs statiques
-        primary: baseColors.primary,
-        primaryLight: baseColors.primaryLight,
-        primaryDark: baseColors.primaryDark,
-        accent: baseColors.accent,
-        accentLight: baseColors.accentLight,
-        accentDark: baseColors.accentDark,
-        success: baseColors.success,
-        error: baseColors.error,
-        warning: baseColors.warning,
-        info: baseColors.info,
-        teaser: baseColors.teaser,
-        live: baseColors.live,
-        soldOut: baseColors.soldOut,
-        new: baseColors.new,
-        exclusive: baseColors.exclusive,
-        limitedEdition: baseColors.limitedEdition,
-        transparent: baseColors.transparent,
-        overlay: baseColors.overlay,
-        overlayLight: baseColors.overlayLight,
-        gradientPrimary: baseColors.gradientPrimary,
-        gradientAccent: baseColors.gradientAccent,
-        gradientDark: baseColors.gradientDark,
-        backgroundDark: baseColors.backgroundDark,
-        surfaceDark: baseColors.surfaceDark,
-        cardDark: baseColors.cardDark,
-        textDark: baseColors.textDark,
-        textSecondaryDark: baseColors.textSecondaryDark,
-        textDisabledDark: baseColors.textDisabledDark,
-        borderDark: baseColors.borderDark,
-        dividerDark: baseColors.dividerDark,
-        // Override avec les couleurs adaptatives
+        // On garde TOUTES les couleurs de base pour satisfaire le type
+        ...baseColors,
+        // Et on override avec les couleurs adaptatives
         ...adaptiveColors,
       },
     },
@@ -151,7 +148,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     isDark,
     setThemeMode,
     toggleTheme,
-    colors: undefined
   };
 
   return (

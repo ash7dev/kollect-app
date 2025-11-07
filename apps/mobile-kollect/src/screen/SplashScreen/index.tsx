@@ -10,10 +10,12 @@ const LOGO_FINAL_SIZE = Math.min(width * 0.25, 120);
 
 interface SplashScreenProps {
   onAnimationComplete: () => void;
+  forceDarkMode?: boolean;
 }
 
-export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete }) => {
-  const { theme } = useTheme();
+export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete, forceDarkMode = true }) => {
+  const { theme, isDark: themeIsDark } = useTheme();
+  const isDark = forceDarkMode ? true : themeIsDark;
 
   // Animations principales
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
@@ -233,27 +235,27 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete 
   });
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Cercles de fond décoratifs */}
+    <View style={[styles.container, { backgroundColor: forceDarkMode ? '#000000' : theme.colors.background }]}>
+      {/* Cercles de fond décoratifs - Utilisation de overlayLight/overlayDark */}
       <View style={styles.backgroundCircles}>
         <View 
           style={[
             styles.circle, 
             styles.circle1,
-            { backgroundColor: theme.colors.primary + '10' }
+            { backgroundColor: forceDarkMode ? 'rgba(26, 26, 26, 0.8)' : (isDark ? theme.colors.overlayDark : theme.colors.overlayLight) }
           ]} 
         />
         <View 
           style={[
             styles.circle, 
             styles.circle2,
-            { backgroundColor: theme.colors.primary + '08' }
+            { backgroundColor: forceDarkMode ? 'rgba(26, 26, 26, 0.8)' : (isDark ? theme.colors.overlayDark : theme.colors.overlayLight) }
           ]} 
         />
       </View>
 
       <View style={styles.content}>
-        {/* Particules flottantes autour du logo */}
+        {/* Particules flottantes - Rouge accent avec transparence */}
         <Animated.View
           style={[
             styles.particle,
@@ -263,7 +265,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete 
                 { translateY: particle1Y },
                 { translateX: -40 },
               ],
-              backgroundColor: theme.colors.primary + '80',
+              backgroundColor: theme.colors.highlight,
             },
           ]}
         />
@@ -276,7 +278,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete 
                 { translateY: particle2Y },
                 { translateX: 50 },
               ],
-              backgroundColor: theme.colors.primary + '60',
+              backgroundColor: forceDarkMode ? 'rgba(255, 59, 48, 0.2)' : (isDark ? theme.colors.highlightDark : theme.colors.highlight),
             },
           ]}
         />
@@ -289,12 +291,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete 
                 { translateY: particle3Y },
                 { translateX: 0 },
               ],
-              backgroundColor: theme.colors.primary + '70',
+              backgroundColor: theme.colors.highlight,
             },
           ]}
         />
 
-        {/* Logo avec effets multiples */}
+        {/* Logo avec effets BOOM - Ombres fortes */}
         <Animated.View
           style={[
             styles.logoWrapper,
@@ -304,16 +306,26 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete 
                 { scale: Animated.multiply(scaleAnim, pulseAnim) },
                 { rotate: rotation },
               ],
+              // Ombres BOOM en mode sombre forcé
+              shadowColor: forceDarkMode ? 'rgba(0, 0, 0, 0.5)' : (isDark ? theme.colors.shadowDark : theme.colors.shadowLight),
+              shadowOffset: { width: 0, height: isDark ? 8 : 6 },
+              shadowOpacity: 1,
+              shadowRadius: isDark ? 16 : 12,
+              elevation: isDark ? 8 : 6,
             },
           ]}
         >
-          {/* Glow effect */}
+          {/* Glow effect avec highlight */}
           <View 
             style={[
               styles.logoGlow,
               { 
-                backgroundColor: theme.colors.primary + '20',
-                shadowColor: theme.colors.primary,
+                backgroundColor: forceDarkMode ? 'rgba(255, 59, 48, 0.2)' : (isDark ? theme.colors.highlightDark : theme.colors.highlight),
+                shadowColor: theme.colors.accent,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.4,
+                shadowRadius: 30,
+                elevation: 5,
               }
             ]} 
           />
@@ -325,12 +337,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete 
           />
         </Animated.View>
 
-        {/* Texte "Kollect" avec animation */}
+        {/* Texte "Kollect" - Bold selon les règles BOOM */}
         <Animated.Text
           style={[
             styles.text,
             {
-              color: theme.colors.text,
+              color: forceDarkMode ? '#FFFFFF' : theme.colors.text,
               opacity: textOpacity,
               transform: [
                 { translateY: textTranslateY },
@@ -342,12 +354,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete 
           Kollect
         </Animated.Text>
 
-        {/* Sous-titre subtil */}
+        {/* Sous-titre - Utilisation de textSecondary */}
         <Animated.Text
           style={[
             styles.subtitle,
             {
-              color: theme.colors.text + '60',
+              color: forceDarkMode ? '#B0B0B0' : theme.colors.textSecondary,
               opacity: textOpacity,
             },
           ]}
@@ -356,20 +368,27 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete 
         </Animated.Text>
       </View>
 
-      {/* Barre de chargement moderne */}
+      {/* Barre de chargement - Accent rouge pour CTA */}
       <Animated.View
         style={[
           styles.loaderContainer,
           { opacity: textOpacity },
         ]}
       >
-        <View style={[styles.loaderTrack, { backgroundColor: theme.colors.primary + '20' }]}>
+        <View style={[
+          styles.loaderTrack, 
+          { backgroundColor: forceDarkMode ? '#333333' : (isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight) }
+        ]}>
           <Animated.View
             style={[
               styles.loaderBar,
               {
                 width: loaderWidth,
-                backgroundColor: theme.colors.primary,
+                backgroundColor: forceDarkMode ? '#FF3B30' : theme.colors.accent, // Rouge accent pour action
+                shadowColor: forceDarkMode ? '#FF3B30' : theme.colors.accent,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.5,
+                shadowRadius: 6,
               },
             ]}
           />
@@ -413,11 +432,6 @@ const styles = StyleSheet.create({
   logoWrapper: {
     marginBottom: 24,
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 12,
   },
   logoGlow: {
     position: 'absolute',
@@ -428,9 +442,6 @@ const styles = StyleSheet.create({
     left: '50%',
     marginTop: -(LOGO_BASE_SIZE * 0.65),
     marginLeft: -(LOGO_BASE_SIZE * 0.65),
-    shadowOpacity: 0.3,
-    shadowRadius: 30,
-    elevation: 5,
   },
   logo: {
     width: LOGO_BASE_SIZE,
@@ -447,7 +458,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: Math.min(width * 0.13, 52),
-    fontWeight: '900',
+    fontWeight: '700', // ✨ Bold selon règles BOOM
     letterSpacing: 3,
     textAlign: 'center',
     marginTop: -234,
@@ -457,7 +468,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: Math.min(width * 0.04, 16),
-    fontWeight: '500',
+    fontWeight: '500', // ✨ Medium selon règles BOOM
     letterSpacing: 1,
     textAlign: 'center',
     marginTop: -3,
@@ -477,9 +488,5 @@ const styles = StyleSheet.create({
   loaderBar: {
     height: '100%',
     borderRadius: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
   },
 });

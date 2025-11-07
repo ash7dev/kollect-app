@@ -1,4 +1,4 @@
-// register.tsx - VERSION SIMPLIFIÉE AVEC ZUSTAND (même structure que login)
+// register.tsx - VERSION AVEC PALETTE "BOOM"
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -25,7 +25,7 @@ export default function RegisterScreen() {
   const { register: kindeRegister, loginWithProvider, loading: kindeLoading, error: kindeError } = useKinde();
   const { theme, isDark } = useTheme();
   
-  // 🆕 Zustand store - Actions uniquement
+  // Zustand store
   const login = useAuthStore((state: AuthState) => state.login);
   const isLoading = useAuthStore((state: AuthState) => state.isLoading);
   const error = useAuthStore((state: AuthState) => state.error);
@@ -53,7 +53,7 @@ export default function RegisterScreen() {
     ]).start();
   }, [shakeAnimation]);
 
-  // Gestion des erreurs Kinde
+  // Gestion des erreurs
   useEffect(() => {
     if (kindeError) {
       setLocalError(kindeError.message || 'Erreur lors de l\'inscription');
@@ -61,7 +61,6 @@ export default function RegisterScreen() {
     }
   }, [kindeError, shakeError]);
 
-  // Gestion des erreurs Zustand
   useEffect(() => {
     if (error) {
       setLocalError(error);
@@ -70,13 +69,12 @@ export default function RegisterScreen() {
   }, [error, shakeError]);
 
   /**
-   * 📝 Register avec Email (Kinde + Backend via Zustand)
+   * 📝 Register avec Email
    */
   const handleEmailRegister = async () => {
     try {
       setLocalError(null);
       
-      // 1️⃣ Register avec Kinde
       const kindeResponse = await kindeRegister();
       
       if (!kindeResponse?.user) {
@@ -84,11 +82,7 @@ export default function RegisterScreen() {
       }
 
       console.log('✅ Register Kinde réussi, synchronisation...');
-
-      // 2️⃣ Login via Zustand (qui gère le sync backend + stockage)
       await login(kindeResponse.user);
-
-      // 3️⃣ Redirection automatique dans _layout.tsx
       console.log('✅ Inscription complète');
       
     } catch (err: any) {
@@ -99,13 +93,12 @@ export default function RegisterScreen() {
   };
 
   /**
-   * 🌐 Register avec Provider (Google/Apple)
+   * 🌐 Register avec Provider
    */
   const handleProviderRegister = async (provider: 'google' | 'apple') => {
     try {
       setLocalError(null);
       
-      // 1️⃣ Register avec Kinde
       const kindeResponse = await loginWithProvider(provider);
       
       if (!kindeResponse?.user) {
@@ -113,10 +106,7 @@ export default function RegisterScreen() {
       }
 
       console.log(`✅ Register ${provider} réussi, synchronisation...`);
-
-      // 2️⃣ Login via Zustand
       await login(kindeResponse.user);
-
       console.log('✅ Inscription complète');
       
     } catch (err: any) {
@@ -137,9 +127,16 @@ export default function RegisterScreen() {
             styles.logoContainer, 
             { 
               backgroundColor: theme.colors.card,
+              borderWidth: 1,
+              borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
               width: LOGO_SIZE,
               height: LOGO_SIZE,
               borderRadius: LOGO_SIZE / 2,
+              shadowColor: isDark ? '#000' : '#000',
+              shadowOffset: { width: 0, height: isDark ? 8 : 6 },
+              shadowOpacity: isDark ? 0.5 : 0.15,
+              shadowRadius: 12,
+              elevation: isDark ? 8 : 4,
             }
           ]}>
             <Image
@@ -165,14 +162,15 @@ export default function RegisterScreen() {
           </Text>
         </View>
 
-        {/* Error Message */}
+        {/* Error Message - Style "BOOM" */}
         {localError && (
           <Animated.View
             style={[
               styles.errorContainer,
               {
-                backgroundColor: theme.colors.error + '15',
+                backgroundColor: `${theme.colors.error}15`,
                 borderColor: theme.colors.error,
+                borderWidth: 1,
                 transform: [{ translateX: shakeAnimation }],
               },
             ]}
@@ -191,11 +189,18 @@ export default function RegisterScreen() {
 
         {/* Boutons d'inscription */}
         <View style={styles.buttonsContainer}>
+          {/* Bouton principal - Rouge accent "BOOM" */}
           <TouchableOpacity
             style={[
               styles.primaryButton,
               { 
-                backgroundColor: theme.colors.primary,
+                backgroundColor: theme.colors.accent,
+                borderWidth: 0,
+                shadowColor: theme.colors.accent,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 6,
                 opacity: isButtonDisabled ? 0.6 : 1
               }
             ]}
@@ -213,18 +218,33 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           <View style={styles.separator}>
-            <View style={[styles.separatorLine, { backgroundColor: theme.colors.border }]} />
-            <Text style={[styles.separatorText, { color: theme.colors.textSecondary }]}>ou</Text>
-            <View style={[styles.separatorLine, { backgroundColor: theme.colors.border }]} />
+            <View style={[
+              styles.separatorLine, 
+              { backgroundColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight }
+            ]} />
+            <Text style={[styles.separatorText, { color: theme.colors.textSecondary }]}>
+              ou
+            </Text>
+            <View style={[
+              styles.separatorLine, 
+              { backgroundColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight }
+            ]} />
           </View>
 
+          {/* Boutons sociaux - Style "BOOM" */}
           <View style={styles.socialContainer}>
             <TouchableOpacity
               style={[
                 styles.socialButton,
                 { 
-                  backgroundColor: theme.colors.card, 
-                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.card,
+                  borderWidth: 1,
+                  borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.border,
+                  shadowColor: isDark ? '#000' : '#000',
+                  shadowOffset: { width: 0, height: isDark ? 4 : 2 },
+                  shadowOpacity: isDark ? 0.3 : 0.08,
+                  shadowRadius: 6,
+                  elevation: isDark ? 4 : 2,
                   opacity: isButtonDisabled ? 0.6 : 1
                 }
               ]}
@@ -242,8 +262,14 @@ export default function RegisterScreen() {
               style={[
                 styles.socialButton,
                 { 
-                  backgroundColor: theme.colors.card, 
-                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.card,
+                  borderWidth: 1,
+                  borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.border,
+                  shadowColor: isDark ? '#000' : '#000',
+                  shadowOffset: { width: 0, height: isDark ? 4 : 2 },
+                  shadowOpacity: isDark ? 0.3 : 0.08,
+                  shadowRadius: 6,
+                  elevation: isDark ? 4 : 2,
                   opacity: isButtonDisabled ? 0.6 : 1
                 }
               ]}
@@ -259,14 +285,14 @@ export default function RegisterScreen() {
           </View>
         </View>
 
-        {/* Termes et conditions */}
+        {/* Termes et conditions - Style "BOOM" */}
         <Text style={[styles.termsText, { color: theme.colors.textSecondary }]}>
           En créant un compte, vous acceptez nos{' '}
-          <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>
+          <Text style={{ color: theme.colors.accent, fontWeight: '700' }}>
             Conditions d&apos;utilisation
           </Text>
           {' '}et notre{' '}
-          <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>
+          <Text style={{ color: theme.colors.accent, fontWeight: '700' }}>
             Politique de confidentialité
           </Text>
         </Text>
@@ -277,7 +303,7 @@ export default function RegisterScreen() {
             Vous avez déjà un compte ?{' '}
           </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-            <Text style={[styles.footerLink, { color: theme.colors.primary }]}>
+            <Text style={[styles.footerLink, { color: theme.colors.accent }]}>
               Se connecter
             </Text>
           </TouchableOpacity>
@@ -288,22 +314,39 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
-  header: { alignItems: 'center', marginBottom: 40 },
+  container: { 
+    flex: 1,
+  },
+  content: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    paddingHorizontal: 24,
+  },
+  header: { 
+    alignItems: 'center', 
+    marginBottom: 40,
+  },
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 24,
   },
-  logo: { width: 85, height: 85, resizeMode: 'contain', marginTop: 43 },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 8, letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, fontWeight: '400' },
+  logo: { 
+    width: 85, 
+    height: 85, 
+    resizeMode: 'contain', 
+    marginTop: 43,
+  },
+  title: { 
+    fontSize: 32, 
+    fontWeight: '700', 
+    marginBottom: 8, 
+    letterSpacing: -0.8,
+  },
+  subtitle: { 
+    fontSize: 15, 
+    fontWeight: '500',
+  },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -311,7 +354,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 24,
     gap: 10,
-    borderWidth: 1,
   },
   errorIconContainer: {
     width: 24,
@@ -320,48 +362,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  errorText: { flex: 1, fontSize: 13, fontWeight: '500', lineHeight: 18 },
-  closeError: { padding: 4 },
-  buttonsContainer: { marginBottom: 24 },
+  errorText: { 
+    flex: 1, 
+    fontSize: 13, 
+    fontWeight: '600', 
+    lineHeight: 18,
+  },
+  closeError: { 
+    padding: 4,
+  },
+  buttonsContainer: { 
+    marginBottom: 24,
+  },
   primaryButton: {
     width: '100%',
-    height: 52,
-    borderRadius: 12,
+    height: 56,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   primaryButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
-  separator: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  separatorLine: { flex: 1, height: 1 },
-  separatorText: { marginHorizontal: 12, fontSize: 13, fontWeight: '500' },
-  socialContainer: { flexDirection: 'row', gap: 12 },
+  separator: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 20,
+  },
+  separatorLine: { 
+    flex: 1, 
+    height: 1,
+  },
+  separatorText: { 
+    marginHorizontal: 12, 
+    fontSize: 13, 
+    fontWeight: '600',
+  },
+  socialContainer: { 
+    flexDirection: 'row', 
+    gap: 12,
+  },
   socialButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderRadius: 12,
-    height: 52,
+    borderRadius: 14,
+    height: 56,
     gap: 8,
   },
-  socialButtonText: { fontSize: 15, fontWeight: '600' },
+  socialButtonText: { 
+    fontSize: 15, 
+    fontWeight: '700',
+  },
   termsText: {
-    fontSize: 11,
+    fontSize: 12,
     textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 18,
     marginBottom: 24,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
@@ -369,6 +432,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  footerText: { fontSize: 14, fontWeight: '400' },
-  footerLink: { fontSize: 14, fontWeight: '700' },
+  footerText: { 
+    fontSize: 14, 
+    fontWeight: '500',
+  },
+  footerLink: { 
+    fontSize: 14, 
+    fontWeight: '700',
+  },
 });

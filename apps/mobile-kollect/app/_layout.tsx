@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-// app/_layout.tsx - Version optimisée avec fetch intelligent
-import { SplashScreen as ExpoSplash, Stack } from 'expo-router';
+// app/_layout.tsx - Version avec SplashScreen personnalisé uniquement
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -33,11 +33,6 @@ import {
 // Backend auth service
 import { authService } from '../src/features/auth/services/auth.service';
 
-// --- Timing
-const TIMING = {
-  SPLASH_MIN: 800,
-};
-
 const STORAGE_KEYS = {
   JWT_TOKEN: 'jwt_token',
 };
@@ -53,21 +48,17 @@ Notifications.setNotificationHandler({
   }),
 });
 
-ExpoSplash.preventAutoHideAsync();
-
 function RootLayoutContent() {
   const { theme, isDark } = useTheme();
 
   // États
   const [showCustomSplash, setShowCustomSplash] = useState(true);
-  const [splashAnimationDone, setSplashAnimationDone] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
 
-  const { isAuthenticated, isLoading, user, initAuth, _setAuth ,token} = useAuthStore();
+  const { isAuthenticated, isLoading, user, initAuth, _setAuth, token } = useAuthStore();
 
   const initOnceRef = useRef(false);
-  const startTimeRef = useRef<number | null>(null);
 
   // Utility: check onboarding
   const checkOnboarding = useCallback(async (): Promise<boolean> => {
@@ -90,7 +81,6 @@ function RootLayoutContent() {
   useEffect(() => {
     if (initOnceRef.current) return;
     initOnceRef.current = true;
-    startTimeRef.current = Date.now();
 
     const initializeAll = async () => {
       console.log('🚀 [Init] Démarrage initialisation parallèle');
@@ -152,7 +142,6 @@ function RootLayoutContent() {
       await Promise.allSettled(basicTasks);
 
       // 2. Fetch explicite currentUser SI on a un token
-      // Ceci garantit qu'on a la version la plus fraîche du backend
       try {
         const jwtToken = await SecureStore.getItemAsync(STORAGE_KEYS.JWT_TOKEN);
         
@@ -170,16 +159,14 @@ function RootLayoutContent() {
               });
               return userData;
             },
-            staleTime: 0, // Fresh fetch pour init
-            gcTime: 1000 * 60 * 5, // Cache 5 min
+            staleTime: 0,
+            gcTime: 1000 * 60 * 5,
             retry: false,
           });
 
-          // Vérifier si on doit hydrater le store
           const currentStoreUser = useAuthStore.getState().user;
           
           if (fetchedUser) {
-            // Si le store n'a pas de user OU si le user est différent
             const needsSync = !currentStoreUser || 
                              currentStoreUser.id !== fetchedUser.id ||
                              currentStoreUser.brand !== fetchedUser.brand;
@@ -196,18 +183,9 @@ function RootLayoutContent() {
         }
       } catch (err) {
         console.warn('[Init] Fetch currentUser échoué (non-fatal)', err);
-        // Continue quand même - l'app peut fonctionner avec le user du store
       }
 
-      // 3. Garantir temps minimum de splash
-      const elapsed = Date.now() - (startTimeRef.current || Date.now());
-      const remaining = Math.max(0, TIMING.SPLASH_MIN - elapsed);
-      if (remaining > 0) {
-        console.log(`⏱️ [Init] Attente ${remaining}ms pour splash minimum`);
-        await new Promise(res => setTimeout(res, remaining));
-      }
-
-      // 4. Marquer comme prêt
+      // 3. Marquer comme prêt
       setIsReady(true);
       console.log('✅ [Init] Application PRÊTE');
     };
@@ -220,29 +198,27 @@ function RootLayoutContent() {
   }, [checkOnboarding, initAuth, _setAuth]);
 
   // ============================================
-  // GESTION DU SPLASH
+  // GESTION DU SPLASH PERSONNALISÉ
   // ============================================
-  useEffect(() => {
-    const tryHideSplash = async () => {
-      if (!splashAnimationDone || !isReady) return;
-
-      try {
-        await ExpoSplash.hideAsync();
-      } catch (err) {
-        console.warn('[Splash] hideAsync échoué', err);
-      }
-      
+  const handleSplashComplete = useCallback(() => {
+    console.log('[Splash] Animation terminée');
+    // Attendre que l'initialisation soit prête
+    if (isReady) {
       setShowCustomSplash(false);
       console.log('👋 [Splash] Splash caché');
-    };
+    }
+  }, [isReady]);
 
-    tryHideSplash();
-  }, [splashAnimationDone, isReady]);
+  // Cacher le splash quand l'init est prête ET l'animation est terminée
+  useEffect(() => {
+    if (isReady && !showCustomSplash) {
+      console.log('✅ [Splash] Transition vers l\'app terminée');
+    }
+  }, [isReady, showCustomSplash]);
 
   // ============================================
   // LOG CHANGEMENTS USER (DEBUG)
   // ============================================
-  // DEBUG: Log l'état complet avant chaque décision de navigation
   useEffect(() => {
     console.log('🎯 [Navigation] État actuel:', {
       isReady,
@@ -258,23 +234,12 @@ function RootLayoutContent() {
   }, [isReady, hasSeenOnboarding, isLoading, isAuthenticated, token, user]);
 
   // ============================================
-  // PAS DE FORCAGE NAVIGATION - Le Stack avec initialRouteName devrait suffire
-  // ============================================
-
-  // ============================================
   // RENDU CONDITIONNEL
   // ============================================
 
-  // 1. Splash personnalisé
+  // 1. Splash personnalisé (toujours affiché en premier)
   if (showCustomSplash) {
-    return (
-      <SplashScreen
-        onAnimationComplete={() => {
-          console.log('[Splash] Animation terminée');
-          setSplashAnimationDone(true);
-        }}
-      />
-    );
+    return <SplashScreen onAnimationComplete={handleSplashComplete} />;
   }
 
   // 2. Loader si pas prêt
@@ -309,13 +274,7 @@ function RootLayoutContent() {
   }
 
   // 4. Non authentifié → Stack Auth
-  console.log('🔍 [Layout] Vérification condition 4 - Non authentifié:', {
-    isAuthenticated,
-    hasToken: !!token,
-    condition: !isAuthenticated || !token,
-  });
   if (!isAuthenticated || !token) {
-    console.log('✅ [Layout] Condition 4 VRAIE - Retour Stack Auth');
     return (
       <>
         <Stack
@@ -333,13 +292,7 @@ function RootLayoutContent() {
   }
 
   // 5. Authentifié mais user pas chargé (défensif)
-  console.log('🔍 [Layout] Vérification condition 5 - User pas chargé:', {
-    isAuthenticated,
-    hasUser: !!user,
-    condition: isAuthenticated && !user,
-  });
   if (isAuthenticated && !user) {
-    console.log('✅ [Layout] Condition 5 VRAIE - Retour Loader');
     return (
       <View style={{
         flex: 1,
@@ -353,16 +306,7 @@ function RootLayoutContent() {
   }
 
   // 6. CreatorPrompt (sélection de rôle)
-  // ⚠️ IMPORTANT: Vérifier isAuthenticated ET token avant de vérifier user
-  console.log('🔍 [Layout] Vérification condition 6 - CreatorPrompt:', {
-    isAuthenticated,
-    hasToken: !!token,
-    hasUser: !!user,
-    hasSeenPrompt: user?.has_seen_creator_prompt,
-    condition: isAuthenticated && token && user && user.has_seen_creator_prompt === false,
-  });
   if (isAuthenticated && token && user && user.has_seen_creator_prompt === false) {
-    console.log('✅ [Layout] Condition 6 VRAIE - Retour CreatorPrompt');
     return (
       <View style={{ flex: 1, backgroundColor: 'white' }}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -372,17 +316,7 @@ function RootLayoutContent() {
   }
 
   // 7. CEO sans marque → CreateBrand
-  // ⚠️ IMPORTANT: Vérifier isAuthenticated ET token avant de vérifier user.isCEO
-  console.log('🔍 [Layout] Vérification condition 7 - CEO sans marque:', {
-    isAuthenticated,
-    hasToken: !!token,
-    hasUser: !!user,
-    isCEO: user?.isCEO,
-    hasBrand: !!user?.brand,
-    condition: isAuthenticated && token && user && user.isCEO && !user.brand,
-  });
   if (isAuthenticated && token && user && user.isCEO && !user.brand) {
-    console.log('✅ [Layout] Condition 7 VRAIE - Retour CreateBrand');
     try {
       const { CreateBrandScreen } = require('../src/screen/CreateBrandScreen');
       return (
@@ -393,7 +327,6 @@ function RootLayoutContent() {
       );
     } catch (err) {
       console.error('[Layout] CreateBrandScreen import échoué', err);
-      // Fallback: ne PAS naviguer vers CEO si erreur, retourner vers Auth
       return (
         <>
           <Stack screenOptions={{ headerShown: false }}>
@@ -406,21 +339,7 @@ function RootLayoutContent() {
   }
 
   // 8. CEO avec marque → Stack CEO
-  console.log('🔍 [Layout] Vérification condition 8 - CEO avec marque:', {
-    isAuthenticated,
-    hasToken: !!token,
-    hasUser: !!user,
-    isCEO: user?.isCEO,
-    hasBrand: !!user?.brand,
-    condition: isAuthenticated && token && user?.isCEO && !!user?.brand,
-  });
   if (isAuthenticated && token && user?.isCEO && !!user?.brand) {
-    console.log('✅ [Layout] Condition 8 VRAIE - Retour Stack CEO');
-    console.log('✅ [User] CEO avec marque:', {
-      email: user.email,
-      isCEO: user.isCEO,
-      hasBrand: !!user.brand,
-    });
     return (
       <>
         <Stack screenOptions={{ headerShown: false }}>
@@ -432,7 +351,6 @@ function RootLayoutContent() {
   }
 
   // 9. Client par défaut → Stack Client
-  console.log('✅ [Layout] Aucune condition CEO/Prompt - Retour Stack Client (défaut)');
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
