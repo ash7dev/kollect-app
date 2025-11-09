@@ -58,7 +58,7 @@ model Utilisateur {
 }
 
 // ============================================
-// MARQUES / BOUTIQUES
+// MARQUES 
 // ============================================
 
 model Marque {
@@ -173,7 +173,6 @@ model Collection {
 }
 
 enum CollectionStatus {
-  BROUILLON
   TEASER
   DISPONIBLE
   EPUISEE
@@ -339,7 +338,7 @@ model Commande {
 enum CommandeStatus {
   EN_ATTENTE
   CONFIRMEE
-  LIVREE
+  LIVREE      //Non utilisée pour les mvp
   ANNULEE
 }
 

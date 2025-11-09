@@ -25,7 +25,7 @@ import { $Enums, CommandeStatus, Prisma } from '@prisma/client';
 // Type pour les items de commande
 interface CommandeItem {
   productId: string;
-  variantId: string;
+  variantId: string | null;
   productName: string;
   price: number;
   size: string | null;
@@ -78,63 +78,57 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
         let subtotal = 0;
 
         for (const item of brandItems) {
-          const variant = await tx.varianteProduit.findUnique({
-            where: { id: item.variantId },
-            include: {
-              product: {
-                include: {
-                  brand: true,
-                },
-              },
-            },
-          });
+          if (item.variantId) {
+            const variant = await tx.varianteProduit.findUnique({
+              where: { id: item.variantId },
+              include: { product: { include: { brand: true } } },
+            });
+            if (!variant) throw new BadRequestException(`Variante ${item.variantId} introuvable`);
+            if (!variant.isActive) throw new BadRequestException(`Le produit "${variant.product.name}" n'est plus disponible`);
+            if (variant.stock < item.quantity) throw new BadRequestException(`Stock insuffisant pour "${variant.product.name}" (${variant.name}). Disponible: ${variant.stock}, Demandé: ${item.quantity}`);
 
-          if (!variant) {
-            throw new BadRequestException(
-              `Variante ${item.variantId} introuvable`,
-            );
+            const updatedVariant = await tx.varianteProduit.update({
+              where: { id: item.variantId, stock: { gte: item.quantity } },
+              data: { stock: { decrement: item.quantity } },
+            });
+            if (!updatedVariant) throw new BadRequestException(`Impossible de réserver le stock pour "${variant.product.name}". Veuillez réessayer.`);
+
+            const itemPrice = variant.price || variant.product.price;
+            subtotal += itemPrice * item.quantity;
+            items.push({
+              productId: variant.productId,
+              variantId: variant.id,
+              productName: variant.product.name,
+              price: itemPrice,
+              size: variant.attributes?.['size'] ?? null,
+              color: variant.attributes?.['color'] ?? null,
+              quantity: item.quantity,
+            });
+          } else if (item.productId) {
+            const product = await tx.produit.findUnique({ where: { id: item.productId } });
+            if (!product || product.isDeleted) throw new BadRequestException(`Produit ${item.productId} introuvable`);
+            if (!product.isVisible) throw new BadRequestException(`Le produit "${product.name}" n'est pas disponible`);
+            if (product.stock < item.quantity) throw new BadRequestException(`Stock insuffisant pour "${product.name}". Disponible: ${product.stock}, Demandé: ${item.quantity}`);
+
+            const updatedProduct = await tx.produit.update({
+              where: { id: item.productId, stock: { gte: item.quantity } as any },
+              data: { stock: { decrement: item.quantity } },
+            });
+            if (!updatedProduct) throw new BadRequestException(`Impossible de réserver le stock pour "${product.name}". Veuillez réessayer.`);
+
+            subtotal += product.price * item.quantity;
+            items.push({
+              productId: product.id,
+              variantId: null,
+              productName: product.name,
+              price: product.price,
+              size: null,
+              color: null,
+              quantity: item.quantity,
+            });
+          } else {
+            throw new BadRequestException('Chaque item doit contenir productId ou variantId');
           }
-
-          if (!variant.isActive) {
-            throw new BadRequestException(
-              `Le produit "${variant.product.name}" n'est plus disponible`,
-            );
-          }
-
-          if (variant.stock < item.quantity) {
-            throw new BadRequestException(
-              `Stock insuffisant pour "${variant.product.name}" (${variant.name}). Disponible: ${variant.stock}, Demandé: ${item.quantity}`,
-            );
-          }
-
-          const updatedVariant = await tx.varianteProduit.update({
-            where: {
-              id: item.variantId,
-              stock: { gte: item.quantity },
-            },
-            data: {
-              stock: { decrement: item.quantity },
-            },
-          });
-
-          if (!updatedVariant) {
-            throw new BadRequestException(
-              `Impossible de réserver le stock pour "${variant.product.name}". Veuillez réessayer.`,
-            );
-          }
-
-          const itemPrice = variant.price || variant.product.price;
-          subtotal += itemPrice * item.quantity;
-
-          items.push({
-            productId: variant.productId,
-            variantId: variant.id,
-            productName: variant.product.name,
-            price: itemPrice, // ✅ Prix en unité normale (FCFA)
-            size: variant.attributes?.['size'] ?? null,
-            color: variant.attributes?.['color'] ?? null,
-            quantity: item.quantity,
-          });
         }
 
         // ✅ Calculs en unités normales
@@ -159,7 +153,7 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
             items: {
               create: items.map((item) => ({
                 productId: item.productId,
-                variantId: item.variantId,
+                variantId: item.variantId ?? null,
                 productName: item.productName,
                 price: item.price,      // ✅ En FCFA normal
                 quantity: item.quantity,
@@ -230,25 +224,35 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
   private async groupItemsByBrand(
     items: CommandeItemDto[],
   ): Promise<Record<string, CommandeItemDto[]>> {
-    const variantIds = items.map((item) => item.variantId);
-
-    const variants = await this.prisma.varianteProduit.findMany({
-      where: { id: { in: variantIds } },
-      include: { product: true },
-    });
-
     const itemsByBrand: Record<string, CommandeItemDto[]> = {};
 
-    for (const item of items) {
-      const variant = variants.find((v) => v.id === item.variantId);
-      if (!variant) {
-        throw new BadRequestException(`Variante ${item.variantId} introuvable`);
-      }
+    // Charger toutes les variantes nécessaires
+    const variantIds = items.filter(i => i.variantId).map((i) => i.variantId as string);
+    const variants = variantIds.length > 0 ? await this.prisma.varianteProduit.findMany({
+      where: { id: { in: variantIds } },
+      include: { product: true },
+    }) : [];
 
-      const brandId = variant.product.brandId;
-      if (!itemsByBrand[brandId]) {
-        itemsByBrand[brandId] = [];
+    // Charger tous les produits nécessaires
+    const productIds = items.filter(i => !i.variantId && i.productId).map(i => i.productId as string);
+    const products = productIds.length > 0 ? await this.prisma.produit.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, brandId: true },
+    }) : [];
+
+    for (const item of items) {
+      let brandId: string | undefined;
+      if (item.variantId) {
+        const variant = variants.find((v) => v.id === item.variantId);
+        if (!variant) throw new BadRequestException(`Variante ${item.variantId} introuvable`);
+        brandId = variant.product.brandId;
+      } else if (item.productId) {
+        const product = products.find(p => p.id === item.productId);
+        if (!product) throw new BadRequestException(`Produit ${item.productId} introuvable`);
+        brandId = product.brandId;
       }
+      if (!brandId) throw new BadRequestException('Article invalide');
+      if (!itemsByBrand[brandId]) itemsByBrand[brandId] = [];
       itemsByBrand[brandId].push(item);
     }
 

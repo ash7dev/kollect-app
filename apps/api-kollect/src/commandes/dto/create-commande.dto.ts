@@ -11,8 +11,12 @@ import { Type } from 'class-transformer';
 
 export class CommandeItemDto {
   @IsString()
-  @IsNotEmpty()
-  variantId: string;
+  @IsOptional()
+  variantId?: string;
+
+  @IsString()
+  @IsOptional()
+  productId?: string;
 
   @IsInt()
   @Min(1)

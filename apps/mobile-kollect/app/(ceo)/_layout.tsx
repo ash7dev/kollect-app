@@ -98,7 +98,8 @@ export default function CeoLayout() {
         return;
       }
     }
-  }, [isAuthenticated, token, user, hasMyBrand, isAppLoading, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, token, user, hasMyBrand, isAppLoading]);
 
   // Afficher un loader stylisé pendant la vérification ou le chargement
   const isLoadingState = isAuthLoading || !isAuthenticated || !token || !user || !user.isCEO || isAppLoading;

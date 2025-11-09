@@ -552,12 +552,16 @@ async getStats(userId: string, brandId: string): Promise<BrandStats & {
         }
       }).catch(() => 0),
       
-      this.prisma.vueProduit.count({
+      this.prisma.produit.aggregate({
         where: { 
-          product: { brandId },
-          viewedAt: { gte: lastMonth }
+          brandId,
+          isDeleted: false,
+          isVisible: true
+        },
+        _sum: {
+          viewCount: true
         }
-      }).catch(() => 0),
+      }).then(result => Number(result._sum.viewCount) || 0),
     ]);
 
     // Calculs
@@ -565,8 +569,18 @@ async getStats(userId: string, brandId: string): Promise<BrandStats & {
       ? ((ordersThisMonth - ordersLastMonth) / ordersLastMonth) * 100 
       : ordersThisMonth > 0 ? 100 : 0;
 
-    const conversionRate = totalViews > 0 
-      ? (ordersThisMonth / totalViews) * 100 
+    // Pour le MVP, on calcule un taux de conversion basé sur le nombre de commandes par produit
+    // Cela évite de compter plusieurs fois les vues pour un même utilisateur
+    const activeProductsCount = await this.prisma.produit.count({
+      where: { 
+        brandId,
+        isDeleted: false,
+        isVisible: true
+      }
+    });
+
+    const conversionRate = activeProductsCount > 0 
+      ? (ordersThisMonth / activeProductsCount) * 100 
       : 0;
 
     // Note: followersChange nécessite un historique, on peut le simuler pour l'instant

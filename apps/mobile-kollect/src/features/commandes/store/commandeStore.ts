@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useMemo } from 'react';
 import { Commande } from '../services/commande.service';
 
 // ============================================
@@ -200,9 +201,19 @@ export const useCommandeFilters = () =>
     resetFilters: state.resetFilters,
   }));
 
-export const useCommandeHelpers = () =>
-  useCommandeStore((state) => ({
-    getStatusBadgeColor: state.getStatusBadgeColor,
-    getStatusLabel: state.getStatusLabel,
-    getStatusIcon: state.getStatusIcon,
-  }));
+// Helper functions sélectionnées individuellement pour éviter les boucles infinies
+// Utilise useMemo pour mémoriser l'objet retourné et éviter les re-renders inutiles
+export const useCommandeHelpers = () => {
+  const getStatusBadgeColor = useCommandeStore((state) => state.getStatusBadgeColor);
+  const getStatusLabel = useCommandeStore((state) => state.getStatusLabel);
+  const getStatusIcon = useCommandeStore((state) => state.getStatusIcon);
+  
+  return useMemo(
+    () => ({
+      getStatusBadgeColor,
+      getStatusLabel,
+      getStatusIcon,
+    }),
+    [getStatusBadgeColor, getStatusLabel, getStatusIcon]
+  );
+};

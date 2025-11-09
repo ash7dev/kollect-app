@@ -12,16 +12,12 @@
 export const COMMANDE_STATUS = {
   EN_ATTENTE: 'EN_ATTENTE',
   CONFIRMEE: 'CONFIRMEE',
-  EN_LIVRAISON: 'EN_LIVRAISON',
-  LIVREE: 'LIVREE',
   ANNULEE: 'ANNULEE',
 } as const;
 
 export const STATUS_LABELS = {
   EN_ATTENTE: 'En attente',
   CONFIRMEE: 'Confirmée',
-  EN_LIVRAISON: 'En livraison',
-  LIVREE: 'Livrée',
   ANNULEE: 'Annulée',
 } as const;
 
@@ -35,16 +31,6 @@ export const STATUS_COLORS = {
     bg: '#E3F2FD',
     text: '#1976D2',
     border: '#64B5F6',
-  },
-  EN_LIVRAISON: {
-    bg: '#F3E5F5',
-    text: '#7B1FA2',
-    border: '#BA68C8',
-  },
-  LIVREE: {
-    bg: '#E8F5E9',
-    text: '#388E3C',
-    border: '#81C784',
   },
   ANNULEE: {
     bg: '#FFEBEE',

@@ -44,7 +44,8 @@ export function useMyCommandes(
   query?: QueryCommandesDto,
   options?: Omit<UseQueryOptions<CommandesResponse>, 'queryKey' | 'queryFn'>
 ) {
-  const { selectedStatus } = useCommandeStore();
+  // Sélectionner uniquement selectedStatus pour éviter les re-renders inutiles
+  const selectedStatus = useCommandeStore((state) => state.selectedStatus);
   
   const filters: QueryCommandesDto = {
     ...query,
@@ -83,7 +84,8 @@ export function useBoutiqueCommandes(
   query?: QueryCommandesDto,
   options?: Omit<UseQueryOptions<CommandesResponse>, 'queryKey' | 'queryFn'>
 ) {
-  const { selectedStatus } = useCommandeStore();
+  // Sélectionner uniquement selectedStatus pour éviter les re-renders inutiles
+  const selectedStatus = useCommandeStore((state) => state.selectedStatus);
   const { user } = useAuthStore();
   
   const filters: QueryCommandesDto = {

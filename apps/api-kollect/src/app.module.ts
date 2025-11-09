@@ -10,6 +10,8 @@ import { BrandsModule } from './brands/brands.module';
 import { CommandesModule } from './commandes/commandes.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { CollectionsModule } from './collections/collections.module';
+import { ProduitsModule } from './produits/produits.module';
 
 @Module({
   imports: [
@@ -27,7 +29,9 @@ import { AppService } from './app.service';
     NotificationsModule,
     UploadModule, // 🆕 Ajout du module upload
     BrandsModule, // Module pour la gestion des marques
-    CommandesModule, // Module pour la gestion des commandes
+    ProduitsModule, // Module pour la gestion des produits
+    CommandesModule,
+    CollectionsModule, // Module pour la gestion des commandes
   ],
   controllers: [AppController],
   providers: [AppService],
