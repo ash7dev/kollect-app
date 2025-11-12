@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 /* eslint-disable prettier/prettier */
@@ -12,6 +13,9 @@ import { createHash } from 'crypto';
 
 @Injectable()
 export class ProduitsService {
+  findRandom(query: any) {
+    throw new Error('Method not implemented.');
+  }
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateProduitDto) {
@@ -288,70 +292,15 @@ export class ProduitsService {
   }
 
   /**
-   * Récupère des produits de manière aléatoire avec pagination
-   * @param options Options de pagination et de seed pour la cohérence
+   * 🌟 Produits Featured (Mise en avant manuelle)
+   * Basé sur le champ isFeatured du produit
    */
-  async findRandom(options: RandomProduitsDto) {
-    const { page = 1, limit = 20, seed } = options;
-    const skip = (page - 1) * limit;
-
-    // 1) Calculer le nombre total de produits disponibles
-    const total = await this.prisma.produit.count({
-      where: {
-        isVisible: true,
-        collection: {
-          status: CollectionStatus.DISPONIBLE,
-        },
-      },
-    });
-
-    if (total === 0) {
-      return {
-        data: [],
-        meta: {
-          total: 0,
-          page,
-          limit,
-          totalPages: 0,
-        },
-      };
-    }
-
-    // 2) Générer un seed cohérent pour la pagination
-    const seedValue = seed || Math.random().toString(36).substring(2, 15);
-    const seedHash = createHash('md5').update(seedValue + page).digest('hex');
-    const seedNumber = parseInt(seedHash.substring(0, 8), 16);
-
-    // 3) Récupérer les IDs des produits de manière aléatoire mais déterministe
-    const allProductIds = await this.prisma.$queryRaw<{ id: string }[]>`
-      SELECT id FROM "Produit"
-      WHERE "isDeleted" = false 
-      AND "isVisible" = true
-      AND "collectionId" IN (
-        SELECT id FROM "Collection" WHERE status = ${CollectionStatus.DISPONIBLE}
-      )
-      ORDER BY md5(concat(id, ${seedNumber}::text))
-      LIMIT ${limit} OFFSET ${skip}
-    `;
-
-    if (allProductIds.length === 0) {
-      return {
-        data: [],
-        meta: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
-    }
-
-    // 4) Récupérer les produits complets dans l'ordre des IDs sélectionnés
+  async findFeatured(limit = 10) {
     const products = await this.prisma.produit.findMany({
       where: {
-        id: { in: allProductIds.map(p => p.id) },
-        isDeleted: false,
+        isFeatured: true,
         isVisible: true,
+        isDeleted: false,
         collection: {
           status: CollectionStatus.DISPONIBLE,
         },
@@ -369,25 +318,417 @@ export class ProduitsService {
             id: true,
             name: true,
             logo: true,
+            slug: true,
+            isVerified: true,
           },
         },
       },
+      orderBy: [
+        { viewCount: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      take: limit,
     });
 
-    // 5) Trier les produits dans le même ordre que les IDs sélectionnés
-    const productMap = new Map(products.map(p => [p.id, p]));
-    const sortedProducts = allProductIds
-      .map(({ id }) => productMap.get(id))
-      .filter((p): p is NonNullable<typeof p> => p !== undefined);
+    return products;
+  }
+
+  /**
+   * 🔥 Produits Populaires (Basé sur les vues)
+   * Algorithme simple mais efficace
+   */
+  async findPopular(limit = 20, days = 30) {
+    // Date limite pour considérer un produit comme "récent"
+    const dateLimit = new Date();
+    dateLimit.setDate(dateLimit.getDate() - days);
+
+    const products = await this.prisma.produit.findMany({
+      where: {
+        isVisible: true,
+        isDeleted: false,
+        collection: {
+          status: CollectionStatus.DISPONIBLE,
+        },
+        createdAt: {
+          gte: dateLimit, // Produits récents uniquement
+        },
+      },
+      include: {
+        collection: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+          },
+        },
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            slug: true,
+            isVerified: true,
+          },
+        },
+      },
+      orderBy: {
+        viewCount: 'desc', // Tri par popularité
+      },
+      take: limit,
+    });
+
+    return products;
+  }
+
+  /**
+   * 🆕 Nouveaux Produits
+   * Produits lancés récemment
+   */
+  async findNew(limit = 20, days = 14) {
+    const dateLimit = new Date();
+    dateLimit.setDate(dateLimit.getDate() - days);
+
+    const products = await this.prisma.produit.findMany({
+      where: {
+        isVisible: true,
+        isDeleted: false,
+        collection: {
+          status: CollectionStatus.DISPONIBLE,
+        },
+        createdAt: {
+          gte: dateLimit,
+        },
+      },
+      include: {
+        collection: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+          },
+        },
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            slug: true,
+            isVerified: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+    });
+
+    return products;
+  }
+
+  /**
+   * 👤 Recommandations Personnalisées pour un Utilisateur
+   * Basé sur ses favoris et son historique
+   */
+  async findPersonalized(userId: string, limit = 20) {
+    // 1. Récupérer les favoris de l'utilisateur
+    const favoris = await this.prisma.favori.findMany({
+      where: { 
+        userId,
+        type: { in: ['PRODUCT', 'BRAND'] },
+      },
+      include: {
+        product: {
+          include: {
+            brand: true,
+            collection: true,
+          },
+        },
+        brand: true,
+      },
+    });
+
+    // 2. Extraire les marques et catégories favorites
+    const favoriteBrandIds = new Set<string>();
+    
+    favoris.forEach((fav) => {
+      if (fav.brandId) favoriteBrandIds.add(fav.brandId);
+      if (fav.product?.brandId) favoriteBrandIds.add(fav.product.brandId);
+    });
+
+    if (favoriteBrandIds.size === 0) {
+      // Pas de favoris : retourner les produits populaires
+      return this.findPopular(limit);
+    }
+
+    // 3. Récupérer les produits des marques favorites
+    const products = await this.prisma.produit.findMany({
+      where: {
+        isVisible: true,
+        isDeleted: false,
+        brandId: {
+          in: Array.from(favoriteBrandIds),
+        },
+        collection: {
+          status: CollectionStatus.DISPONIBLE,
+        },
+      },
+      include: {
+        collection: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+          },
+        },
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            slug: true,
+            isVerified: true,
+          },
+        },
+      },
+      orderBy: [
+        { viewCount: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      take: limit,
+    });
+
+    // 4. Si pas assez de résultats, compléter avec des produits populaires
+    if (products.length < limit) {
+      const popular = await this.findPopular(limit - products.length);
+      products.push(...popular.filter(p => !products.find(existing => existing.id === p.id)));
+    }
+
+    return products.slice(0, limit);
+  }
+
+  /**
+   * 🎲 Produits Aléatoires par Collection
+   * Utile pour la page de détail d'une collection
+   */
+  async findRandomByCollection(collectionId: string, limit = 10) {
+    const products = await this.prisma.produit.findMany({
+      where: {
+        collectionId,
+        isVisible: true,
+        isDeleted: false,
+        collection: {
+          status: CollectionStatus.DISPONIBLE,
+        },
+      },
+      include: {
+        collection: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+          },
+        },
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            slug: true,
+            isVerified: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+    });
+
+    // Mélanger aléatoirement
+    return products.sort(() => Math.random() - 0.5);
+  }
+
+  /**
+   * 🔍 Recherche de Produits avec Filtres Avancés
+   * Amélioration de la recherche existante
+   */
+  async searchProducts(options: {
+    query?: string;
+    brandId?: string;
+    collectionId?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    sizes?: string[];
+    colors?: string[];
+    inStock?: boolean;
+    page?: number;
+    limit?: number;
+  }) {
+    const {
+      query,
+      brandId,
+      collectionId,
+      minPrice,
+      maxPrice,
+      sizes,
+      colors,
+      inStock = true,
+      page = 1,
+      limit = 20,
+    } = options;
+
+    const where: Prisma.ProduitWhereInput = {
+      isVisible: true,
+      isDeleted: false,
+      collection: {
+        status: CollectionStatus.DISPONIBLE,
+      },
+      ...(query && {
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { description: { contains: query, mode: 'insensitive' } },
+        ],
+      }),
+      ...(brandId && { brandId }),
+      ...(collectionId && { collectionId }),
+      ...(minPrice !== undefined && { price: { gte: minPrice } }),
+      ...(maxPrice !== undefined && { price: { lte: maxPrice } }),
+      ...(inStock && { stock: { gt: 0 } }),
+      ...(sizes && sizes.length > 0 && {
+        sizes: {
+          hasSome: sizes,
+        },
+      }),
+      ...(colors && colors.length > 0 && {
+        colors: {
+          hasSome: colors,
+        },
+      }),
+    };
+
+    const [products, total] = await Promise.all([
+      this.prisma.produit.findMany({
+        where,
+        include: {
+          collection: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+            },
+          },
+          brand: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+              slug: true,
+              isVerified: true,
+            },
+          },
+        },
+        orderBy: [
+          { viewCount: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.produit.count({ where }),
+    ]);
 
     return {
-      data: sortedProducts,
+      data: products,
       meta: {
         total,
         page,
         limit,
         totalPages: Math.ceil(total / limit),
-        seed: seedValue,
+      },
+    };
+  }
+
+  /**
+   * 📊 Produits d'une Marque Spécifique (Public)
+   * Pour la page de la marque
+   */
+  async findByBrandPublic(brandSlug: string, options: {
+    page?: number;
+    limit?: number;
+    sortBy?: 'recent' | 'popular' | 'price-asc' | 'price-desc';
+  }) {
+    const { page = 1, limit = 20, sortBy = 'recent' } = options;
+
+    // Récupérer la marque
+    const brand = await this.prisma.marque.findUnique({
+      where: { slug: brandSlug },
+      select: { id: true },
+    });
+
+    if (!brand) {
+      throw new NotFoundException('Marque non trouvée');
+    }
+
+    // Définir l'ordre de tri
+    let orderBy: Prisma.ProduitOrderByWithRelationInput = { createdAt: 'desc' };
+    
+    switch (sortBy) {
+      case 'popular':
+        orderBy = { viewCount: 'desc' };
+        break;
+      case 'price-asc':
+        orderBy = { price: 'asc' };
+        break;
+      case 'price-desc':
+        orderBy = { price: 'desc' };
+        break;
+    }
+
+    const where: Prisma.ProduitWhereInput = {
+      brandId: brand.id,
+      isVisible: true,
+      isDeleted: false,
+      collection: {
+        status: CollectionStatus.DISPONIBLE,
+      },
+    };
+
+    const [products, total] = await Promise.all([
+      this.prisma.produit.findMany({
+        where,
+        include: {
+          collection: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+            },
+          },
+          brand: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+              slug: true,
+              isVerified: true,
+            },
+          },
+        },
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.produit.count({ where }),
+    ]);
+
+    return {
+      data: products,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }

@@ -101,7 +101,6 @@ export interface CreateBrandResponse extends Brand {
     isVerified: boolean;
   };
 }
-
 const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api';
 
 

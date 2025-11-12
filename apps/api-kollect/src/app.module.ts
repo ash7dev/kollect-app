@@ -12,6 +12,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CollectionsModule } from './collections/collections.module';
 import { ProduitsModule } from './produits/produits.module';
+import { SuiviModule } from './suivi/suivi.module';
 
 @Module({
   imports: [
@@ -31,7 +32,8 @@ import { ProduitsModule } from './produits/produits.module';
     BrandsModule, // Module pour la gestion des marques
     ProduitsModule, // Module pour la gestion des produits
     CommandesModule,
-    CollectionsModule, // Module pour la gestion des commandes
+    CollectionsModule,
+    SuiviModule, // Module pour la gestion des commandes
   ],
   controllers: [AppController],
   providers: [AppService],

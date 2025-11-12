@@ -173,6 +173,7 @@ model Collection {
 }
 
 enum CollectionStatus {
+  BROUILLON
   TEASER
   DISPONIBLE
   EPUISEE

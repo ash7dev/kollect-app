@@ -12,7 +12,7 @@ export interface ProduitDto {
   sku?: string | null;
   collectionId: string;
   brandId: string;
-  createdAt?: string;  // or Date, depending on your needs
+  createdAt?: string;
   updatedAt?: string; 
   collection?: {
     id: string;
@@ -30,7 +30,7 @@ export interface CreateProduitPayload {
   name: string;
   description?: string;
   price: number;
-  images?: string[]; // Optionnel car peut être uploadé
+  images?: string[];
   stock?: number;
   sizes?: string[];
   colors?: string[];
@@ -40,6 +40,7 @@ export interface CreateProduitPayload {
   isFeatured?: boolean;
   isVisible?: boolean;
 }
+
 export interface UpdateProduitPayload {
   name?: string;
   description?: string;
@@ -53,6 +54,25 @@ export interface UpdateProduitPayload {
   weight?: number | null;
   isFeatured?: boolean;
   isVisible?: boolean;
+}
+
+export interface SearchParams {
+  query?: string;
+  brandId?: string;
+  collectionId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sizes?: string[];
+  colors?: string[];
+  inStock?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface BrandProductsParams {
+  page?: number;
+  limit?: number;
+  sortBy?: 'recent' | 'popular' | 'price-asc' | 'price-desc';
 }
 
 const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api';
@@ -75,10 +95,6 @@ async function getToken(): Promise<string> {
   return token;
 }
 
-// ============================================
-// SERVICE API
-// ============================================
-
 function getMimeType(uri: string): string {
   const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
   
@@ -93,21 +109,26 @@ function getMimeType(uri: string): string {
   return mimeTypes[extension] || 'image/jpeg';
 }
 
+// ============================================
+// SERVICE API
+// ============================================
+
 export const produitsService = {
+  // ============================================
+  // CEO ROUTES (Authentification requise)
+  // ============================================
+
   async create(payload: CreateProduitPayload, imageUris?: string[]) {
     const token = await getToken();
     const formData = new FormData();
     
-    // Préparer les données JSON (sans les images si elles sont uploadées)
     const produitData = {
       ...payload,
       images: imageUris && imageUris.length > 0 ? [] : payload.images || [],
     };
     
-    // Ajouter les données JSON
     formData.append('data', JSON.stringify(produitData));
     
-    // Ajouter les images si fournies
     if (imageUris && imageUris.length > 0) {
       imageUris.forEach((imageUri, index) => {
         if (!imageUri || imageUri.trim() === '') {
@@ -150,6 +171,7 @@ export const produitsService = {
     const res = await fetch(`${API_URL}/produits?${qs.toString()}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true',
       },
     });
     if (!res.ok) throw new Error('Erreur chargement produits');
@@ -161,14 +183,9 @@ export const produitsService = {
     const res = await fetch(`${API_URL}/produits/ceo/${id}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true',
       },
     });
-    if (!res.ok) throw new Error('Produit non disponible');
-    return res.json() as Promise<ProduitDto>;
-  },
-
-  async getPublic(id: string) {
-    const res = await fetch(`${API_URL}/produits/${id}`);
     if (!res.ok) throw new Error('Produit non disponible');
     return res.json() as Promise<ProduitDto>;
   },
@@ -177,17 +194,12 @@ export const produitsService = {
     const token = await getToken();
     const formData = new FormData();
     
-    // Préparer les données JSON (sans les nouvelles images si elles sont uploadées)
     const produitData = {
       ...payload,
-      // Si de nouvelles images sont uploadées, on garde les anciennes dans le payload
-      // Les nouvelles seront fusionnées côté serveur
     };
     
-    // Ajouter les données JSON
     formData.append('data', JSON.stringify(produitData));
     
-    // Ajouter les nouvelles images si fournies
     if (imageUris && imageUris.length > 0) {
       imageUris.forEach((imageUri, index) => {
         if (!imageUri || imageUri.trim() === '') {
@@ -227,6 +239,7 @@ export const produitsService = {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true',
       },
     });
     if (!res.ok) {
@@ -235,6 +248,159 @@ export const produitsService = {
     }
     return res.json() as Promise<{ message: string }>;
   },
+
+  // ============================================
+  // PUBLIC ROUTES (Pas d'authentification)
+  // ============================================
+
+  /**
+   * 🌟 Produits Featured (Mise en avant)
+   * GET /api/produits/featured?limit=10
+   */
+  async getFeatured(limit: number = 10) {
+    const res = await fetch(`${API_URL}/produits/featured?limit=${limit}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!res.ok) throw new Error('Erreur chargement produits featured');
+    return res.json() as Promise<{ data: ProduitDto[]; meta: any }>;
+  },
+
+  /**
+   * 🔥 Produits Populaires
+   * GET /api/produits/popular?limit=20&days=30
+   */
+  async getPopular(limit: number = 20, days: number = 30) {
+    const res = await fetch(`${API_URL}/produits/popular?limit=${limit}&days=${days}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!res.ok) throw new Error('Erreur chargement produits populaires');
+    return res.json() as Promise<{ data: ProduitDto[]; meta: any }>;
+  },
+
+  /**
+   * 🆕 Nouveaux Produits
+   * GET /api/produits/new?limit=20&days=14
+   */
+  async getNew(limit: number = 20, days: number = 14) {
+    const res = await fetch(`${API_URL}/produits/new?limit=${limit}&days=${days}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!res.ok) throw new Error('Erreur chargement nouveaux produits');
+    return res.json() as Promise<{ data: ProduitDto[]; meta: any }>;
+  },
+
+  /**
+   * 👤 Recommandations Personnalisées
+   * GET /api/produits/personalized?limit=20
+   * Authentification requise
+   */
+  async getPersonalized(limit: number = 20) {
+    const token = await getToken();
+    const res = await fetch(`${API_URL}/produits/personalized?limit=${limit}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!res.ok) throw new Error('Erreur chargement recommandations');
+    return res.json() as Promise<{ data: ProduitDto[]; meta: any }>;
+  },
+
+  /**
+   * 🔍 Recherche Avancée de Produits
+   * GET /api/produits/search
+   */
+  async search(params: SearchParams) {
+    const qs = new URLSearchParams();
+    
+    if (params.query) qs.append('query', params.query);
+    if (params.brandId) qs.append('brandId', params.brandId);
+    if (params.collectionId) qs.append('collectionId', params.collectionId);
+    if (params.minPrice !== undefined) qs.append('minPrice', String(params.minPrice));
+    if (params.maxPrice !== undefined) qs.append('maxPrice', String(params.maxPrice));
+    if (params.sizes && params.sizes.length > 0) qs.append('sizes', params.sizes.join(','));
+    if (params.colors && params.colors.length > 0) qs.append('colors', params.colors.join(','));
+    if (params.inStock !== undefined) qs.append('inStock', String(params.inStock));
+    if (params.page) qs.append('page', String(params.page));
+    if (params.limit) qs.append('limit', String(params.limit));
+
+    const res = await fetch(`${API_URL}/produits/search?${qs.toString()}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!res.ok) throw new Error('Erreur recherche produits');
+    return res.json() as Promise<{ data: ProduitDto[]; meta: any }>;
+  },
+
+  /**
+   * 🏢 Produits d'une Marque (Public)
+   * GET /api/produits/brand/:slug?page=1&limit=20&sortBy=recent
+   */
+  async getByBrand(slug: string, params?: BrandProductsParams) {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.append('page', String(params.page));
+    if (params?.limit) qs.append('limit', String(params.limit));
+    if (params?.sortBy) qs.append('sortBy', params.sortBy);
+
+    const res = await fetch(`${API_URL}/produits/brand/${slug}?${qs.toString()}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!res.ok) throw new Error('Erreur chargement produits de la marque');
+    return res.json() as Promise<{ data: ProduitDto[]; meta: any }>;
+  },
+
+  /**
+   * 📦 Produits d'une Collection (Public)
+   * GET /api/produits/collection/:id?limit=10
+   */
+  async getByCollection(id: string, limit: number = 10) {
+    const res = await fetch(`${API_URL}/produits/collection/${id}?limit=${limit}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!res.ok) throw new Error('Erreur chargement produits de la collection');
+    return res.json() as Promise<{ data: ProduitDto[]; meta: any }>;
+  },
+
+  /**
+   * 🎲 Produits Aléatoires (Public)
+   * GET /api/produits/public/random
+   */
+  async getRandom(params?: { limit?: number; collectionId?: string }) {
+    const qs = new URLSearchParams();
+    if (params?.limit) qs.append('limit', String(params.limit));
+    if (params?.collectionId) qs.append('collectionId', params.collectionId);
+
+    const res = await fetch(`${API_URL}/produits/public/random?${qs.toString()}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!res.ok) throw new Error('Erreur chargement produits aléatoires');
+    return res.json() as Promise<{ data: ProduitDto[]; meta: any }>;
+  },
+
+  /**
+   * 📄 Détails d'un Produit (Public)
+   * GET /api/produits/public/:id
+   */
+  async getPublic(id: string) {
+    const res = await fetch(`${API_URL}/produits/public/${id}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!res.ok) throw new Error('Produit non disponible');
+    return res.json() as Promise<ProduitDto>;
+  },
 };
-
-

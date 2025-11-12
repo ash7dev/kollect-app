@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -22,6 +23,8 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { ProduitsService } from './produits.service';
@@ -292,15 +295,143 @@ export class ProduitsController {
   }
 
   /**
-   * GET /api/produits/public/random
+   * 🌟 Produits Featured (Mise en avant)
+   * GET /api/produits/featured?limit=10
    */
-  @Get('public/random')
+  @Get('featured')
   @Public()
-  @UsePipes(new ZodValidationPipe(RandomProduitsSchema))
-  async findRandom(@Query() query: RandomProduitsDto) {
-    return this.produitsService.findRandom(query);
+  async getFeatured(
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    this.logger.log(`🌟 Récupération des produits featured (limit: ${limit})`);
+    return this.produitsService.findFeatured(limit);
   }
 
+  /**
+   * 🔥 Produits Populaires
+   * GET /api/produits/popular?limit=20&days=30
+   */
+  @Get('popular')
+  @Public()
+  async getPopular(
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('days', new DefaultValuePipe(30), ParseIntPipe) days: number,
+  ) {
+    this.logger.log(`🔥 Récupération des produits populaires (limit: ${limit}, days: ${days})`);
+    return this.produitsService.findPopular(limit, days);
+  }
+
+  /**
+   * 🆕 Nouveaux Produits
+   * GET /api/produits/new?limit=20&days=14
+   */
+  @Get('new')
+  @Public()
+  async getNew(
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('days', new DefaultValuePipe(14), ParseIntPipe) days: number,
+  ) {
+    this.logger.log(`🆕 Récupération des nouveaux produits (limit: ${limit}, days: ${days})`);
+    return this.produitsService.findNew(limit, days);
+  }
+
+  /**
+   * 👤 Recommandations Personnalisées
+   * GET /api/produits/personalized?limit=20
+   * Authentification requise
+   */
+  @Get('personalized')
+  @UseGuards(JwtAuthGuard)
+  async getPersonalized(
+    @Request() req: any,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  ) {
+    this.logger.log(`👤 Récupération des recommandations pour ${req.user.id}`);
+    return this.produitsService.findPersonalized(req.user.id, limit);
+  }
+
+  /**
+   * 🔍 Recherche Avancée de Produits
+   * GET /api/produits/search
+   * Paramètres: query, brandId, collectionId, minPrice, maxPrice, sizes, colors, inStock, page, limit
+   */
+  @Get('search')
+  @Public()
+  async search(
+    @Query('query') query?: string,
+    @Query('brandId') brandId?: string,
+    @Query('collectionId') collectionId?: string,
+    @Query('minPrice', new DefaultValuePipe(0), ParseIntPipe) minPrice?: number,
+    @Query('maxPrice') maxPrice?: number,
+    @Query('sizes') sizes?: string, // Format: "S,M,L"
+    @Query('colors') colors?: string, // Format: "Noir,Blanc,Rouge"
+    @Query('inStock') inStock?: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+  ) {
+    this.logger.log(`🔍 Recherche de produits: "${query || 'tous'}"`);
+
+    // Parser les tableaux
+    const sizesArray = sizes ? sizes.split(',').map(s => s.trim()) : undefined;
+    const colorsArray = colors ? colors.split(',').map(c => c.trim()) : undefined;
+    const inStockBool = inStock === 'true' || inStock === '1';
+
+   return this.produitsService.searchProducts({
+  query,
+  brandId,
+  collectionId,
+  minPrice: minPrice || undefined,
+  maxPrice: maxPrice || undefined,  // Fixed: removed parseInt since maxPrice is already a number
+  sizes: sizesArray,
+  colors: colorsArray,
+  inStock: inStockBool,
+  page,
+  limit,
+});
+  }
+
+  /**
+   * 🏢 Produits d'une Marque (Public)
+   * GET /api/produits/brand/:slug?page=1&limit=20&sortBy=recent
+   */
+  @Get('brand/:slug')
+  @Public()
+  async getByBrand(
+    @Param('slug') slug: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('sortBy') sortBy?: 'recent' | 'popular' | 'price-asc' | 'price-desc',
+  ) {
+    this.logger.log(`🏢 Récupération des produits de la marque: ${slug}`);
+    return this.produitsService.findByBrandPublic(slug, {
+      page,
+      limit,
+      sortBy: sortBy || 'recent',
+    });
+  }
+
+  /**
+   * 📦 Produits d'une Collection (Public)
+   * GET /api/produits/collection/:id?limit=10
+   */
+  @Get('collection/:id')
+  @Public()
+  async getByCollection(
+    @Param('id') id: string,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    this.logger.log(`📦 Récupération des produits de la collection: ${id}`);
+    return this.produitsService.findRandomByCollection(id, limit);
+  }
+
+  /**
+   * GET /api/produits/public/random
+   */
+   @Get('public/random')
+  @Public()
+  findRandom(@Query() query: any) {
+    return this.produitsService.findRandom(query);
+  }
   /**
    * GET /api/produits/:id (public)
    */

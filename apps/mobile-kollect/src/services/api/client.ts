@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 // ============================================
 
 const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:3000/api'  // 🔧 Remplace par ton IP locale si nécessaire
+  ? 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api'  // 🔧 Remplace par ton IP locale si nécessaire
   : 'https://votre-api-production.com/api';
 
 const API_TIMEOUT = 30000; // 30 secondes

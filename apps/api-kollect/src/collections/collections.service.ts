@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable prettier/prettier */
 import {
   Injectable,
@@ -13,6 +17,12 @@ import { UpdateCollectionDto } from './dto/update-collection.dto';
 import { ActivateTeaserDto } from './dto/activate-teaser.dto';
 import { QueryCollectionsDto } from './dto/query-collections.dto';
 import slugify from 'slugify';
+
+interface CollectionScore {
+  id: string;
+  score: number;
+  collection: any;
+}
 
 @Injectable()
 export class CollectionsService {
@@ -804,5 +814,332 @@ async findAllForCEO(
       slug = `${baseSlug}-${counter}`;
       counter++;
     }
+  }
+
+   /**
+   * 🎯 Calcul du score d'une collection pour la mise en avant
+   */
+  private calculateCollectionScore(collection: any): number {
+    let score = 0;
+
+    // 1. Collection mise en avant manuellement (poids fort)
+    if (collection.isFeatured) {
+      score += 50;
+    }
+
+    // 2. Statut de la collection
+    if (collection.status === CollectionStatus.TEASER) {
+      score += 30; // Teaser = Hype
+    } else if (collection.status === CollectionStatus.DISPONIBLE) {
+      score += 20; // Disponible = Achetable
+    }
+
+    // 3. Marque vérifiée
+    if (collection.brand?.isVerified) {
+      score += 20;
+    }
+
+    // 4. Récence de la collection (bonus pour les nouvelles)
+    const daysSinceCreation = Math.floor(
+      (Date.now() - new Date(collection.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (daysSinceCreation <= 7) {
+      score += 15 - daysSinceCreation; // De 15 à 8 points
+    }
+
+    // 5. Popularité (vues) - Score logarithmique pour éviter la domination
+    if (collection.viewCount > 0) {
+      score += Math.log10(collection.viewCount + 1) * 5;
+    }
+
+    // 6. Nombre de produits (indicateur de collection complète)
+    const productCount = collection._count?.products || 0;
+    if (productCount >= 10) {
+      score += 10;
+    } else if (productCount >= 5) {
+      score += 5;
+    }
+
+    // 7. Date de lancement proche (pour les teasers)
+    if (collection.status === CollectionStatus.TEASER && collection.launchDate) {
+      const daysUntilLaunch = Math.floor(
+        (new Date(collection.launchDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      );
+      if (daysUntilLaunch >= 0 && daysUntilLaunch <= 7) {
+        score += 10 - daysUntilLaunch; // Plus proche = plus de points
+      }
+    }
+
+    return score;
+  }
+
+  /**
+   * 🌟 Collections mises en avant (Featured)
+   */
+  async findFeatured(limit = 6) {
+    this.logger.log(`🌟 Récupération des collections featured (limit: ${limit})`);
+
+    const collections = await this.prisma.collection.findMany({
+      where: {
+        status: {
+          in: [CollectionStatus.TEASER, CollectionStatus.DISPONIBLE],
+        },
+        isFeatured: true,
+      },
+      include: {
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            slug: true,
+            isVerified: true,
+          },
+        },
+        _count: {
+          select: { products: true },
+        },
+      },
+      orderBy: [
+        { status: 'desc' }, // TEASER en premier
+        { createdAt: 'desc' },
+      ],
+      take: limit,
+    });
+
+    return collections;
+  }
+
+  /**
+   * 🔥 Collections tendance (Trending)
+   * Basé sur un algorithme de scoring intelligent
+   */
+  async findTrending(limit = 10) {
+    this.logger.log(`🔥 Calcul des collections trending (limit: ${limit})`);
+
+    // Récupérer toutes les collections publiques des 30 derniers jours
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const collections = await this.prisma.collection.findMany({
+      where: {
+        status: {
+          in: [CollectionStatus.TEASER, CollectionStatus.DISPONIBLE],
+        },
+        createdAt: {
+          gte: thirtyDaysAgo,
+        },
+      },
+      include: {
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            slug: true,
+            isVerified: true,
+          },
+        },
+        _count: {
+          select: { products: true },
+        },
+      },
+    });
+
+    // Calculer le score de chaque collection
+    const scoredCollections: CollectionScore[] = collections.map((collection) => ({
+      id: collection.id,
+      score: this.calculateCollectionScore(collection),
+      collection,
+    }));
+
+    // Trier par score décroissant
+    scoredCollections.sort((a, b) => b.score - a.score);
+
+    // Retourner les top collections
+    const trending = scoredCollections.slice(0, limit).map((item) => ({
+      ...item.collection,
+       
+      trendingScore: Math.round(item.score), // Pour debug/analytics
+    }));
+
+    this.logger.log(`✅ ${trending.length} collections trending calculées`);
+    return trending;
+  }
+
+  /**
+   * 🆕 Nouvelles collections (New Releases)
+   */
+  async findNew(limit = 10) {
+    this.logger.log(`🆕 Récupération des nouvelles collections (limit: ${limit})`);
+
+    // Collections lancées dans les 14 derniers jours
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    const collections = await this.prisma.collection.findMany({
+      where: {
+        status: CollectionStatus.DISPONIBLE,
+        launchedAt: {
+          gte: fourteenDaysAgo,
+        },
+      },
+      include: {
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            slug: true,
+            isVerified: true,
+          },
+        },
+        _count: {
+          select: { products: true },
+        },
+      },
+      orderBy: {
+        launchedAt: 'desc',
+      },
+      take: limit,
+    });
+
+    return collections;
+  }
+
+  /**
+   * ⏰ Collections avec teaser actif (Coming Soon)
+   */
+  async findComingSoon(limit = 10) {
+    this.logger.log(`⏰ Récupération des teasers à venir (limit: ${limit})`);
+
+    const collections = await this.prisma.collection.findMany({
+      where: {
+        status: CollectionStatus.TEASER,
+        launchDate: {
+          gte: new Date(), // Date de lancement dans le futur
+        },
+      },
+      include: {
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            slug: true,
+            isVerified: true,
+          },
+        },
+        _count: {
+          select: { products: true },
+        },
+      },
+      orderBy: {
+        launchDate: 'asc', // Les plus proches en premier
+      },
+      take: limit,
+    });
+
+    return collections;
+  }
+
+  /**
+   * 👤 Recommandations personnalisées (si utilisateur connecté)
+   */
+  async findPersonalized(userId: string, limit = 10) {
+    this.logger.log(`👤 Calcul des recommandations pour ${userId}`);
+
+    // 1. Récupérer les favoris de l'utilisateur (marques + produits)
+    const favoris = await this.prisma.favori.findMany({
+      where: { userId },
+      include: {
+        brand: true,
+        product: {
+          include: { brand: true },
+        },
+      },
+    });
+
+    // 2. Extraire les marques favorites
+    const favoriteBrandIds = new Set<string>();
+    favoris.forEach((fav) => {
+      if (fav.brandId) favoriteBrandIds.add(fav.brandId);
+      if (fav.product?.brandId) favoriteBrandIds.add(fav.product.brandId);
+    });
+
+    if (favoriteBrandIds.size === 0) {
+      // Pas de favoris : retourner les trending
+      this.logger.log(`ℹ️ Aucun favori, fallback sur trending`);
+      return this.findTrending(limit);
+    }
+
+    // 3. Récupérer les collections des marques favorites
+    const collections = await this.prisma.collection.findMany({
+      where: {
+        status: {
+          in: [CollectionStatus.TEASER, CollectionStatus.DISPONIBLE],
+        },
+        brandId: {
+          in: Array.from(favoriteBrandIds),
+        },
+      },
+      include: {
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            slug: true,
+            isVerified: true,
+          },
+        },
+        _count: {
+          select: { products: true },
+        },
+      },
+      orderBy: [
+        { status: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      take: limit,
+    });
+
+    // 4. Si pas assez de résultats, compléter avec trending
+    if (collections.length < limit) {
+      const trending = await this.findTrending(limit - collections.length);
+      collections.push(...trending.filter(t => !collections.find(c => c.id === t.id)));
+    }
+
+    this.logger.log(`✅ ${collections.length} collections personnalisées`);
+    return collections.slice(0, limit);
+  }
+
+  /**
+   * 📊 Page d'accueil complète avec sections
+   */
+  async getHomePage(userId?: string) {
+    this.logger.log(`📊 Génération de la page d'accueil${userId ? ` pour ${userId}` : ' (public)'}`);
+
+    const [featured, trending, comingSoon, newReleases] = await Promise.all([
+      this.findFeatured(6),
+      this.findTrending(10),
+      this.findComingSoon(8),
+      this.findNew(10),
+    ]);
+
+    const result: any = {
+      featured,
+      trending,
+      comingSoon,
+      newReleases,
+    };
+
+    // Ajouter les recommandations personnalisées si utilisateur connecté
+    if (userId) {
+      result.personalized = await this.findPersonalized(userId, 10);
+    }
+
+    this.logger.log(`✅ Page d'accueil générée avec succès`);
+    return result;
   }
 }

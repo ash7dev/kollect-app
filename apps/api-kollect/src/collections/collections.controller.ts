@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -21,6 +22,8 @@ import {
   BadRequestException,
   UploadedFiles,
   Logger,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { CollectionsService } from './collections.service';
@@ -431,6 +434,95 @@ export class CollectionsController {
     }
 
     return this.collectionsService.update(req.user.id, id, dto);
+  }
+
+  /**
+   * 📊 Page d'accueil complète avec toutes les sections
+   * GET /api/collections/home
+   * Public mais peut être personnalisé si utilisateur connecté
+   */
+  @Get('home')
+  @Public()
+  async getHomePage(@Request() req?: any) {
+    this.logger.log("📊 Récupération de la page d'accueil");
+
+    // Vérifier si l'utilisateur est connecté (optionnel)
+    const userId = req?.user?.id;
+
+    return this.collectionsService.getHomePage(userId);
+  }
+
+  /**
+   * 🌟 Collections mises en avant (Featured)
+   * GET /api/collections/featured?limit=6
+   */
+  @Get('featured')
+  @Public()
+  async getFeatured(
+    @Query('limit', new DefaultValuePipe(6), ParseIntPipe) limit: number,
+  ) {
+    this.logger.log(
+      `🌟 Récupération des collections featured (limit: ${limit})`,
+    );
+    return this.collectionsService.findFeatured(limit);
+  }
+
+  /**
+   * 🔥 Collections tendance (Trending)
+   * GET /api/collections/trending?limit=10
+   * Utilise l'algorithme de scoring
+   */
+  @Get('trending')
+  @Public()
+  async getTrending(
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    this.logger.log(
+      `🔥 Récupération des collections trending (limit: ${limit})`,
+    );
+    return this.collectionsService.findTrending(limit);
+  }
+
+  /**
+   * 🆕 Nouvelles collections (New Releases)
+   * GET /api/collections/new?limit=10
+   */
+  @Get('new')
+  @Public()
+  async getNew(
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    this.logger.log(
+      `🆕 Récupération des nouvelles collections (limit: ${limit})`,
+    );
+    return this.collectionsService.findNew(limit);
+  }
+
+  /**
+   * ⏰ Collections avec teaser (Coming Soon)
+   * GET /api/collections/coming-soon?limit=10
+   */
+  @Get('coming-soon')
+  @Public()
+  async getComingSoon(
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    this.logger.log(`⏰ Récupération des teasers à venir (limit: ${limit})`);
+    return this.collectionsService.findComingSoon(limit);
+  }
+
+  /**
+   * 👤 Recommandations personnalisées (authentification requise)
+   * GET /api/collections/personalized?limit=10
+   */
+  @Get('personalized')
+  @UseGuards(JwtAuthGuard)
+  async getPersonalized(
+    @Request() req: any,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    this.logger.log(`👤 Récupération des recommandations pour ${req.user.id}`);
+    return this.collectionsService.findPersonalized(req.user.id, limit);
   }
 
   @Get('public')

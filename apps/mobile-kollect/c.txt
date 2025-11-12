@@ -10,3 +10,150 @@ yarn install
 
 # Redémarrer l'app
 yarn expo start --clear
+
+
+
+model Favori {
+  id        String     @id @default(cuid())
+  userId    String
+  user      Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brandId   String?
+  brand     Marque?    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Produit?   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      FavoriType
+  notes     String?    @db.Text
+  createdAt DateTime   @default(now())
+  
+  // Contraintes d'unicité mises à jour
+  @@unique([userId, brandId], name: "user_brand_unique")
+  @@unique([userId, productId], name: "user_product_unique")
+  @@index([userId])
+  @@index([brandId])
+  @@index([productId])
+  @@map("favoris")
+}
+
+
+// src/follow/follow.service.ts
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class FollowService {
+  constructor(private prisma: PrismaService) {}
+
+  async followBrand(userId: string, brandId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      // Vérifier si la marque existe
+      const brand = await tx.marque.findUnique({ where: { id: brandId } });
+      if (!brand) throw new NotFoundException('Marque non trouvée');
+
+      // Vérifier si l'utilisateur suit déjà
+      const existing = await tx.favori.findUnique({
+        where: { user_brand_unique: { userId, brandId } }
+      });
+      if (existing) throw new ConflictException('Déjà suivi');
+
+      // Créer la relation
+      await tx.favori.create({
+        data: { userId, brandId, type: 'MARQUE' }
+      });
+
+      // Mettre à jour le compteur
+      await tx.marque.update({
+        where: { id: brandId },
+        data: { followerCount: { increment: 1 } }
+      });
+
+      return { success: true, followerCount: brand.followerCount + 1 };
+    });
+  }
+
+  async unfollowBrand(userId: string, brandId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      // Vérifier si la relation existe
+      const follow = await tx.favori.findUnique({
+        where: { user_brand_unique: { userId, brandId } }
+      });
+      if (!follow) throw new NotFoundException('Non suivi');
+
+      // Supprimer la relation
+      await tx.favori.delete({ where: { id: follow.id } });
+
+      // Mettre à jour le compteur
+      const brand = await tx.marque.update({
+        where: { id: brandId },
+        data: { followerCount: { decrement: 1 } },
+        select: { followerCount: true }
+      });
+
+      return { success: true, followerCount: brand.followerCount };
+    });
+  }
+
+  async isFollowing(userId: string, brandId: string): Promise<boolean> {
+    const follow = await this.prisma.favori.findUnique({
+      where: { user_brand_unique: { userId, brandId } }
+    });
+    return !!follow;
+  }
+
+  async getBrandFollowersCount(brandId: string): Promise<number> {
+    const brand = await this.prisma.marque.findUnique({
+      where: { id: brandId },
+      select: { followerCount: true }
+    });
+    if (!brand) throw new NotFoundException('Marque non trouvée');
+    return brand.followerCount;
+  }
+}
+
+
+// src/follow/follow.controller.ts
+import { Controller, Post, Delete, Get, Param, UseGuards, Req } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { FollowService } from './follow.service';
+import { Request } from 'express';
+
+@Controller('api/brands')
+export class FollowController {
+  constructor(private readonly followService: FollowService) {}
+
+  @Post(':id/follow')
+  @UseGuards(JwtAuthGuard)
+  async followBrand(@Param('id') brandId: string, @Req() req: Request) {
+    return this.followService.followBrand(req.user.id, brandId);
+  }
+
+  @Delete(':id/follow')
+  @UseGuards(JwtAuthGuard)
+  async unfollowBrand(@Param('id') brandId: string, @Req() req: Request) {
+    return this.followService.unfollowBrand(req.user.id, brandId);
+  }
+
+  @Get(':id/followers/count')
+  async getFollowersCount(@Param('id') brandId: string) {
+    const count = await this.followService.getBrandFollowersCount(brandId);
+    return { count };
+  }
+
+  @Get(':id/is-following')
+  @UseGuards(JwtAuthGuard)
+  async isFollowing(@Param('id') brandId: string, @Req() req: Request) {
+    const isFollowing = await this.followService.isFollowing(req.user.id, brandId);
+    return { isFollowing };
+  }
+}
+
+
+2. Fonctionnalités MVP
+a) Core
+Suivre/Ne plus suivre une marque
+Vérifier si un utilisateur suit une marque
+Compter les abonnés d'une marque
+b) API Endpoints
+POST /api/brands/:id/follow - Suivre
+DELETE /api/brands/:id/follow - Ne plus suivre
+GET /api/brands/:id/followers/count - Nombre d'abonnés
+GET /api/brands/:id/is-following - Vérifier l'état
