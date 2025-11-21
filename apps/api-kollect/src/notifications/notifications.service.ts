@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
  
@@ -24,8 +23,27 @@ export interface SendNotificationResult {
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
-  create(_arg0: { userId: any; type: string; title: string; message: string; data: { commandeId: string; }; priority: string; }) {
-      throw new Error('Method not implemented.');
+  async create(params: {
+    userId: string;
+    type: string;
+    title: string;
+    message: string;
+    data?: Record<string, unknown>;
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  }): Promise<void> {
+    const { userId, type, title, message, data = {}, priority = 'MEDIUM' } = params;
+
+    await this.prisma.notification.create({
+      data: {
+        userId,
+        type: type as any,
+        title,
+        message,
+        data: data as any,
+        priority: priority as any,
+        read: false,
+      },
+    });
   }
   private readonly logger = new Logger(NotificationsService.name);
   private isInitialized = false;
@@ -34,6 +52,37 @@ export class NotificationsService implements OnModuleInit {
 
   onModuleInit() {
     this.initializeFirebase();
+  }
+
+  /**
+   * Récupère les notifications d'un utilisateur + le nombre de non lues
+   */
+  async getUserNotifications(userId: string) {
+    const [notifications, unreadCount] = await Promise.all([
+      this.prisma.notification.findMany({
+        where: { userId },
+        // Utilise un champ garanti par le schéma Prisma
+        orderBy: { id: 'desc' },
+        take: 100,
+      }),
+      this.prisma.notification.count({
+        where: { userId, read: false },
+      }),
+    ]);
+
+    return { notifications, unreadCount };
+  }
+
+  /**
+   * Marque une notification comme lue (en vérifiant le propriétaire)
+   */
+  async markAsRead(notificationId: string, userId: string) {
+    await this.prisma.notification.updateMany({
+      where: { id: notificationId, userId },
+      data: { read: true },
+    });
+
+    return { success: true };
   }
 
   /**

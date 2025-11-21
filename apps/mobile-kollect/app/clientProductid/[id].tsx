@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useSuiviStore } from '../../src/features/suivi/store/suiviStore';
 import { produitsService, type ProduitDto } from '../../src/features/produits/services/produits.service';
 import { useCartStore } from '../../src/store/cartStore';
 import { formatPrice } from '@/features/commandes/types/commande.types';
@@ -31,6 +32,7 @@ export default function ClientProductDetailScreen() {
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const addItemToCart = useCartStore((s) => s.addItem);
+  const { followingProducts, fetchProductFollowState, followProduct, unfollowProduct } = useSuiviStore();
 
   useEffect(() => {
     let isMounted = true;
@@ -68,6 +70,11 @@ export default function ClientProductDetailScreen() {
       setSelectedSize(product.sizes[0]);
     }
   }, [product, selectedColor, selectedSize]);
+
+  useEffect(() => {
+    if (!product) return;
+    void fetchProductFollowState(product.id);
+  }, [product, fetchProductFollowState]);
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -193,6 +200,16 @@ export default function ClientProductDetailScreen() {
   const images = product.images || [];
   const currentImage = images[currentImageIndex] || images[0];
   const isLowStock = product.stock < 10;
+  const isLiked = !!followingProducts[product.id];
+
+  const handleToggleFavorite = () => {
+    if (!product) return;
+    if (isLiked) {
+      void unfollowProduct(product.id);
+    } else {
+      void followProduct(product.id);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -213,6 +230,18 @@ export default function ClientProductDetailScreen() {
           {currentImage ? (
             <>
               <Image source={{ uri: currentImage }} style={styles.mainImage} resizeMode="cover" />
+              {/* Bouton favoris */}
+              <TouchableOpacity
+                style={[styles.favoriteButton, { backgroundColor: isLiked ? theme.colors.accent : 'rgba(0,0,0,0.55)' }]}
+                activeOpacity={0.85}
+                onPress={handleToggleFavorite}
+              >
+                <Ionicons
+                  name={isLiked ? 'heart' : 'heart-outline'}
+                  size={22}
+                  color={isLiked ? 'white' : 'white'}
+                />
+              </TouchableOpacity>
               
               {/* Badge de stock */}
               {isLowStock && (
@@ -557,6 +586,16 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '700',
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   imageNavButton: {
     position: 'absolute',

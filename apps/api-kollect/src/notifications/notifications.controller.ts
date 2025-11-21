@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { NotificationsService, type SendNotificationResult } from './notifications.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { GetUser } from '../common/decorators/roles.decorator';
+import { GetUser, Roles } from '../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../common/decorators/roles.decorator';
 
 class UpdateFCMTokenDto {
@@ -100,15 +100,11 @@ export class NotificationsController {
   }
 
   /**
-   * Récupère toutes les notifications de l'utilisateur connecté
+   * Récupère toutes les notifications de l'utilisateur connecté (CEO ou client)
    */
   @Get('my-notifications')
   async getMyNotifications(@GetUser() user: AuthenticatedUser) {
-    // TODO: Implémenter la récupération des notifications
-    return {
-      notifications: [],
-      unreadCount: 0,
-    };
+    return this.notificationsService.getUserNotifications(user.id);
   }
 
   /**
@@ -117,9 +113,9 @@ export class NotificationsController {
   @Patch(':notificationId/read')
   async markAsRead(
     @Param('notificationId') notificationId: string,
-    @GetUser() _user: AuthenticatedUser,
+    @GetUser() user: AuthenticatedUser,
   ) {
-    // TODO: Implémenter la mise à jour
+    await this.notificationsService.markAsRead(notificationId, user.id);
     return {
       success: true,
       message: 'Notification marked as read',

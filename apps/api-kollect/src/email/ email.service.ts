@@ -1,17 +1,29 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common';
-import { Resend } from 'resend';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
-  private resend: Resend;
+  private transporter: nodemailer.Transporter;
 
   constructor() {
-    this.resend = new Resend(process.env.RESEND_API_KEY);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    this.transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT ?? 587),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: process.env.SMTP_USER
+        ? {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          }
+        : undefined,
+    });
   }
 
   // Charger un template HTML
@@ -23,12 +35,10 @@ export class EmailService {
     }
 
     // 2) Fallback pour l'environnement dev (src/email/templates/...)
-    // On repart de la racine du projet API
+    // On repart du répertoire courant de l'app API (apps/api-kollect)
     const projectRoot = process.cwd();
     const srcTemplatePath = path.join(
       projectRoot,
-      'apps',
-      'api-kollect',
       'src',
       'email',
       'templates',
@@ -54,9 +64,10 @@ export class EmailService {
   async sendTemplateEmail(to: string, subject: string, templateName: string, data: any) {
     const template = this.loadTemplate(templateName);
     const html = this.renderTemplate(template, data);
+    const from = process.env.EMAIL_FROM || 'Kollect <no-reply@kollect.app>';
 
-    return await this.resend.emails.send({
-      from: 'Kollect <onboarding@resend.dev>', // pour développement
+    return await this.transporter.sendMail({
+      from,
       to,
       subject,
       html,

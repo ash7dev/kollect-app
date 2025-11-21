@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+ 
 import React, { useState } from 'react';
 import {
   View,
@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-// eslint-disable-next-line import/no-unresolved
+ 
 import { useTheme } from '../context/ThemeContext';
 import { useCommandeById, useConfirmerCommande, useAnnulerCommande } from '@/features/commandes/hooks/useCommandeQueries';
 import { useCommandeHelpers } from '@/features/commandes/store/commandeStore';
@@ -436,7 +436,7 @@ export default function CommandeDetailScreen() {
                 Total à payer
               </Text>
             </View>
-            <Text style={[styles.totalAmount, { color: theme.colors.primary }]}>
+            <Text style={[styles.totalAmount, { color: theme.colors.accent }]}>
               {typeof commande.total === 'number'
                 ? `${commande.total.toLocaleString('fr-FR')} CFA`
                 : '0 CFA'}

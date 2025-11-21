@@ -36,6 +36,7 @@ import { useBoutiqueCommandes, useConfirmerCommande } from '@/features/commandes
 import { usePendingOrderCount } from '@/features/commandes/store/commandeStore';
 import { Commande } from '@/features/commandes/services/commande.service';
 import { mapApiStatusToFrontend } from '@/features/commandes/services/commande.service';
+import { useNotificationsStore } from '@/features/notifications/services/notificationsStore';
 
 // Type pour les commandes
 type Order = {
@@ -62,6 +63,7 @@ export default function CeoDashboardScreen() {
   
   const { myBrand, loadMyBrand, isLoading: isLoadingBrand } = useBrandStore();
   const pendingOrderCount = usePendingOrderCount();
+  const { unreadCount, fetchMyNotifications } = useNotificationsStore();
 
   // Responsive + Greeting
   const { width } = Dimensions.get('window');
@@ -99,24 +101,25 @@ export default function CeoDashboardScreen() {
 
   useEffect(() => {
     loadMyBrand();
-  }, [loadMyBrand]);
+    void fetchMyNotifications();
+  }, [loadMyBrand, fetchMyNotifications]);
   
   // Fonction de rafraîchissement (pull-to-refresh)
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await Promise.all([
-        loadMyBrand(),
-        refetchStats(),
+        loadMyBrand(),          // Infos marque
+        refetchStats(),         // Statistiques ventes
+        refetch(),              // Commandes récentes
+        fetchMyNotifications(), // Notifications CEO
       ]);
-      // Les commandes récentes sont déjà rafraîchies via le refetch automatique
-      // déclenché par la mutation de confirmation, donc pas besoin d'ajouter ici.
     } catch (error) {
       console.error('Erreur lors du rafraîchissement:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [loadMyBrand, refetchStats]);
+  }, [loadMyBrand, refetchStats, refetch, fetchMyNotifications]);
 
   // Fonction pour ouvrir le modal
   const handlePresentModalPress = useCallback((order: Order) => {
@@ -217,8 +220,8 @@ export default function CeoDashboardScreen() {
             </MotiView>
             
             <NotificationButton 
-              count={2} 
-              onPress={() => console.log('Notifications')} 
+              count={unreadCount} 
+              onPress={() => router.push('/ceoNotifications')} 
             />
           </View>
 

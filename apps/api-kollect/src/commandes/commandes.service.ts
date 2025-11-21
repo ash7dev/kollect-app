@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -363,7 +364,7 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
       }
     } catch (e) {
       // On log mais on ne bloque pas la création de commande si l'email échoue
-      // eslint-disable-next-line no-console
+       
       console.error('Erreur lors de lenvoi des emails de commande:', e);
     }
 
@@ -761,7 +762,7 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
       }
     } catch (e) {
       // on log, on ne casse pas la confirmation si l'email échoue
-      // eslint-disable-next-line no-console
+       
       console.error('Erreur lors de lenvoi de lemail de commande confirmée:', e);
     }
 

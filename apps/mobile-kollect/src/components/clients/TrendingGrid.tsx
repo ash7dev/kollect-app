@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import React from 'react';
 import {
   View,
   Text,
@@ -11,6 +12,7 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../app/context/ThemeContext';
+import { useSuiviStore } from '../../features/suivi/store/suiviStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { formatPrice } from '../../features/commandes/types/commande.types';
 
@@ -48,23 +50,20 @@ export default function TrendingGrid({
   contentContainerStyle,
 }: TrendingGridProps) {
   const { theme, isDark } = useTheme();
-  const [likedProducts, setLikedProducts] = useState<Set<string>>(new Set());
+  const { followingProducts, followProduct, unfollowProduct } = useSuiviStore();
 
   const handleLike = (productId: string) => {
-    setLikedProducts((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(productId)) {
-        newSet.delete(productId);
-      } else {
-        newSet.add(productId);
-      }
-      return newSet;
-    });
+    const isLiked = !!followingProducts[productId];
+    if (isLiked) {
+      void unfollowProduct(productId);
+    } else {
+      void followProduct(productId);
+    }
     onLike?.(productId);
   };
 
   const renderProduct = ({ item, index }: { item: Product; index: number }) => {
-    const isLiked = likedProducts.has(item.id);
+    const isLiked = !!followingProducts[item.id];
     const hasDiscount = item.discount && item.discount > 0;
     const discountedPrice = hasDiscount
       ? item.price * (1 - item.discount! / 100)

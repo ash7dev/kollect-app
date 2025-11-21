@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { 
   View, 
   Text, 
@@ -22,6 +23,8 @@ import DepthCarousel from '../../src/components/clients/DepthCarousel';
 import CartModal from '../../src/components/clients/CartModal';
 import CheckoutModal from '../../src/components/clients/CheckoutModal';
 import { useCartStore } from '../../src/store/cartStore';
+import { useNotificationsStore } from '../../src/features/notifications/services/notificationsStore';
+import { useSuiviStore } from '../../src/features/suivi/store/suiviStore';
 import DropCountdown from '../../src/components/clients/DropCountdown';
 import TrendingGrid from '../../src/components/clients/TrendingGrid';
 import BrandSpotlight from '../../src/components/clients/BrandSpotlight';
@@ -31,11 +34,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 export default function ClientHomeScreen() {
   const { theme, isDark } = useTheme();
-  const colorScheme = useColorScheme();
   const router = useRouter();
   const { openCart } = useLocalSearchParams<{ openCart?: string }>();
   const totalCartQty = useCartStore((s) => s.totalQuantity());
   const addItemToCart = useCartStore((s) => s.addItem);
+  const { unreadCount, fetchMyNotifications } = useNotificationsStore();
+  const { fetchAllProductFavorites } = useSuiviStore();
   
   // États pour les données
   const [featuredCollections, setFeaturedCollections] = useState<CollectionDto[]>([]);
@@ -127,6 +131,11 @@ export default function ClientHomeScreen() {
   }, [fetchData]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    void fetchMyNotifications();
+    void fetchAllProductFavorites();
+  }, [fetchMyNotifications, fetchAllProductFavorites]);
 
   useEffect(() => {
     if (openCart === '1') setCartOpen(true);
@@ -248,7 +257,7 @@ export default function ClientHomeScreen() {
         backgroundColor: theme.colors.card,
         borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
       }]}>
-        <View style={styles.topBar}>
+          <View style={styles.topBar}>
           <View style={styles.logoContainer}>
             <Text style={[styles.logo, { color: theme.colors.text }]}>Kollect</Text>
           </View>
@@ -257,11 +266,14 @@ export default function ClientHomeScreen() {
             <TouchableOpacity 
               style={[styles.iconButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
               activeOpacity={0.7}
+              onPress={() => router.push('/clientNotification')}
             >
               <Ionicons name="notifications-outline" size={22} color={theme.colors.text} />
-              <View style={[styles.badge, { backgroundColor: theme.colors.accent || '#EF4444' }]}>
-                <Text style={styles.badgeText}>3</Text>
-              </View>
+              {unreadCount > 0 && (
+                <View style={[styles.badge, { backgroundColor: theme.colors.accent || '#EF4444' }]}> 
+                  <Text style={styles.badgeText}>{unreadCount}</Text>
+                </View>
+              )}
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -307,7 +319,7 @@ export default function ClientHomeScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.brandsStrip}
               >
-                {verifiedBrands.map((brand, index) => (
+                {verifiedBrands.map((brand) => (
                   <TouchableOpacity
                     key={brand.id}
                     style={[

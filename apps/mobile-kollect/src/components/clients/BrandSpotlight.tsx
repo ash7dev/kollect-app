@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../app/context/ThemeContext';
+import { useSuiviStore } from '../../features/suivi/store/suiviStore';
 import { Video, ResizeMode } from 'expo-av';
 
 const { width } = Dimensions.get('window');
@@ -55,9 +56,30 @@ export default function BrandSpotlight({
 }: BrandSpotlightProps) {
   const { theme, isDark } = useTheme();
   const [following, setFollowing] = useState(brand.isFollowing || false);
+  const {
+    followingBrands,
+    brandFollowersCount,
+    fetchBrandFollowState,
+    followBrand,
+    unfollowBrand,
+  } = useSuiviStore();
+
+  const storeFollowing = followingBrands[brand.id];
+  const isFollowing = storeFollowing ?? following;
+  const followersCount = brandFollowersCount[brand.id] ?? brand.stats.followers;
+
+  useEffect(() => {
+    void fetchBrandFollowState(brand.id);
+  }, [brand.id, fetchBrandFollowState]);
 
   const handleFollow = () => {
-    setFollowing(!following);
+    const next = !isFollowing;
+    setFollowing(next);
+    if (next) {
+      void followBrand(brand.id);
+    } else {
+      void unfollowBrand(brand.id);
+    }
     onFollow?.();
   };
 
@@ -242,7 +264,7 @@ export default function BrandSpotlight({
         <View style={styles.statsContainer}>
           <View style={styles.stat}>
             <Text style={[styles.statNumber, { color: theme.colors.text }]}>
-              {formatNumber(brand.stats.followers)}
+              {formatNumber(followersCount)}
             </Text>
             <Text
               style={[styles.statLabel, { color: theme.colors.textSecondary }]}
@@ -283,32 +305,30 @@ export default function BrandSpotlight({
           <TouchableOpacity
             style={[
               styles.followButton,
-              following && styles.followingButton,
+              isFollowing && styles.followingButton,
               {
-                backgroundColor: following
-                  ? isDark
-                    ? 'rgba(255,255,255,0.1)'
-                    : theme.colors.accentDark
+                backgroundColor: isFollowing
+                  ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)')
                   : theme.colors.accent,
-                borderColor: following ? theme.colors.border : 'transparent',
+                borderColor: isFollowing ? theme.colors.accent : 'transparent',
               },
             ]}
             onPress={handleFollow}
           >
             <Ionicons
-              name={following ? 'checkmark' : 'add'}
+              name={isFollowing ? 'checkmark' : 'add'}
               size={18}
-              color={following ? theme.colors.text : 'white'}
+              color={isFollowing ? theme.colors.accent : 'white'}
             />
             <Text
               style={[
                 styles.followButtonText,
                 {
-                  color: following ? theme.colors.text : 'white',
+                  color: isFollowing ? theme.colors.accent : 'white',
                 },
               ]}
             >
-              {following ? 'Abonné' : 'S\'abonner'}
+              {isFollowing ? 'Ne plus suivre' : 'S\'abonner'}
             </Text>
           </TouchableOpacity>
 

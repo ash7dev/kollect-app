@@ -8,9 +8,7 @@ import { router } from 'expo-router';
 // CONFIGURATION DE BASE
 // ============================================
 
-const API_BASE_URL = __DEV__ 
-  ? 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api'  // 🔧 Remplace par ton IP locale si nécessaire
-  : 'https://votre-api-production.com/api';
+const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api';
 
 const API_TIMEOUT = 30000; // 30 secondes
 
@@ -19,7 +17,7 @@ const API_TIMEOUT = 30000; // 30 secondes
 // ============================================
 
 export const apiClient: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_URL,
   timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
@@ -109,7 +107,7 @@ apiClient.interceptors.response.use(
           throw new Error('No token available');
         }
 
-        const response = await axios.get(`${API_BASE_URL}/auth/me`, {
+        const response = await axios.get(`${API_URL}/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -170,7 +168,7 @@ apiClient.interceptors.response.use(
 
 export const checkApiHealth = async (): Promise<boolean> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/auth/health`, {
+    const response = await axios.get(`${API_URL}/auth/health`, {
       timeout: 5000,
     });
     
@@ -189,7 +187,7 @@ export const checkApiHealth = async (): Promise<boolean> => {
 export const logApiConfig = () => {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🔧 [API] Configuration:');
-  console.log(`   Base URL: ${API_BASE_URL}`);
+  console.log(`   Base URL: ${API_URL}`);
   console.log(`   Timeout: ${API_TIMEOUT}ms`);
   console.log(`   Environment: ${__DEV__ ? 'Development' : 'Production'}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

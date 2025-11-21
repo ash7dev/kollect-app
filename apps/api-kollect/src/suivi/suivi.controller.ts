@@ -20,7 +20,7 @@ type AuthenticatedRequest = Request & {
   };
 };
 
-@Controller('api/brands')
+@Controller('brands')
 export class SuiviController {
   constructor(private readonly suiviService: SuiviService) {}
 
@@ -57,6 +57,59 @@ export class SuiviController {
     const isFollowing = await this.suiviService.isFollowing(
       req.user.id,
       brandId,
+    );
+    return { isFollowing };
+  }
+}
+
+@Controller('favorites')
+@UseGuards(JwtAuthGuard)
+export class SuiviFavoritesController {
+  constructor(private readonly suiviService: SuiviService) {}
+
+  @Get('products')
+  async getFavoriteProducts(@Req() req: AuthenticatedRequest) {
+    return this.suiviService.getUserFavoriteProducts(req.user.id);
+  }
+}
+
+@Controller('products')
+export class SuiviProduitController {
+  constructor(private readonly suiviService: SuiviService) {}
+
+  @Post(':id/follow')
+  @UseGuards(JwtAuthGuard)
+  async followProduct(
+    @Param('id') productId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.suiviService.followProduct(req.user.id, productId);
+  }
+
+  @Delete(':id/follow')
+  @UseGuards(JwtAuthGuard)
+  async unfollowProduct(
+    @Param('id') productId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.suiviService.unfollowProduct(req.user.id, productId);
+  }
+
+  @Get(':id/followers/count')
+  async getProductFollowersCount(@Param('id') productId: string) {
+    const count = await this.suiviService.getProductFollowersCount(productId);
+    return { count };
+  }
+
+  @Get(':id/is-following')
+  @UseGuards(JwtAuthGuard)
+  async isFollowingProduct(
+    @Param('id') productId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const isFollowing = await this.suiviService.isFollowingProduct(
+      req.user.id,
+      productId,
     );
     return { isFollowing };
   }
