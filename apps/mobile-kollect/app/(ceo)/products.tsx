@@ -10,6 +10,7 @@ import { ProductDraft } from '@/utils/storage';
 import { useAuthStore } from '@/store/authStore';
 import { useCollectionsStore } from '@/features/collections/store/collectionStore';
 import { CollectionStatus } from '@/features/collections/services/collections.service';
+import { formatPrice } from '@/features/commandes/types/commande.types';
 import { useProducts } from '@/features/produits/hooks/useProducts';
 import { ProduitDto } from '@/features/produits/services/produits.service';
 import { useProduitsStore } from '@/features/produits/store/produitsStore';
@@ -50,7 +51,6 @@ export default function ProductsScreen() {
       if (!brandId) {
         throw new Error('Aucune marque associée à cet utilisateur');
       }
-      // Le produit sera créé via l'API, on refresh la liste
       await refetch();
       return Promise.resolve();
     } catch (error) {
@@ -89,6 +89,14 @@ export default function ProductsScreen() {
     return filtered;
   }, [products, searchQuery, groupBy]);
 
+  // Fonction pour déterminer le statut du stock
+  const getStockStatus = (stock: number) => {
+    if (stock === 0) return { status: 'out', label: 'Épuisé', color: '#EF4444' };
+    if (stock <= 5) return { status: 'low', label: 'Stock faible', color: '#F59E0B' };
+    if (stock <= 10) return { status: 'limited', label: 'Stock limité', color: '#EAB308' };
+    return { status: 'available', label: 'En stock', color: '#10B981' };
+  };
+
   // Afficher le loader pendant le chargement initial
   if (loadingCollections || (loadingProducts && products.length === 0)) {
     return (
@@ -105,6 +113,9 @@ export default function ProductsScreen() {
 
   const renderProductCard = ({ item }: { item: ProduitDto }) => {
     const collection = collections.find(c => c.id === item.collectionId);
+    const stockStatus = getStockStatus(item.stock);
+    const isOutOfStock = item.stock === 0;
+    const isLowStock = item.stock > 0 && item.stock <= 5;
     
     return (
       <TouchableOpacity
@@ -123,40 +134,74 @@ export default function ProductsScreen() {
         activeOpacity={0.8}
         onPress={() => router.push(`/product/${item.id}`)}
       >
-        {item.images && item.images.length > 0 ? (
-          <Image 
-            source={{ uri: item.images[0] }} 
-            style={styles.productImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={[styles.productImagePlaceholder, { backgroundColor: theme.colors.surface }]}>
-            <Ionicons name="image-outline" size={32} color={theme.colors.textDisabled} />
-          </View>
-        )}
-        
-        <View style={styles.productInfo}>
-          <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={2}>
-            {item.name}
-          </Text>
+        {/* Image avec overlay si épuisé */}
+        <View style={styles.imageContainer}>
+          {item.images && item.images.length > 0 ? (
+            <Image 
+              source={{ uri: item.images[0] }} 
+              style={[styles.productImage, isOutOfStock && styles.imageOutOfStock]}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.productImagePlaceholder, { backgroundColor: theme.colors.surface }]}>
+              <Ionicons name="image-outline" size={32} color={theme.colors.textDisabled} />
+            </View>
+          )}
           
+          {/* Badge épuisé */}
+          {isOutOfStock && (
+            <View style={[styles.outOfStockBadge, { backgroundColor: 'rgba(0, 0, 0, 0.75)' }]}>
+              <Text style={styles.outOfStockText}>ÉPUISÉ</Text>
+            </View>
+          )}
+
+          {/* Badge stock faible */}
+          {isLowStock && (
+            <View style={[styles.urgencyBadge, { backgroundColor: stockStatus.color }]}>
+              <Ionicons name="flame" size={12} color="#FFF" />
+              <Text style={styles.urgencyText}>Plus que {item.stock} !</Text>
+            </View>
+          )}
+
+          {/* Badge collection */}
           {collection && (
-            <View style={styles.collectionBadge}>
-              <Ionicons name="folder-outline" size={12} color={theme.colors.textSecondary} />
-              <Text style={[styles.collectionName, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+            <View style={[styles.collectionTopBadge, { backgroundColor: 'rgba(0, 0, 0, 0.6)' }]}>
+              <Ionicons name="folder" size={10} color="#FFF" />
+              <Text style={styles.collectionTopText} numberOfLines={1}>
                 {collection.name}
               </Text>
             </View>
           )}
+        </View>
+        
+        <View style={styles.productInfo}>
+          {/* Nom du produit */}
+          <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={2}>
+            {item.name}
+          </Text>
           
-          <View style={styles.productMeta}>
-            <Text style={[styles.productPrice, { color: theme.colors.primary }]}>
-              {item.price.toFixed(2)} CFA
+          {/* SKU si disponible */}
+          {item.sku && (
+            <Text style={[styles.productSku, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+              SKU: {item.sku}
             </Text>
-            <View style={styles.stockContainer}>
-              <Ionicons name="cube-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={[styles.stockText, { color: theme.colors.textSecondary }]}>
-                {item.stock} en stock
+          )}
+          
+          {/* Prix et stock */}
+          <View style={styles.productFooter}>
+            <View style={styles.priceContainer}>
+              <Text style={[styles.productPrice, { color: theme.colors.primary }]}>
+                {formatPrice(item.price)}
+              </Text>
+            </View>
+            
+            <View style={[styles.stockBadge, { 
+              backgroundColor: `${stockStatus.color}15`,
+              borderColor: stockStatus.color,
+            }]}>
+              <View style={[styles.stockDot, { backgroundColor: stockStatus.color }]} />
+              <Text style={[styles.stockBadgeText, { color: stockStatus.color }]}>
+                {item.stock}
               </Text>
             </View>
           </View>
@@ -168,16 +213,19 @@ export default function ProductsScreen() {
   const renderGroupedSection = (collectionId: string, items: ProduitDto[]) => {
     const collection = collections.find(c => c.id === collectionId);
     const collectionName = collection?.name || 'Sans collection';
+    const totalStock = items.reduce((sum, item) => sum + item.stock, 0);
 
     return (
       <View key={collectionId} style={styles.groupSection}>
         <View style={styles.groupHeader}>
-          <Text style={[styles.groupTitle, { color: theme.colors.text }]}>
-            {collectionName}
-          </Text>
-          <Text style={[styles.groupCount, { color: theme.colors.textSecondary }]}>
-            {items.length} produit{items.length > 1 ? 's' : ''}
-          </Text>
+          <View>
+            <Text style={[styles.groupTitle, { color: theme.colors.text }]}>
+              {collectionName}
+            </Text>
+            <Text style={[styles.groupSubtitle, { color: theme.colors.textSecondary }]}>
+              {items.length} produit{items.length > 1 ? 's' : ''} • {totalStock} en stock
+            </Text>
+          </View>
         </View>
         <FlatList
           data={items}
@@ -444,74 +492,151 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     marginBottom: 16,
   },
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 200,
+  },
   productImage: {
     width: '100%',
-    height: 180,
+    height: '100%',
+  },
+  imageOutOfStock: {
+    opacity: 0.5,
   },
   productImagePlaceholder: {
     width: '100%',
-    height: 180,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  productInfo: {
-    padding: 12,
+  outOfStockBadge: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -40 }, { translateY: -15 }],
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
-  productName: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 6,
-    letterSpacing: -0.3,
+  outOfStockText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
-  collectionBadge: {
+  urgencyBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
     gap: 4,
-    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  collectionName: {
-    fontSize: 12,
+  urgencyText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  collectionTopBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    gap: 4,
+    maxWidth: '60%',
+  },
+  collectionTopText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  productInfo: {
+    padding: 14,
+  },
+  productName: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+    letterSpacing: -0.3,
+    lineHeight: 20,
+  },
+  productSku: {
+    fontSize: 11,
     fontWeight: '500',
+    marginBottom: 10,
+    opacity: 0.7,
   },
-  productMeta: {
+  productFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 4,
+  },
+  priceContainer: {
+    flex: 1,
   },
   productPrice: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
-  stockContainer: {
+  stockBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    gap: 6,
   },
-  stockText: {
-    fontSize: 12,
-    fontWeight: '500',
+  stockDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  stockBadgeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   groupSection: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   groupHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    marginBottom: 14,
     paddingHorizontal: 4,
   },
   groupTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.4,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    marginBottom: 2,
   },
-  groupCount: {
-    fontSize: 14,
+  groupSubtitle: {
+    fontSize: 13,
     fontWeight: '500',
   },
   horizontalList: {
     gap: 12,
+    paddingRight: 24,
   },
   emptyState: {
     flex: 1,

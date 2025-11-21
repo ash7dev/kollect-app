@@ -273,7 +273,7 @@ function RootLayoutContent() {
     );
   }
 
-  // 4. Non authentifié → Stack Auth
+  // 4. Non authentifié → Stack Auth (geste retour désactivé)
   if (!isAuthenticated || !token) {
     return (
       <>
@@ -281,6 +281,7 @@ function RootLayoutContent() {
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: theme.colors.background },
+            gestureEnabled: false,
           }}
           initialRouteName="(auth)"
         >
@@ -342,7 +343,7 @@ function RootLayoutContent() {
   if (isAuthenticated && token && user?.isCEO && !!user?.brand) {
     return (
       <>
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
           <Stack.Screen name="(ceo)" />
         </Stack>
         <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -350,10 +351,10 @@ function RootLayoutContent() {
     );
   }
 
-  // 9. Client par défaut → Stack Client
+  // 9. Client par défaut → Stack Client (geste retour désactivé)
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
         <Stack.Screen name="(client)" />
       </Stack>
       <StatusBar style={isDark ? 'light' : 'dark'} />

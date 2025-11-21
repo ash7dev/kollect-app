@@ -133,9 +133,6 @@ export function ProductPostCard({ product, onPressBrand }: Props) {
               <Text style={[styles.price, { color: theme.colors.text }]}>
                 {formatPrice(product.price)}
               </Text>
-              <Text style={[styles.priceLabel, { color: theme.colors.textSecondary }]}>
-                FCFA
-              </Text>
             </View>
           ) : (
             <Text style={[styles.priceUnavailable, { color: theme.colors.textSecondary }]}>

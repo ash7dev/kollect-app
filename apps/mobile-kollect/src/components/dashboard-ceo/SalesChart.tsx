@@ -114,19 +114,33 @@ export const ModernSalesChart = ({ refreshing=false, onRefresh }: ModernSalesCha
   console.log('Brand Data:', myBrand);
   console.log('Is Loading Brand:', isLoadingBrand);
 
-  useEffect(() => {
-    if (refreshing && onRefresh) {
-      onRefresh().catch(console.error);
-    }
-  }, [refreshing, onRefresh]);
-  
-  
   // 🔥 Charger les stats et les données de ventes
   const { data: stats, isLoading: loadingStats, error: statsError } = useBrandStats(brandId || '');
-  const { data: salesData, isLoading: loadingSales, error: salesError } = useSalesData(
-    brandId || '', 
-    selectedPeriod
-  );
+  const {
+    data: salesData,
+    isLoading: loadingSales,
+    error: salesError,
+    refetch: refetchSales,
+  } = useSalesData(brandId || '', selectedPeriod);
+
+  useEffect(() => {
+    if (!refreshing) return;
+
+    const runRefresh = async () => {
+      try {
+        // Laisser le parent rafraîchir la marque / stats
+        if (onRefresh) {
+          await onRefresh();
+        }
+        // Et ici on force le refetch des données de ventes
+        await refetchSales();
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    void runRefresh();
+  }, [refreshing, onRefresh, refetchSales]);
   console.log('Stats:', stats);
   console.log('Sales Data:', salesData);
   console.log('Loading Stats:', loadingStats);

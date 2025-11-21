@@ -527,9 +527,8 @@ export class CollectionsController {
 
   @Get('public')
   @Public()
-  @UsePipes(new ZodValidationPipe(QueryCollectionsSchema))
   async findAllPublic(
-    @Query() query: QueryCollectionsDto,
+    @Query(new ZodValidationPipe(QueryCollectionsSchema)) query: QueryCollectionsDto,
     @Query('includeProducts') includeProducts?: string | boolean,
   ) {
     const include = includeProducts === true || includeProducts === 'true';

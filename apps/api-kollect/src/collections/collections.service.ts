@@ -155,6 +155,7 @@ export class CollectionsService {
             images: productDto.images,
             stock: productDto.stock,
             sizes: productDto.sizes,
+            colors: productDto.colors ?? [],
             sku: productDto.sku,
             brandId,
             collectionId: collection.id,

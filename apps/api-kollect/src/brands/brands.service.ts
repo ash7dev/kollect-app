@@ -36,8 +36,10 @@ export type BrandWithRelations = Prisma.MarqueGetPayload<{
 }>;
 
 interface BrandFilters {
-  isActive?: boolean;
-  isVerified?: boolean;
+  // Ces valeurs viennent des query params (?isActive=true&isVerified=true)
+  // et arrivent donc en string côté controller. On les convertit ici.
+  isActive?: string;
+  isVerified?: string;
   search?: string;
 }
 
@@ -228,12 +230,18 @@ export class BrandsService {
    * 📋 Récupérer toutes les marques actives (pour clients)
    */
   async findAll(filters?: BrandFilters) {
-    const where: Prisma.MarqueWhereInput = {
-      isActive: filters?.isActive !== undefined ? filters.isActive : true,
-    };
+    const where: Prisma.MarqueWhereInput = {};
 
+    // isActive: par défaut true si non fourni
+    if (filters?.isActive !== undefined) {
+      where.isActive = filters.isActive === 'true';
+    } else {
+      where.isActive = true;
+    }
+
+    // isVerified: optionnel
     if (filters?.isVerified !== undefined) {
-      where.isVerified = filters.isVerified;
+      where.isVerified = filters.isVerified === 'true';
     }
 
     if (filters?.search) {
@@ -293,7 +301,14 @@ export class BrandsService {
           orderBy: {
             createdAt: 'desc',
           },
-          take: 10,
+          take:20,
+          include: {
+            _count: {
+              select: {
+                products: true,
+              },
+            },
+          },
         },
         products: {
           where: {
@@ -303,7 +318,7 @@ export class BrandsService {
           orderBy: {
             createdAt: 'desc',
           },
-          take: 12,
+          take: 22,
         },
         _count: {
           select: {
@@ -506,8 +521,12 @@ async getStats(userId: string, brandId: string): Promise<BrandStats & {
         where: { brandId },
       }).catch(() => 0),
       
+      // Total commandes effectives (hors annulées) pour cohérence avec le CA
       this.prisma.commande.count({
-        where: { brandId },
+        where: {
+          brandId,
+          status: { not: 'ANNULEE' },
+        },
       }).catch(() => 0),
       
       this.prisma.commande.aggregate({

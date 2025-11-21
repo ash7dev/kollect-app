@@ -31,9 +31,11 @@ import { CreateBrandResponse } from './types/brand.types';
 import { UPLOAD_CONSTANTS } from '../upload/types/upload.types';
 
 // Interface pour les filtres de recherche
+// Les valeurs viennent des query params (?isActive=true&isVerified=true)
+// et sont donc des strings ici; la conversion en boolean est faite dans le service.
 interface BrandFilters {
-  isActive?: boolean;
-  isVerified?: boolean;
+  isActive?: string;
+  isVerified?: string;
   search?: string;
 }
 

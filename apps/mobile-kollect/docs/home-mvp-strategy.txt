@@ -1,0 +1,362 @@
+KOLLECT - HOME SCREEN & PRODUITS API - MVP STRATEGY
+===================================================
+
+1. OBJECTIF GLOBAL
+------------------
+
+Vision : Kollect comme plateforme mobile pour marques sénégalaises (streetwear & créateurs), orientée "drops" et découverte produit, plutôt qu’un feed type Instagram.
+
+Objectif de la V1 / MVP :
+- Un nouveau client ouvre l’app mobile et voit immédiatement :
+  - des marques locales mises en avant,
+  - un drop à venir,
+  - des collections en vedette,
+  - un créateur en vedette,
+  - des produits "en tendance" (même si les données sont encore faibles).
+- Éviter les écrans vides ou trop techniques.
+- Préparer le terrain pour une V2 (personnalisation, vrais populaires, nouveaux produits) sans compliquer le MVP.
+
+
+2. STRUCTURE ACTUELLE DE LA HOME (ClientHomeScreen)
+---------------------------------------------------
+
+Fichier : apps/mobile-kollect/app/(client)/index.tsx
+Composant principal : ClientHomeScreen
+
+Sections importantes (dans l’ordre) :
+
+1) HEADER
+   - Logo "Kollect".
+   - Icône notifications avec badge.
+   - Icône panier avec badge (quantité totale, via useCartStore.totalQuantity()).
+   - Barre de recherche (sans logique avancée pour l’instant).
+
+2) BANDEAU MARQUES VÉRIFIÉES
+   - Source : brandService.getAllBrands({ isActive: true, isVerified: true }).
+   - Affiche une ScrollView horizontale de "chips" : logo + nom de la marque.
+   - Rôle : donner immédiatement une impression de "marques locales" et de crédibilité.
+
+3) DROP À VENIR (DropCountdown)
+   - Data : première collection dans comingSoonCollections.
+   - Source backend : collectionsApi.getComingSoon(6).
+   - Transformation : dropData construit avec :
+     - collectionId, collectionName,
+     - brandName, brandLogo,
+     - coverImage,
+     - launchDate artificielle (exemple : J+3).
+   - Composant DropCountdown : affiche un bloc "Drop à venir" avec compte à rebours et CTA (Notify / Preview). Pour l’instant, callbacks = console.log.
+
+4) COLLECTIONS EN VEDETTE (DepthCarousel)
+   - Source backend : collectionsApi.getFeatured(6).
+   - Transformation :
+     - Traitement des URLs des images (coverImage, teaserVideo) en préfixant avec API_URL si ce n’est pas déjà un http.
+     - Traitement du logo brand de la même façon.
+   - On construit un tableau pour DepthCarousel avec :
+     - id, title (nom de la collection),
+     - image (coverImage),
+     - brandName, brandLogo,
+     - status (TEASER, DISPONIBLE, etc.),
+     - viewCount (collection._count?.views || 0),
+     - productCount (collection._count?.products || 0),
+     - description (ou fallback "Découvrez cette collection exclusive.").
+
+5) CRÉATEUR EN VEDETTE (BrandSpotlight)
+   - Source : première collection en vedette + liste verifiedBrands.
+   - Logique :
+     - firstCollection = featuredCollections[0].
+     - firstBrand = firstCollection?.brand.
+     - fullBrandData = verifiedBrands.find(b => b.id === firstBrand.id) || firstBrand.
+   - Calcul des compteurs :
+     - brandCollections = toutes les collections en vedette dont brand.id === firstBrand.id.
+     - totalProductsForBrand = somme des c._count?.products pour ces collections.
+   - spotlightBrand (format attendu par BrandSpotlight) :
+     - id, name, slug,
+     - logo (brand.logo),
+     - coverImage (coverImage de la collection),
+     - description = fullBrandData.description || fullBrandData.bio || firstCollection.description || "Découvrez l'univers de {brand.name}".
+     - stats :
+       - followers = fullBrandData.followerCount || 0,
+       - collections = fullBrandData._count?.collections || brandCollections.length || 0,
+       - products = fullBrandData._count?.products || totalProductsForBrand || 0.
+     - tags : ["sénégal", "créateur", "local"].
+     - verified : fullBrandData.isVerified.
+     - isFollowing : false (state géré uniquement côté BrandSpotlight pour l’instant).
+   - Rôle : donner une identité très "créateur" à la home, avec une belle carte.
+
+6) PRODUITS TENDANCE (TrendingGrid)
+   - State : trendingProducts : ProduitDto[].
+   - Source : API produits via produitsService.
+   - **Important** : la stratégie de remplissage est basée sur popular + fallback random (détails plus bas).
+   - Transformation pour TrendingGrid :
+     - On remappe chaque ProduitDto vers le format attendu par TrendingGrid :
+       - brandName = product.brand?.name || "Sans marque".
+       - brandLogo = undefined pour l’instant.
+       - isNew = false (peut évoluer plus tard).
+   - `onAddToCart` : connecté à useCartStore.addItem, avec product.id, name, image (images[0]), price, brandId, stock.
+   - `onProductPress` : pour l’instant console.log, à remplacer plus tard par une navigation vers un écran de détail produit.
+
+7) ÉTAT VIDE
+   - Si featuredCollections.length === 0 ET trendingProducts.length === 0 :
+     - Affiche un état vide avec icône cube + message "Aucun contenu disponible pour le moment".
+
+
+3. API PRODUITS CÔTÉ BACKEND (NestJS + Prisma)
+----------------------------------------------
+
+Fichier : apps/api-kollect/src/produits/produits.service.ts
+Classe : ProduitsService
+
+Endpoints et méthodes importants pour la home :
+
+1) findRandom(query: RandomProduitsDto)
+   - Endpoint : GET /api/produits/public/random
+   - DTO : RandomProduitsDto avec page, limit, seed (Zod).
+   - Logique :
+     - Filtre where :
+       - isVisible: true,
+       - isDeleted: false,
+       - collection.status: DISPONIBLE.
+     - Pagination : page (default 1), limit (default 20) convertis en Number.
+     - Requête :
+       - findMany avec include collection (id, name, status) et brand (id, name, logo, slug, isVerified).
+       - orderBy createdAt desc (produits récents).
+       - skip/take pour la page.
+     - On mélange les résultats de la page avec un simple shuffle en mémoire :
+       - shuffled = [...products].sort(() => Math.random() - 0.5).
+     - Retour :
+       - { data: shuffled, meta: { total, page, limit, totalPages } }.
+   - Utilisation : fallback si popular ne renvoie rien, ou comme source aléatoire pour d’autres écrans.
+
+2) findPopular(limit = 20, days = 30)
+   - Endpoint : GET /api/produits/popular?limit=20&days=30.
+   - Objectif : produits populaires basés sur les vues, avec gestion du cold-start.
+   - Logique :
+     - dateLimit = now - days.
+     - where :
+       - isVisible: true,
+       - isDeleted: false,
+       - collection.status: DISPONIBLE,
+       - createdAt >= dateLimit.
+     - Étape 1 : on teste s’il existe au moins un produit récent avec viewCount > 0
+       - productWithMaxViews = findFirst({ where, orderBy: { viewCount: 'desc' }, select: { id, viewCount } }).
+       - hasRealViews = (productWithMaxViews?.viewCount ?? 0) > 0.
+     - Étape 2 : on choisit la stratégie de tri :
+       - si hasRealViews = true : orderBy = { viewCount: 'desc' }.
+       - sinon (cold-start) : orderBy = { createdAt: 'desc' }.
+     - Étape 3 : on récupère les produits :
+       - findMany avec include collection (id, name, status) et brand (id, name, logo, slug, isVerified).
+       - orderBy selon la stratégie.
+       - take: limit.
+   - Retour : tableau de produits (pas de meta ici côté backend, mais le service mobile peut ajouter des types génériques).
+
+3) findNew(limit = 20, days = 14)
+   - Endpoint : GET /api/produits/new?limit=20&days=14.
+   - Objectif : produits récents, sans notion de popularité.
+   - Logique :
+     - where similaire à findPopular, avec createdAt >= dateLimit.
+     - orderBy createdAt desc.
+   - Pas encore utilisé sur la home pour le MVP, mais prêt pour une section "Nouveaux produits" plus tard.
+
+4) findPersonalized(userId: string, limit = 20)
+   - Endpoint : GET /api/produits/personalized?limit=20 (auth requise).
+   - Objectif : recommandations basées sur les favoris (PRODUCT/BRAND).
+   - Étapes :
+     - Récupérer les favoris de l’utilisateur (type PRODUCT ou BRAND).
+     - Construire un set de favoriteBrandIds à partir :
+       - des favoris de type BRAND,
+       - des produits favoris et leurs brandId.
+     - Si favoriteBrandIds.size === 0 :
+       - Fallback direct sur findPopular(limit).
+     - Sinon :
+       - findMany produits visibles, non supprimés, brandId IN favoriteBrandIds, collection DISPONIBLE.
+       - orderBy [viewCount desc, createdAt desc].
+     - Si products.length < limit : compléter avec findPopular(limit - products.length) en évitant les doublons.
+   - Non utilisé dans le MVP, mais prêt pour une future section "Pour toi".
+
+
+4. SERVICE PRODUITS CÔTÉ MOBILE
+--------------------------------
+
+Fichier : apps/mobile-kollect/src/features/produits/services/produits.service.ts
+Objet : produitsService
+
+Routes importantes pour la home :
+
+1) getFeatured(limit = 10)
+   - GET /api/produits/featured?limit=10.
+   - Retour typé comme { data: ProduitDto[]; meta: any } (même si côté backend findFeatured renvoie un simple tableau, on peut aligner plus tard si nécessaire).
+   - Utilisable pour d’autres sections de mise en avant.
+
+2) getPopular(limit = 20, days = 30)
+   - GET /api/produits/popular?limit=20&days=30.
+   - Si res.ok false : lève une Error('Erreur chargement produits populaires').
+   - Retour typé comme { data: ProduitDto[]; meta: any } dans le service mobile.
+
+3) getNew(limit = 20, days = 14)
+   - GET /api/produits/new?limit=20&days=14.
+   - Retour typé comme { data: ProduitDto[]; meta: any }.
+
+4) getPersonalized(limit = 20)
+   - GET /api/produits/personalized?limit=20 (avec token JWT).
+   - Retour typé comme { data: ProduitDto[]; meta: any }.
+
+5) getRandom(params?: { limit?: number; collectionId?: string })
+   - GET /api/produits/public/random?limit=...&collectionId=...
+   - Retour : { data: ProduitDto[]; meta: any }.
+
+
+5. STRATÉGIE ACTUELLE POUR "TENDANCE DU MOMENT" (MVP)
+------------------------------------------------------
+
+Côté ClientHomeScreen (fetchData) :
+
+- Après avoir chargé et transformé les collections :
+  - setFeaturedCollections(processedCollections);
+  - setTrendingCollections(trendingCols || []);
+  - setNewCollections(newCols || []);
+  - setComingSoonCollections(comingSoonCols || []);
+
+- Pour les produits tendance (trendingProducts) :
+
+  1) On tente d’abord de charger les produits populaires :
+     - const popularRes = await produitsService.getPopular(20, 30);
+     - const popularProducts = popularRes.data ?? popularRes ?? [];
+  2) Si popularProducts est un tableau non vide :
+     - setTrendingProducts(popularProducts);
+  3) Sinon (aucun produit populaire ou cas edge) :
+     - Fallback :
+       - const randomRes = await produitsService.getRandom({ limit: 20 });
+       - const randomProducts = randomRes.data || [];
+       - setTrendingProducts(randomProducts);
+  4) Si une erreur survient lors de getPopular (throw Error) :
+     - catch (productError) { ... }
+     - On log l’erreur et on retombe sur getRandom (même logique que 3).
+
+Conclusion :
+- Dans tous les cas, trendingProducts sera soit :
+  - une liste de produits triés par popularité (viewCount) ou, en cold-start, par récence,
+  - soit un mix aléatoire récent (fallback random).
+- La section "Tendance du moment" ne sera jamais vide tant qu’il y a au moins quelques produits visibles dans des collections DISPONIBLE.
+
+
+6. HIÉRARCHIE DES MÉTHODES PRODUITS POUR LA RECOMMANDATION
+----------------------------------------------------------
+
+Pour le MVP (peu de données, peu de vues, peu de favoris) :
+
+- Méthodes réellement utiles :
+  - findPopular (avec gestion cold-start) → coeur de "Tendance du moment".
+  - findRandom → backup pour s’assurer que la home ne soit jamais vide.
+
+- Méthodes "en réserve" pour la V2 :
+  - findNew → section "Nouveaux produits".
+  - findPersonalized → section "Pour toi" basée sur favoris / historique.
+
+Ordre de priorité logique à terme :
+
+1) Personnalisé (findPersonalized) quand il y a des favoris.
+2) Populaire (findPopular) avec son fallback built-in (récence si pas de vues).
+3) Nouveaux (findNew) pour mettre en avant les derniers ajouts.
+4) Aléatoire (findRandom) comme joker pour varier le catalogue.
+
+Pour l’instant, le MVP se concentre sur :
+- Populaire + Random, ce qui est suffisant pour montrer quelque chose de cohérent à un nouvel utilisateur.
+
+
+7. IDÉES D’ÉVOLUTIONS FUTURES (POST-MVP)
+----------------------------------------
+
+Quand les données auront mûri (plus de produits, de vues, de favoris), les prochaines étapes possibles :
+
+1) Section "Pour toi"
+   - Utiliser produitsService.getPersonalized(limit).
+   - Ne l’afficher que si l’utilisateur est connecté et a des favoris / historique.
+   - Affichage : un carrousel horizontal ou une section liste.
+
+2) Section "Nouveaux produits"
+   - Utiliser produitsService.getNew(limit).
+   - Label : "Nouveaux drops" ou "Nouveaux produits".
+
+3) Endpoint getHomePage(userId?) côté backend
+   - Un seul endpoint qui renvoie toutes les sections à la fois :
+     - featuredCollections,
+     - trendingCollections,
+     - comingSoon,
+     - verifiedBrands,
+     - popularProducts,
+     - personalizedProducts (si userId),
+     - newProducts,
+     - éventuellement spotlightBrand déjà préparé.
+   - Avantage :
+     - moins d’appels côté mobile,
+     - logique de fallback centralisée côté backend.
+
+   Pseudo-code idée :
+
+   async getHomePage(userId?: string) {
+     const [featured, trendingCols, newCols, comingSoon] = await Promise.all([...]);
+     const [popular, newest] = await Promise.all([
+       this.findPopular(20),
+       this.findNew(20),
+     ]);
+
+     let personalized: Produit[] = [];
+     if (userId) {
+       personalized = await this.findPersonalized(userId);
+     }
+
+     let popularForHome = popular;
+     if (!popularForHome.length) {
+       const random = await this.findRandom({ limit: 20, page: 1 });
+       popularForHome = random.data;
+     }
+
+     return {
+       featuredCollections: featured,
+       trendingCollections: trendingCols,
+       newCollections: newCols,
+       comingSoonCollections: comingSoon,
+       sections: {
+         personalized: personalized,
+         popular: popularForHome,
+         newest,
+       },
+     };
+   }
+
+4) Navigation & UX
+   - Ajouter une vraie navigation sur :
+     - clic sur un produit (TrendingGrid) → ProductDetail.
+     - clic sur une carte du DepthCarousel → page CollectionDetail ou BrandDetail.
+     - bouton "Visiter" dans BrandSpotlight → BrandDetail (liste des produits de la marque).
+
+5) Gestion fine de l’état de loading par section
+   - Plutôt qu’un loader global, afficher :
+     - skeleton pour le carousel,
+     - skeleton pour TrendingGrid,
+     - placeholders pour BrandSpotlight.
+
+
+8. SYNTHÈSE POUR PLUS TARD
+--------------------------
+
+- La home V1 est déjà bien alignée avec la vision Kollect :
+  - Focus sur les marques locales, les drops et la découverte produit.
+  - Pas de feed social type Instagram.
+
+- Le moteur de suggestion V1 repose sur deux piliers simples mais efficaces :
+  - findPopular (avec fallback par récence en cold-start).
+  - findRandom comme backup si popular ne renvoie rien ou en cas d’erreur.
+
+- Les autres briques (findNew, findPersonalized, getFeatured, etc.) sont déjà codées côté backend et côté mobile, mais volontairement peu utilisées pour le moment afin de garder le MVP simple.
+
+- Quand la base de données et l’usage auront grandi, tu pourras :
+  - activer progressivement une section "Pour toi" (findPersonalized),
+  - ajouter une section "Nouveaux produits" (findNew),
+  - introduire un endpoint global getHomePage(userId) pour simplifier le client.
+
+Ce fichier sert de mémo pour rappeler :
+- quelles méthodes existent,
+- comment elles sont utilisées sur la home,
+- quelle stratégie de fallback est en place,
+- quelles évolutions sont prévues pour la suite.

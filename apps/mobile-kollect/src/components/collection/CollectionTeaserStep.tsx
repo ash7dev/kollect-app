@@ -131,6 +131,9 @@ export function CollectionTeaserStep({
       const newDate = new Date(launchDate);
       newDate.setHours(selectedTime.getHours());
       newDate.setMinutes(selectedTime.getMinutes());
+      newDate.setSeconds(0, 0);
+      // Garder launchDate comme source unique date+heure, et launchTime en miroir
+      setLaunchDate(newDate);
       setLaunchTime(newDate);
     }
   };

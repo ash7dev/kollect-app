@@ -1,0 +1,165 @@
+Client Home Endpoints (ClientHomeScreen)
+
+Base API URL
+- https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api
+- En-tête commun ajouté côté client: ngrok-skip-browser-warning: true
+
+Collections (public)
+1) GET /collections/featured
+   - Appel: collectionsApi.getFeatured(limit=6)
+   - Query params: limit: number (par défaut 6)
+   - Auth: Aucune
+   - Réponse attendue: 200 OK
+     Body: CollectionDto[]
+     CollectionDto: {
+       id: string,
+       name: string,
+       slug: string,
+       description?: string | null,
+       coverImage?: string | null,
+       teaserVideo?: string | null,
+       status: 'TEASER' | 'DISPONIBLE' | 'EPUISEE' | 'TERMINE',
+       launchDate?: string | null,
+       launchedAt?: string | null,
+       isFeatured: boolean,
+       brandId: string,
+       viewCount: number,
+       brand: { id: string, name: string, logo: string | null, slug: string } | null,
+       _count: { views: number, products: number },
+       createdAt: string,
+       updatedAt: string,
+       products?: ProductDto[]
+     }
+   - Notes: coverImage/teaserVideo/brand.logo peuvent être renvoyés en chemin relatif. Le client préfixe avec l’host si nécessaire.
+
+2) GET /collections/trending
+   - Appel: collectionsApi.getTrending(limit=6)
+   - Query params: limit
+   - Auth: Aucune
+   - Réponse: 200 OK, Body: CollectionDto[]
+
+3) GET /collections/new
+   - Appel: collectionsApi.getNew(limit=6)
+   - Query params: limit
+   - Auth: Aucune
+   - Réponse: 200 OK, Body: CollectionDto[]
+
+4) GET /collections/coming-soon
+   - Appel: collectionsApi.getComingSoon(limit=6)
+   - Query params: limit
+   - Auth: Aucune
+   - Réponse: 200 OK, Body: CollectionDto[]
+
+Produits (public)
+5) GET /produits/popular
+   - Appel: produitsService.getPopular(limit=20, days=30)
+   - Query params:
+     - limit: number (par défaut 20)
+     - days: number (par défaut 30)
+   - Auth: Aucune
+   - Réponse: 200 OK
+     Body: { data: ProduitDto[], meta: any }
+     ProduitDto: {
+       id: string,
+       name: string,
+       description?: string | null,
+       price: number,
+       images: string[],
+       stock: number,
+       sizes: string[],
+       colors: string[],
+       sku?: string | null,
+       collectionId: string,
+       brandId: string,
+       createdAt?: string,
+       updatedAt?: string,
+       collection?: { id: string, name: string, status?: string },
+       brand?: { id: string, name: string }
+     }
+
+6) GET /produits/new
+   - Appel: produitsService.getNew(limit=20, days=14)
+   - Query params:
+     - limit: number (par défaut 20)
+     - days: number (par défaut 14)
+   - Auth: Aucune
+   - Réponse: 200 OK, Body: { data: ProduitDto[], meta: any }
+
+7) GET /produits/featured
+   - Appel: produitsService.getFeatured(limit=20)
+   - Query params: limit
+   - Auth: Aucune
+   - Réponse: 200 OK, Body: { data: ProduitDto[], meta: any }
+
+Gestion des erreurs (côté client)
+- Si response.ok === false, les services lèvent une Error avec un message générique (ex: "Erreur chargement produits ...", "Erreur lors de la récupération").
+- Le composant affiche une alerte et un message d’erreur utilisateur.
+
+Ce que fait le client dans ClientHomeScreen
+- Récupère en parallèle:
+  - Collections: featured, trending, new, coming-soon
+  - Produits: popular, new, puis featured
+- Normalise les URLs médias des collections quand la réponse contient des chemins relatifs (préfixe avec https://.../).
+- Stocke les résultats dans l’état pour un rendu ultérieur (seule la section collections en vedette et produits tendance est affichée pour l’instant).
+
+Hypothèses serveur
+- Toutes les routes listées ci-dessus sont publiques (pas d’en-tête Authorization requis) sauf les routes "personalized" (non utilisées ici).
+- Les collections renvoient un tableau simple (CollectionDto[]).
+- Les produits renvoient un objet paginé { data, meta }.
+- Codes d’état attendus: 200 OK en cas de succès; en cas d’échec, un code 4xx/5xx et un body JSON { message?: string } si fourni.
+ 
+
+ Tu captes très bien le sujet : si on ajoute des badges forts (stock, exclusif…), il faut aussi réorganiser la carte pour qu’ils aient un vrai poids visuel, pas juste des petites pastilles perdues.
+
+Je te propose une logique simple sans casser tout ton layout.
+
+1. Priorité visuelle sur la carte produit (TrendingGrid)
+Actuellement, une carte produit typique :
+Image → nom → prix → marque → bouton panier.
+
+Pour mettre en avant l’urgence/exclusif, je ferais :
+
+Zone haute de l’image = zone “hype”
+En haut à gauche :
+DROP EXCLUSIF KOLLECT (or)
+ou ÉDITION LIMITÉE (or/rouge léger)
+En haut à droite :
+🔥 2.4K vues (badge feu, petit mais visible)
+Zone basse de l’image = stock/urgence
+Un bandeau semi-transparent en bas de l’image, sur toute la largeur :
+Texte : Plus que 3 en stock
+Background rouge/orange avec légère animation pulse.
+Sous l’image : on garde le classique
+Nom du produit (1–2 lignes).
+Ligne marque + prix.
+Bouton “Ajouter” (déjà connecté au store).
+Donc visuellement, l’œil voit d’abord :
+EXCLUSIF / VUES / STOCK CRITIQUE avant même de lire le nom.
+
+2. Priorité sur les cartes collections (DepthCarousel)
+Pour les collections (DepthCarousel) :
+
+Badge exclusif sur le haut de la cover
+En haut à gauche : DROP EXCLUSIF KOLLECT si la collection est featured ou a un flag spécial.
+Info de rareté en bas
+X produits + éventuellement Y vues en overlay sur l’image.
+Titre + marque en dessous
+On garde la mise en page actuelle, mais les badges sur l’image donnent le ton.
+3. Impact sur la disposition globale de la home
+Je ne toucherais PAS à l’ordre des sections (bandeau brands → drop → collections → brand spotlight → tendance).
+Je jouerais juste sur l’intérieur des cartes :
+
+TrendingGrid : image plus “chargée” en informations visuelles de FOMO.
+DepthCarousel : badge exclusif en haut, stats en bas de l’image.
+Ça donne une vraie sensation de plateforme de drops sans devoir réinventer toute la page.
+
+4. Concrètement, prochaine étape
+Si tu veux, on peut :
+
+commencer par TrendingGrid uniquement,
+définir ensemble les conditions précises :
+ÉDITION LIMITÉE si stockTotal <= 50 ou stock <= 50.
+Plus que X en stock si stock <= 5.
+🔥 vues si viewCount > 0 (avec format 1.2K).
+puis adapter le layout de la carte pour placer ces badges comme décrit.
+Dis-moi si tu veux qu’on attaque directement l’implémentation sur TrendingGrid (c’est le plus visible pour l’utilisateur).

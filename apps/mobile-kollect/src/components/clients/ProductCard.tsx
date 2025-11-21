@@ -55,7 +55,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         
         <View style={styles.footer}>
           <Text style={[styles.price, { color: theme.colors.primary }]}>
-            {price.toFixed(2)} €
+            {`${price.toLocaleString('fr-FR')} CFA`}
           </Text>
           {onAddToCart && (
             <TouchableOpacity 

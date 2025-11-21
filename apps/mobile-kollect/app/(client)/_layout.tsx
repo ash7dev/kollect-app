@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useAuthStore } from '../../src/store/authStore';
+import { useCartStore } from '../../src/store/cartStore';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -57,6 +58,7 @@ export default function ClientLayout() {
   const { theme, isDark } = useTheme();
   const router = useRouter();
   const { isAuthenticated, token, user, isLoading } = useAuthStore();
+  const totalCartQty = useCartStore((s) => s.totalQuantity());
 
   // ⚠️ GUARD: Empêcher l'accès au layout Client si l'utilisateur n'est pas authentifié ou n'est pas client
   useEffect(() => {
@@ -88,28 +90,33 @@ export default function ClientLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: theme.colors.accent,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
+        tabBarActiveTintColor: isDark ? '#ffffff' : theme.colors.text,
+        tabBarInactiveTintColor: isDark ? '#b0b0b0' : theme.colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: theme.colors.card,
-          borderTopColor: theme.colors.border,
-          borderTopWidth: 0.5,
-          height: Platform.OS === 'ios' ? 85 : 65,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
-          paddingTop: 8,
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: Platform.OS === 'ios' ? 72 : 64,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          backgroundColor: isDark
+            ? 'rgba(15,15,15,0.98)'
+            : 'rgba(255,255,255,0.98)',
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: isDark ? 0.3 : 0.1,
+          shadowOpacity: isDark ? 0.3 : 0.12,
           shadowRadius: 8,
           elevation: 8,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
-          marginTop: 4,
+          fontWeight: '700',
+          marginTop: 2,
+          letterSpacing: 0.3,
         },
         tabBarIconStyle: {
-          marginTop: 2,
+          marginTop: 0,
         },
         headerShown: false,
       }}
@@ -130,13 +137,13 @@ export default function ClientLayout() {
         }}
       />
       <Tabs.Screen
-        name="collections"
+        name="search"
         options={{
-          title: 'Drops',
+          title: 'Explorer',
           tabBarIcon: ({ color, size, focused }) => (
             <TabBarIcon
-              name="flame"
-              outlineName="flame-outline"
+              name="search"
+              outlineName="search-outline"
               color={color}
               size={size}
               focused={focused}
@@ -145,33 +152,29 @@ export default function ClientLayout() {
         }}
       />
       <Tabs.Screen
-        name="brands"
+        name="panier"
         options={{
-          title: 'Marques',
+          title: 'Panier',
           tabBarIcon: ({ color, size, focused }) => (
             <TabBarIcon
-              name="star"
-              outlineName="star-outline"
+              name="cart"
+              outlineName="cart-outline"
               color={color}
               size={size}
               focused={focused}
             />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="favorites"
-        options={{
-          title: 'Favoris',
-          tabBarIcon: ({ color, size, focused }) => (
-            <TabBarIcon
-              name="heart"
-              outlineName="heart-outline"
-              color={color}
-              size={size}
-              focused={focused}
-            />
-          ),
+          // Badge synchronisé avec le contenu du panier
+          tabBarBadge: totalCartQty > 0 ? String(totalCartQty) : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: theme.colors.accent,
+            color: '#FFFFFF',
+            fontSize: 10,
+            minWidth: 18,
+            height: 18,
+            borderRadius: 9,
+            lineHeight: 16,
+          },
         }}
       />
       <Tabs.Screen

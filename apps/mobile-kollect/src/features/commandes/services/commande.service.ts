@@ -44,7 +44,8 @@ export interface Commande {
   orderNumber: string;
   clientId: string;
   brandId: string;
-  status: CommandeStatus;
+  // Status déjà mappé côté front via mapApiStatusToFrontend
+  status: 'en attente' | 'confirmée' | 'annulée';
   subtotal: number;
   shippingFee: number;
   discount: number;
@@ -84,17 +85,48 @@ export type CommandeStatus =
   | 'CONFIRMEE' 
   | 'ANNULEE';
 
+/**
+ * Informations pour créer une nouvelle commande
+ */
 export interface CreateCommandeDto {
+  /**
+   * Liste des produits à commander
+   */
   items: Array<{
-    variantId: string;
+    productId: string;
     quantity: number;
+    size?: string;
+    color?: string;
   }>;
+  /**
+   * Informations de livraison
+   */
   adresseLivraison: {
+    /**
+     * Nom du destinataire
+     */
+    nom: string;
+    /**
+     * Adresse de livraison
+     */
     adresse: string;
+    /**
+     * Ville de livraison
+     */
     ville: string;
+    /**
+     * Téléphone du destinataire
+     */
     telephone: string;
   };
+  /**
+   * Code promo (facultatif)
+   */
   codePromo?: string;
+  /**
+   * Notes (facultatif)
+   */
+  notes?: string;
 }
 
 export interface QueryCommandesDto {
@@ -170,7 +202,7 @@ export const mapFrontendStatusToApi = (frontendStatus: 'en attente' | 'confirmé
 
 const transformCommande = (apiCommande: any): Commande => ({
   ...apiCommande,
-  status: mapApiStatusToFrontend(apiCommande.status),
+  status: mapApiStatusToFrontend(apiCommande.status as CommandeStatus),
 });
 
 // ============================================
@@ -262,14 +294,14 @@ async annulerCommande(id: string, notes?: string): Promise<Commande> {
   const response = await this.getBoutiqueCommandes({ limit: 1000 });
   const commandes = response.data; // Accès aux données de la réponse
   
-  // Calculer les statistiques
-  const enAttente = commandes.filter(c => c.status === 'EN_ATTENTE').length;
-  const confirmees = commandes.filter(c => c.status === 'CONFIRMEE').length;
-  const annulees = commandes.filter(c => c.status === 'ANNULEE').length;
+  // Calculer les statistiques (sur les statuts frontend)
+  const enAttente = commandes.filter(c => c.status === 'en attente').length;
+  const confirmees = commandes.filter(c => c.status === 'confirmée').length;
+  const annulees = commandes.filter(c => c.status === 'annulée').length;
   
   // Calculer le revenu total des commandes confirmées
   const revenueTotal = commandes
-    .filter(c => c.status === 'CONFIRMEE')
+    .filter(c => c.status === 'confirmée')
     .reduce((sum, c) => sum + c.total, 0);
 
   return {

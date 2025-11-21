@@ -13,8 +13,60 @@ import { createHash } from 'crypto';
 
 @Injectable()
 export class ProduitsService {
-  findRandom(query: any) {
-    throw new Error('Method not implemented.');
+  async findRandom(query: RandomProduitsDto) {
+    const page = Number(query.page ?? 1);
+    const limit = Number(query.limit ?? 20);
+
+    const where: Prisma.ProduitWhereInput = {
+      isVisible: true,
+      isDeleted: false,
+      collection: {
+        status: CollectionStatus.DISPONIBLE,
+      },
+    };
+
+    const [products, total] = await Promise.all([
+      this.prisma.produit.findMany({
+        where,
+        include: {
+          collection: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+            },
+          },
+          brand: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+              slug: true,
+              isVerified: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.produit.count({ where }),
+    ]);
+
+    // Mélange simple des résultats de la page pour simuler de l'aléatoire
+    const shuffled = [...products].sort(() => Math.random() - 0.5);
+
+    return {
+      data: shuffled,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
   constructor(private readonly prisma: PrismaService) {}
 
@@ -342,17 +394,35 @@ export class ProduitsService {
     const dateLimit = new Date();
     dateLimit.setDate(dateLimit.getDate() - days);
 
-    const products = await this.prisma.produit.findMany({
-      where: {
-        isVisible: true,
-        isDeleted: false,
-        collection: {
-          status: CollectionStatus.DISPONIBLE,
-        },
-        createdAt: {
-          gte: dateLimit, // Produits récents uniquement
-        },
+    const where: Prisma.ProduitWhereInput = {
+      isVisible: true,
+      isDeleted: false,
+      collection: {
+        status: CollectionStatus.DISPONIBLE,
       },
+      createdAt: {
+        gte: dateLimit, // Produits récents uniquement
+      },
+    };
+
+    // Étape 1 : vérifier s'il existe au moins un produit récent avec des vues
+    const productWithMaxViews = await this.prisma.produit.findFirst({
+      where,
+      orderBy: {
+        viewCount: 'desc',
+      },
+      select: { id: true, viewCount: true },
+    });
+
+    const hasRealViews = (productWithMaxViews?.viewCount ?? 0) > 0;
+
+    // Étape 2 : choisir la stratégie de tri
+    const orderBy: Prisma.ProduitOrderByWithRelationInput = hasRealViews
+      ? { viewCount: 'desc' }
+      : { createdAt: 'desc' };
+
+    const products = await this.prisma.produit.findMany({
+      where,
       include: {
         collection: {
           select: {
@@ -371,9 +441,7 @@ export class ProduitsService {
           },
         },
       },
-      orderBy: {
-        viewCount: 'desc', // Tri par popularité
-      },
+      orderBy,
       take: limit,
     });
 

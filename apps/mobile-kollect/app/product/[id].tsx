@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProductDetails } from '@/features/produits/hooks/useProducts';
 import { useDeleteProduct } from '@/features/produits/hooks/useProductMutations';
 import { useCollectionsStore } from '@/features/collections/store/collectionStore';
+import { formatPrice } from '@/features/commandes/types/commande.types';
 
 const { width } = Dimensions.get('window');
 
@@ -196,7 +197,7 @@ export default function ProductDetailScreen() {
               {product.name}
             </Text>
             <Text style={[styles.productPrice, { color: theme.colors.primary }]}>
-              {product.price.toFixed(2)} €
+              {formatPrice(product.price)}
             </Text>
           </View>
 

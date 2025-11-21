@@ -21,6 +21,15 @@ export class CommandeItemDto {
   @IsInt()
   @Min(1)
   quantity: number;
+
+  // Optionnels pour les cas sans variante explicite
+  @IsString()
+  @IsOptional()
+  size?: string | null;
+
+  @IsString()
+  @IsOptional()
+  color?: string | null;
 }
 
 export class AdresseLivraisonDto {
@@ -39,10 +48,6 @@ export class AdresseLivraisonDto {
   @IsString()
   @IsNotEmpty()
   ville: string;
-
-  @IsString()
-  @IsNotEmpty()
-  quartier: string;
 }
 
 export class CreateCommandeDto {

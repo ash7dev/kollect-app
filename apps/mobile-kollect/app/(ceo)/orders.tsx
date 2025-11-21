@@ -39,6 +39,13 @@ const getStatusLabel = (status: 'en attente' | 'confirmée' | 'annulée'): strin
   return labels[status] || status;
 };
 
+// Normalise un status éventuel venant de l'API (par ex. "confirmee" -> "confirmée")
+const normalizeStatus = (status: string): 'en attente' | 'confirmée' | 'annulée' => {
+  if (status === 'confirmee') return 'confirmée';
+  if (status === 'en attente' || status === 'confirmée' || status === 'annulée') return status;
+  return 'en attente';
+};
+
 // ============================================
 // COMPOSANT PRINCIPAL
 // ============================================
@@ -117,7 +124,7 @@ export default function OrdersScreen() {
             ? commandes.length
             : item.id === 'all'
             ? commandes.length // Approximation pour "Toutes"
-            : commandes.filter((c: Commande) => (c.status as string) === item.id).length;
+            : commandes.filter((c: any) => normalizeStatus(c.status as string) === item.id).length;
 
           const isActive = activeTab === item.id;
 
@@ -179,9 +186,28 @@ export default function OrdersScreen() {
     </View>
   );
 
-  const renderCommandeCard = ({ item }: { item: Commande }) => {
-    const statusColor = getStatusBadgeColor(item.status as 'en attente' | 'confirmée' | 'annulée');
-    const statusLabel = getStatusLabel(item.status as 'en attente' | 'confirmée' | 'annulée');
+  const renderCommandeCard = ({ item }: { item: any }) => {
+    const normalizedStatus = normalizeStatus(item.status as string);
+    const statusColor = getStatusBadgeColor(normalizedStatus);
+    const statusLabel = getStatusLabel(normalizedStatus);
+
+    // Les données renvoyées par l'API pour le CEO sont déjà transformées côté backend :
+    // { id, orderNumber, customer, amount, status, date, itemsCount, phone, address }
+    const totalAmount: number =
+      typeof item.amount === 'number'
+        ? item.amount
+        : typeof item.total === 'number'
+        ? item.total
+        : 0;
+
+    const itemsCount: number =
+      typeof item.itemsCount === 'number'
+        ? item.itemsCount
+        : Array.isArray(item.items)
+        ? item.items.length
+        : 0;
+
+    const city: string = item.address || item.shippingCity || 'Non spécifié';
 
     return (
       <TouchableOpacity
@@ -207,11 +233,13 @@ export default function OrdersScreen() {
                 #{item.orderNumber}
               </Text>
               <Text style={[styles.cardDate, { color: theme.colors.textSecondary }]}>
-                {new Date(item.createdAt).toLocaleDateString('fr-FR', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                })}
+                {item.date
+                  ? new Date(item.date).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : 'Date inconnue'}
               </Text>
             </View>
             <View
@@ -234,7 +262,7 @@ export default function OrdersScreen() {
             <View style={styles.cardInfo}>
               <Ionicons name="person-outline" size={16} color={theme.colors.textSecondary} />
               <Text style={[styles.cardInfoText, { color: theme.colors.textSecondary }]}>
-                {item.client.firstName} {item.client.lastName}
+                {item.customer || `${item.client.firstName} ${item.client.lastName}`}
               </Text>
             </View>
           )}
@@ -242,22 +270,22 @@ export default function OrdersScreen() {
           <View style={styles.cardInfo}>
             <Ionicons name="cube-outline" size={16} color={theme.colors.textSecondary} />
             <Text style={[styles.cardInfoText, { color: theme.colors.textSecondary }]}>
-              {item.items?.length || 0} article{item.items?.length !== 1 ? 's' : ''}
+              {itemsCount} article{itemsCount !== 1 ? 's' : ''}
             </Text>
           </View>
 
           <View style={styles.cardInfo}>
             <Ionicons name="location-outline" size={16} color={theme.colors.textSecondary} />
             <Text style={[styles.cardInfoText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {item.shippingCity || 'Non spécifié'}
+              {city}
             </Text>
           </View>
 
           <View style={styles.cardFooter}>
             <Text style={[styles.cardTotal, { color: theme.colors.text }]}>
-              {item.total?.toFixed(2) || '0.00'} €
+              {totalAmount.toLocaleString('fr-FR')} CFA
             </Text>
-            {item.status === 'EN_ATTENTE' && (
+            {normalizedStatus === 'en attente' && (
               <TouchableOpacity
                 style={[
                   styles.traiterButton,

@@ -196,7 +196,7 @@ export default function CollectionScreen() {
         name: collectionData.name.trim(),
         description: collectionData.description?.trim() || '',
         launchDate: collectionData.launchDate
-          ? new Date(collectionData.launchDate).toISOString()
+          ? collectionData.launchDate.toISOString()
           : undefined,
         isFeatured: Boolean(collectionData.isFeatured),
         coverImage: collectionData.teaserType === 'photo'

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { formatPrice } from '../../features/commandes/types/commande.types';
 import { useTheme } from '../../../app/context/ThemeContext';
 import { AddProductModal } from '@/components/collection/AddProductModal';
 import { storage, ProductDraft } from '@/utils/storage';
@@ -162,7 +163,7 @@ export default function CollectionProductsScreen({
           {item.name}
         </Text>
         <Text style={[styles.productPrice, { color: theme.colors.accent }]}>
-          {item.price.toLocaleString('fr-FR')} FCFA
+          {formatPrice(item.price)}
         </Text>
         <View style={styles.productMeta}>
           <View style={styles.metaItem}>

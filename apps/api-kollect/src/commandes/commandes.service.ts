@@ -11,9 +11,11 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { EmailService } from '../email/ email.service';
 import {
   CommandeItemDto,
   CreateCommandeDto,
@@ -43,10 +45,124 @@ export interface AutoCancelResult {
 
 @Injectable()
 export class CommandesService {
-  logger: any;
+  private readonly logger = new Logger(CommandesService.name);
+
+  /**
+   * Annuler une commande (CEO ou client)
+   */
+  async annulerCommande(
+    commandeId: string,
+    userId: string,
+    isCEO: boolean,
+    notes?: string,
+  ) {
+    // Charger la commande avec les relations nécessaires
+    const commande = await this.prisma.commande.findUnique({
+      where: { id: commandeId },
+      include: {
+        items: true,
+        client: true,
+        brand: { include: { user: true } },
+      },
+    });
+
+    if (!commande) {
+      throw new NotFoundException('Commande introuvable');
+    }
+
+    // Vérifier les droits d'accès
+    if (isCEO) {
+      // User CEO : doit être propriétaire de la marque
+      const brand = await this.prisma.marque.findUnique({
+        where: { userId },
+      });
+
+      if (!brand || brand.id !== commande.brandId) {
+        throw new ForbiddenException('Cette commande ne vous appartient pas');
+      }
+    } else {
+      // Client : doit être propriétaire de la commande
+      if (commande.clientId !== userId) {
+        throw new ForbiddenException('Accès non autorisé');
+      }
+    }
+
+    // Seules les commandes en attente peuvent être annulées pour l'instant
+    if (commande.status !== CommandeStatus.EN_ATTENTE) {
+      throw new BadRequestException(
+        'Seules les commandes en attente peuvent être annulées',
+      );
+    }
+
+    // Exécuter l'annulation dans une transaction : restauration du stock + update statut
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // Restaurer le stock pour les variantes (aligné avec autoAnnulerCommandesExpirees)
+      for (const item of commande.items) {
+        if (item.variantId) {
+          await tx.varianteProduit.update({
+            where: { id: item.variantId },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
+      }
+
+      // Mettre à jour le statut
+      const updatedCommande = await tx.commande.update({
+        where: { id: commande.id },
+        data: {
+          status: CommandeStatus.ANNULEE,
+          cancelledAt: new Date(),
+          statusHistory: {
+            create: {
+              status: CommandeStatus.ANNULEE,
+              details:
+                notes ||
+                (isCEO
+                  ? 'Commande annulée par la boutique'
+                  : 'Commande annulée par le client'),
+              changedById: userId,
+            },
+          },
+        },
+      });
+
+      return updatedCommande;
+    });
+
+    // Notifications non bloquantes
+    try {
+      // Notifier le client
+      this.notificationsService.create({
+        userId: commande.clientId,
+        type: 'COMMANDE_ANNULEE',
+        title: '❌ Commande annulée',
+        message: `Ta commande #${commande.orderNumber} a été annulée`,
+        data: { commandeId: commande.id },
+        priority: 'MEDIUM',
+      });
+
+      // Notifier le CEO
+      const brandUserId = commande.brand.userId;
+      if (brandUserId) {
+        this.notificationsService.create({
+          userId: brandUserId,
+          type: 'COMMANDE_ANNULEE',
+          title: '❌ Commande annulée',
+          message: `La commande #${commande.orderNumber} a été annulée`,
+          data: { commandeId: commande.id },
+          priority: 'LOW',
+        });
+      }
+    } catch (error) {
+      this.logger.error('Erreur lors de la notification COMMANDE_ANNULEE', error);
+    }
+
+    return updated;
+  }
   constructor(
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
+    private emailService: EmailService,
   ) {}
 
   /**
@@ -122,8 +238,9 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
               variantId: null,
               productName: product.name,
               price: product.price,
-              size: null,
-              color: null,
+              // Si le front envoie déjà une taille/couleur, on les conserve
+              size: (item as any).size ?? null,
+              color: (item as any).color ?? null,
               quantity: item.quantity,
             });
           } else {
@@ -189,26 +306,66 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
       ...commande,
       client: commande.client,
       brandId: commande.brandId,
-      items: commande.items.map(item => {
-        if (!item.variantId) {
-          throw new Error(`Item ${item.id} is missing variantId`);
-        }
-        return {
-          id: item.id,
-          productId: item.productId,
-          variantId: item.variantId,
-          productName: item.productName || 'Produit sans nom',
-          price: item.price,
-          quantity: item.quantity,
-          size: item.size,
-          color: item.color
-        };
-      }),
+      items: commande.items.map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        // Peut être null si tu n'utilises pas de variantes
+        variantId: item.variantId ?? null,
+        productName: item.productName || 'Produit sans nom',
+        price: item.price,
+        quantity: item.quantity,
+        size: item.size,
+        color: item.color,
+      })),
       brand: {
         id: commande.brand.id,
-        name: commande.brand.name
-      }
+        name: commande.brand.name,
+      },
     };
+
+    // Emails transactionnels
+    try {
+      const clientEmail = (commande.client as any)?.email as string | undefined;
+      const clientName = `${(commande.client as any)?.firstName || ''} ${(commande.client as any)?.lastName || ''}`.trim() || 'Client';
+      const brandName = commande.brand?.name ?? 'Marque';
+      const totalFormatted = `${commande.total.toLocaleString('fr-FR')} FCFA`;
+      const itemsHtml = this.buildItemsHtml(commande.items);
+
+      if (clientEmail) {
+        await this.emailService.sendClientConfirmationCommande(clientEmail, {
+          clientName,
+          brandName,
+          orderNumber: commande.orderNumber,
+          orderDate: commande.createdAt.toLocaleDateString('fr-FR'),
+          totalAmount: totalFormatted,
+          itemsHtml,
+        });
+      }
+
+      const brand = await this.prisma.marque.findUnique({
+        where: { id: commande.brandId },
+        include: { user: true },
+      });
+
+      const brandEmail = brand?.user?.email;
+      const dashboardBase = process.env.KOLLECT_DASHBOARD_URL || 'https://kollect.sn/backoffice';
+
+      if (brandEmail) {
+        await this.emailService.sendMarqueNouvelleCommandeCEO(brandEmail, {
+          brandName,
+          clientName,
+          orderNumber: commande.orderNumber,
+          orderDate: commande.createdAt.toLocaleDateString('fr-FR'),
+          totalAmount: totalFormatted,
+          itemsHtml,
+          backofficeUrl: `${dashboardBase}/commandes/${commande.id}`,
+        });
+      }
+    } catch (e) {
+      // On log mais on ne bloque pas la création de commande si l'email échoue
+      // eslint-disable-next-line no-console
+      console.error('Erreur lors de lenvoi des emails de commande:', e);
+    }
 
     await this.notifyNewCommande(notificationCommande);
 
@@ -217,6 +374,21 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
     throw error;
   }
 }
+
+  // Générer les lignes HTML pour les articles de commande (utilisé par les emails)
+  private buildItemsHtml(items: { productName: string; quantity: number; price: number }[]): string {
+    return items
+      .map((item) => {
+        const priceFormatted = `${item.price.toLocaleString('fr-FR')} FCFA`;
+        return `
+        <tr>
+          <td>${item.productName}</td>
+          <td>${item.quantity}</td>
+          <td>${priceFormatted}</td>
+        </tr>`;
+      })
+      .join('');
+  }
 
   /**
    * Grouper les items par boutique
@@ -421,12 +593,14 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
   ]);
 
   // ✅ Transformation pour le frontend
+  // On laisse le statut en enum brut (EN_ATTENTE / CONFIRMEE / ANNULEE)
+  // le mobile se charge de le mapper via mapApiStatusToFrontend
   const transformedCommandes = commandes.map(cmd => ({
     id: cmd.id,
     orderNumber: cmd.orderNumber,
     customer: `${cmd.client.firstName || ''} ${cmd.client.lastName || ''}`.trim() || 'Client',
     amount: cmd.total, // ✅ Déjà en FCFA normal
-    status: cmd.status.toLowerCase().replace('_', ' ') as 'en attente' | 'confirmee' | 'annulée',
+    status: cmd.status,
     date: cmd.createdAt.toISOString(),
     itemsCount: cmd.items.reduce((sum, item) => sum + item.quantity, 0),
     phone: cmd.shippingPhone,
@@ -542,125 +716,53 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
           include: { product: true },
         },
         brand: true,
-      },
-    });
-
-    // Notifier le client
-    this.notificationsService.create({
-      userId: commande.clientId,
-      type: 'COMMANDE_CONFIRMEE',
-      title: '✅ Commande confirmée',
-      message: `Ta commande #${commande.orderNumber} est confirmée ! Livraison en cours`,
-      data: { commandeId },
-      priority: 'HIGH',
-    });
-
-    return updatedCommande;
-  }
-
-  /**
-   * Annuler une commande (CEO ou Client)
-   */
-  async annulerCommande(
-    commandeId: string,
-    userId: string,
-    isCEO: boolean,
-    notes?: string,
-  ) {
-    const commande = await this.prisma.commande.findUnique({
-      where: { id: commandeId },
-      include: {
-        items: true,
         client: true,
-        brand: {
-          include: { user: true },
-        },
       },
     });
 
-    if (!commande) {
-      throw new NotFoundException('Commande introuvable');
-    }
-
-    // Vérifier les droits
-    if (isCEO) {
-      const brand = await this.prisma.marque.findUnique({
-        where: { userId },
-      });
-      if (commande.brandId !== brand?.id) {
-        throw new ForbiddenException('Cette commande ne vous appartient pas');
-      }
-    } else {
-      if (commande.clientId !== userId) {
-        throw new ForbiddenException('Cette commande ne vous appartient pas');
-      }
-    }
-
-    if (commande.status !== CommandeStatus.EN_ATTENTE) {
-      throw new BadRequestException(
-        'Seules les commandes en attente peuvent être annulées',
-      );
-    }
-
-    // Transaction atomique: annulation + restauration stock
-    const updatedCommande = await this.prisma.$transaction(async (tx) => {
-      // 1. Restaurer le stock
-      for (const item of commande.items) {
-        if (item.variantId) {
-          await tx.varianteProduit.update({
-            where: { id: item.variantId },
-            data: {
-              stock: { increment: item.quantity },
-            },
-          });
-        }
-      }
-
-      // 2. Mettre à jour la commande
-      return tx.commande.update({
-        where: { id: commandeId },
-        data: {
-          status: CommandeStatus.ANNULEE,
-          cancelledAt: new Date(),
-          statusHistory: {
-            create: {
-              status: CommandeStatus.ANNULEE,
-              details:
-                notes || `Annulée par ${isCEO ? 'la boutique' : 'le client'}`,
-              changedById: userId,
-            },
-          },
-        },
-        include: {
-          items: {
-            include: { product: true },
-          },
-          brand: true,
-        },
-      });
-    });
-
-    // Notifier l'autre partie
-    if (isCEO) {
-      // Notifier le client
+    // Notifier le client (push in-app) - ne doit pas casser la confirmation si non implémenté
+    try {
       this.notificationsService.create({
         userId: commande.clientId,
-        type: 'COMMANDE_ANNULEE',
-        title: '❌ Commande annulée',
-        message: `Ta commande #${commande.orderNumber} a été annulée par la boutique`,
-        data: { commandeId },
-        priority: 'HIGH',
-      });
-    } else {
-      // Notifier le CEO
-      this.notificationsService.create({
-        userId: commande.brand.userId,
-        type: 'COMMANDE_ANNULEE',
-        title: '❌ Commande annulée',
-        message: `La commande #${commande.orderNumber} a été annulée par le client`,
+        type: 'COMMANDE_CONFIRMEE',
+        title: '✅ Commande confirmée',
+        message: `Ta commande #${commande.orderNumber} est confirmée ! Livraison en cours`,
         data: { commandeId },
         priority: 'MEDIUM',
       });
+    } catch (error) {
+      this.logger.error('Erreur lors de la notification COMMANDE_CONFIRMEE', error);
+    }
+
+    // Email de confirmation détaillé au client
+    try {
+      const clientEmail = (commande.client as any)?.email as string | undefined;
+      const clientName = `${(commande.client as any)?.firstName || ''} ${(commande.client as any)?.lastName || ''}`.trim() || 'Client';
+      const brandName = updatedCommande.brand?.name ?? 'Marque';
+      const totalFormatted = `${updatedCommande.total.toLocaleString('fr-FR')} FCFA`;
+      const itemsHtml = this.buildItemsHtml(
+        updatedCommande.items.map((it) => ({
+          productName: it.product?.name || it.productName || 'Produit',
+          quantity: it.quantity,
+          price: it.price,
+        })),
+      );
+
+      if (clientEmail) {
+        await this.emailService.sendClientCommandeConfirmee(clientEmail, {
+          clientName,
+          brandName,
+          orderNumber: updatedCommande.orderNumber,
+          orderDate: updatedCommande.confirmedAt?.toLocaleDateString('fr-FR') || new Date().toLocaleDateString('fr-FR'),
+          totalAmount: totalFormatted,
+          estimatedDelay: '2 heures',
+          itemsHtml,
+        });
+      }
+    } catch (e) {
+      // on log, on ne casse pas la confirmation si l'email échoue
+      // eslint-disable-next-line no-console
+      console.error('Erreur lors de lenvoi de lemail de commande confirmée:', e);
     }
 
     return updatedCommande;
@@ -716,25 +818,28 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
           });
         });
 
-        // Notifier le client
-        this.notificationsService.create({
-          userId: commande.clientId,
-          type: 'COMMANDE_ANNULEE',
-          title: '❌ Commande annulée automatiquement',
-          message: `Ta commande #${commande.orderNumber} a été annulée (délai dépassé)`,
-          data: { commandeId: commande.id },
-          priority: 'MEDIUM',
-        });
+        // Notifier le client et le CEO (non bloquant si NotificationsService n'est pas implémenté)
+        try {
+          this.notificationsService.create({
+            userId: commande.clientId,
+            type: 'COMMANDE_ANNULEE',
+            title: '❌ Commande annulée automatiquement',
+            message: `Ta commande #${commande.orderNumber} a été annulée (délai dépassé)`,
+            data: { commandeId: commande.id },
+            priority: 'MEDIUM',
+          });
 
-        // Notifier le CEO
-        this.notificationsService.create({
-          userId: commande.brand.userId,
-          type: 'COMMANDE_ANNULEE',
-          title: '⏰ Commande expirée',
-          message: `La commande #${commande.orderNumber} a été annulée automatiquement`,
-          data: { commandeId: commande.id },
-          priority: 'LOW',
-        });
+          this.notificationsService.create({
+            userId: commande.brand.userId,
+            type: 'COMMANDE_ANNULEE',
+            title: '⏰ Commande expirée',
+            message: `La commande #${commande.orderNumber} a été annulée automatiquement`,
+            data: { commandeId: commande.id },
+            priority: 'LOW',
+          });
+        } catch (error) {
+          this.logger.error('Erreur lors de la notification COMMANDE_ANNULEE', error);
+        }
 
         results.push({
           commandeId: commande.id,
@@ -772,7 +877,7 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
   items: Array<{
     id: string;
     productId: string;
-    variantId: string;
+    variantId: string | null;
     productName: string;
     price: number;
     quantity: number;
@@ -784,28 +889,33 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
     name: string;
   };
 }) {
-  const brand = await this.prisma.marque.findUnique({
-    where: { id: commande.brandId },
-    include: { user: true },
-  });
+  try {
+    const brand = await this.prisma.marque.findUnique({
+      where: { id: commande.brandId },
+      include: { user: true },
+    });
 
-  if (!brand) return;
+    if (!brand) return;
 
-  // ✅ Format en FCFA normal (pas besoin de diviser par 100)
-  const montantFormatted = commande.total.toLocaleString('fr-FR');
-  const clientName =
-    `${commande.client?.firstName || ''} ${commande.client?.lastName || ''}`.trim() ||
-    'Client';
+    // ✅ Format en FCFA normal (pas besoin de diviser par 100)
+    const montantFormatted = commande.total.toLocaleString('fr-FR');
+    const clientName =
+      `${commande.client?.firstName || ''} ${commande.client?.lastName || ''}`.trim() ||
+      'Client';
 
-  this.notificationsService.create({
-    userId: brand.userId,
-    type: 'NOUVELLE_COMMANDE',
-    title: '💰 Nouvelle commande',
-    message: `Nouvelle commande de ${clientName} - ${montantFormatted} FCFA`,
-    data: {
-      commandeId: commande.id,
-    },
-    priority: 'HIGH',
-  });
-}
+     this.notificationsService.create({
+      userId: brand.userId,
+      type: 'NOUVELLE_COMMANDE',
+      title: '💰 Nouvelle commande',
+      message: `Nouvelle commande de ${clientName} - ${montantFormatted} FCFA`,
+      data: {
+        commandeId: commande.id,
+      },
+      priority: 'HIGH',
+    });
+  } catch (error) {
+    // On log mais on ne casse pas la création de commande si la notif échoue
+    this.logger.error('Erreur lors de la notification de nouvelle commande', error);
+  }
+  }
 }

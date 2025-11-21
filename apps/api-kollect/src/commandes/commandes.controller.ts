@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Controller,
   Get,
@@ -104,7 +105,7 @@ export class CommandesController {
    */
   @Patch(':id/annuler')
   @HttpCode(HttpStatus.OK)
-  async annulerCommande(
+  annulerCommande(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Body() dto: UpdateCommandeStatusDto,

@@ -33,6 +33,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useBrandStats } from '@/features/brands/hooks/useBrandQueries';
 import { useBoutiqueCommandes, useConfirmerCommande } from '@/features/commandes/hooks/useCommandeQueries';
+import { usePendingOrderCount } from '@/features/commandes/store/commandeStore';
 import { Commande } from '@/features/commandes/services/commande.service';
 import { mapApiStatusToFrontend } from '@/features/commandes/services/commande.service';
 
@@ -60,43 +61,62 @@ export default function CeoDashboardScreen() {
   const { user } = useAuthStore();
   
   const { myBrand, loadMyBrand, isLoading: isLoadingBrand } = useBrandStore();
+  const pendingOrderCount = usePendingOrderCount();
 
   // Responsive + Greeting
   const { width } = Dimensions.get('window');
   const isSmallDevice = width < 380;
   const hours = new Date().getHours();
   const greeting = hours < 12 ? 'Bonjour' : 'Bonsoir';
-  const { data: stats } = useBrandStats(myBrand?.id || '');
-  const { data, isLoading, isError, refetch, isFetching } = useBoutiqueCommandes();
 
-  const transformCommandeToOrder = (commande: Commande) => ({
+  // Stats et commandes avec états de chargement explicites
+  const {
+    data: stats,
+    isLoading: isStatsLoading,
+    refetch: refetchStats,
+  } = useBrandStats(myBrand?.id || '');
+  const {
+    data,
+    isLoading: isLoadingOrders,
+    isError,
+    refetch,
+    isFetching,
+  } = useBoutiqueCommandes();
+
+  // L'API getBoutiqueCommandes renvoie déjà un objet transformé pour le CEO :
+  // { id, orderNumber, customer, amount, status, date, itemsCount, phone, address }
+  // On mappe directement ces champs vers le type Order utilisé par OrderCard.
+  const transformCommandeToOrder = (commande: any): Order => ({
     id: commande.id,
-    customer: commande.client 
-      ? `${commande.client.firstName || ''} ${commande.client.lastName || ''}`.trim() 
-      : 'Client inconnu',
-    amount: commande.montantTotal,
-    status: mapApiStatusToFrontend(commande.status),
-    date: new Date(commande.dateCreation).toLocaleDateString(),
-    itemsCount: commande.lignesCommande?.length || 0,
-    phone: commande.client?.phone || 'Non fourni',
-    address: commande.adresseLivraison?.adresse || 'Adresse non fournie',
+    customer: commande.customer || 'Client inconnu',
+    amount: typeof commande.amount === 'number' ? commande.amount : 0,
+    status: (commande.status as 'en attente' | 'confirmée' | 'annulée') || 'en attente',
+    date: commande.date,
+    itemsCount: commande.itemsCount ?? 0,
+    phone: commande.phone || 'Non fourni',
+    address: commande.address || 'Adresse non fournie',
   });
 
   useEffect(() => {
     loadMyBrand();
   }, [loadMyBrand]);
   
-  // Fonction de rafraîchissement
+  // Fonction de rafraîchissement (pull-to-refresh)
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await loadMyBrand();
+      await Promise.all([
+        loadMyBrand(),
+        refetchStats(),
+      ]);
+      // Les commandes récentes sont déjà rafraîchies via le refetch automatique
+      // déclenché par la mutation de confirmation, donc pas besoin d'ajouter ici.
     } catch (error) {
       console.error('Erreur lors du rafraîchissement:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [loadMyBrand]);
+  }, [loadMyBrand, refetchStats]);
 
   // Fonction pour ouvrir le modal
   const handlePresentModalPress = useCallback((order: Order) => {
@@ -110,16 +130,15 @@ export default function CeoDashboardScreen() {
   const { mutate: confirmerCommande, isPending: isConfirmingMutation } = useConfirmerCommande();
   const isConfirming = isConfirmingState || isConfirmingMutation;
 
-  // Navigation vers l'écran de détail de la commande
-  const handleViewOrderDetails = useCallback(() => {
-    if (!selectedOrder) return;
-    bottomSheetModalRef.current?.dismiss();
-    router.push({
-      pathname: '/order-details',
-      params: { id: selectedOrder.id }
-    } as any);
-    setSelectedOrder(null);
-  }, [selectedOrder]);
+  // Navigation vers l'écran de détail de la commande (écran /commande/[id])
+  const handleViewOrderDetails = useCallback(
+    (orderId: string) => {
+      bottomSheetModalRef.current?.dismiss();
+      router.push(`/commande/${orderId}` as any);
+      setSelectedOrder(null);
+    },
+    [],
+  );
   
   // Fonction pour confirmer la commande
   const handleConfirmOrder = useCallback((orderId: string) => {
@@ -255,7 +274,7 @@ export default function CeoDashboardScreen() {
 
           {/* Graphique des Ventes Moderne */}
           <ModernSalesChart 
-            refreshing={refreshing}
+            refreshing={refreshing || isLoadingBrand || isStatsLoading}
             onRefresh={onRefresh}
           />
 
@@ -271,13 +290,21 @@ export default function CeoDashboardScreen() {
             <View style={styles.quickActionsGrid}>
               <QuickActionCard
                 title="Commandes à traiter"
-                count={stats?.totalOrders?.toString() || "0"}
+                count={
+                  isLoadingBrand || isStatsLoading
+                    ? '...'
+                    : pendingOrderCount.toString()
+                }
                 iconName="cube-outline"
                 onPress={() => router.push('/(ceo)/orders')}
               />
               <QuickActionCard
                 title="Produits"
-                count={myBrand?.productCount?.toString() || "0"}
+                count={
+                  isLoadingBrand || isStatsLoading
+                    ? '...'
+                    : (stats?.totalProducts ?? myBrand?.productCount ?? 0).toString()
+                }
                 iconName="pricetag-outline"
                 onPress={() => router.push('/(ceo)/products')}
               />
@@ -323,7 +350,7 @@ export default function CeoDashboardScreen() {
             </Text>
             
             <FlatList
-              data={data?.data || []}
+              data={isLoadingOrders ? [] : data?.data || []}
               keyExtractor={(item) => item.id}
               renderItem={({ item, index }) => (
                 <OrderCard
@@ -335,11 +362,20 @@ export default function CeoDashboardScreen() {
               contentContainerStyle={styles.listContent}
               scrollEnabled={false}
               ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-                    Aucune commande
-                  </Text>
-                </View>
+                isLoadingOrders || isFetching ? (
+                  <View style={styles.emptyContainer}>
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                    <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+                      Chargement des commandes...
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.emptyContainer}>
+                    <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+                      Aucune commande
+                    </Text>
+                  </View>
+                )
               }
             />
           </View>
@@ -378,7 +414,7 @@ export default function CeoDashboardScreen() {
             onClose={() => setSelectedOrder(null)}
             onProcessOrder={() => {
               if (selectedOrder) {
-                handleViewOrderDetails();
+                handleViewOrderDetails(selectedOrder.id);
               }
             }}
           />
