@@ -9,10 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useCreateBrand } from '../features/brands/hooks/useBrandQueries';
 import { BrandFormInput } from '../features/brands/components/BrandFormInput';
 import { BrandLogoUploader } from '../features/brands/components/BrandLogoUploader';
@@ -237,6 +239,24 @@ export const CreateBrandScreen = () => {
       marginTop: 24,
       marginBottom: 32,
     },
+    backRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+      gap: 8,
+    },
+    backIconCircle: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0,0,0,0.04)',
+    },
+    backText: {
+      fontSize: 13,
+      fontWeight: '500',
+    },
     headerBadge: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -321,6 +341,17 @@ export const CreateBrandScreen = () => {
         >
           {/* Header avec style streetwear */}
           <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              activeOpacity={0.8}
+              style={styles.backRow}
+            >
+              <View style={styles.backIconCircle}>
+                <Ionicons name="arrow-back" size={18} color={theme.colors.text} />
+              </View>
+              <Text style={[styles.backText, { color: theme.colors.textSecondary }]}>Retour</Text>
+            </TouchableOpacity>
+
             <View style={styles.headerBadge}>
               <View style={[styles.badgeDot, { backgroundColor: theme.colors.accent }]} />
               <Text style={[styles.badgeText, { color: theme.colors.textSecondary }]}>

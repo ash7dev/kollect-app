@@ -249,7 +249,7 @@ export default function CeoDashboardScreen() {
                     {myBrand?.name || 'Ma Marque'}
                   </Text>
                   <Text style={[styles.brandSlug, { color: theme.colors.textSecondary }]}>
-                    {myBrand?.slug || 'ma-marque'}--Kollect 👋
+                    {myBrand?.slug || 'ma-marque'} 👋
                   </Text>
                 </View>
               </View>

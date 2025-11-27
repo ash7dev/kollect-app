@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-nati
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Video, ResizeMode } from 'expo-av';
 import { useTheme } from '../../../app/context/ThemeContext';
 import { BlurView } from 'expo-blur';
 
@@ -15,6 +16,7 @@ interface JustLaunchedDropProps {
     name: string;
     description?: string | null;
     coverImage?: string | null;
+    teaserVideo?: string | null;
     launchedAt?: string | Date | null;
     brand?: {
       id: string;
@@ -55,7 +57,7 @@ function getTimeAgo(input?: string | Date | null): string | null {
 export default function JustLaunchedDrop({ collection, onPress }: JustLaunchedDropProps) {
   const { theme, isDark } = useTheme();
 
-  const productCount = collection._count?.products ?? 0;
+  const productCount = (collection as any).visibleProductCount ?? collection._count?.products ?? 0;
   const launchedLabel = getTimeAgo(collection.launchedAt);
 
   return (
@@ -71,9 +73,19 @@ export default function JustLaunchedDrop({ collection, onPress }: JustLaunchedDr
         },
       ]}
     >
-      {/* Image principale */}
+      {/* Image / Vidéo principale */}
       <View style={styles.imageContainer}>
-        {collection.coverImage && (
+        {collection.teaserVideo ? (
+          <Video
+            source={{ uri: collection.teaserVideo as string }}
+            style={styles.coverImage}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay
+            isLooping
+            isMuted
+            volume={0}
+          />
+        ) : collection.coverImage ? (
           <>
             <Image
               source={{ uri: collection.coverImage }}
@@ -87,6 +99,16 @@ export default function JustLaunchedDrop({ collection, onPress }: JustLaunchedDr
               style={styles.imageOverlay}
             />
           </>
+        ) : (
+          <View
+            style={[styles.coverImage, styles.noMediaPlaceholder]}
+          >
+            <Ionicons
+              name="image"
+              size={40}
+              color="#FFFFFF"
+            />
+          </View>
         )}
         
         {/* Badge "NOUVEAU DROP" - Style streetwear */}
@@ -259,6 +281,16 @@ const styles = StyleSheet.create({
   coverImage: {
     width: '100%',
     height: '100%',
+  },
+  videoPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#111827',
+  },
+  noMediaPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1F2933',
   },
   imageOverlay: {
     position: 'absolute',

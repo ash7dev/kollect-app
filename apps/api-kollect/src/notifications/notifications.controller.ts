@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { NotificationsService, type SendNotificationResult } from './notifications.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { GetUser, Roles } from '../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../common/decorators/roles.decorator';
 
@@ -37,7 +38,7 @@ class SendNotificationDto {
 }
 
 @Controller('notifications')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
@@ -73,6 +74,7 @@ export class NotificationsController {
    * Envoie une notification de test à un utilisateur spécifique (Admin only)
    */
   @Post('test/:userId')
+  @Roles('isAdmin')
   async sendTestNotificationToUser(
     @Param('userId') userId: string,
     @Body() _dto: SendTestNotificationDto,
@@ -85,6 +87,7 @@ export class NotificationsController {
    * Envoie une notification personnalisée (Admin only)
    */
   @Post('send')
+  @Roles('isAdmin')
   async sendNotification(
     @Body() dto: SendNotificationDto,
   ): Promise<SendNotificationResult> {

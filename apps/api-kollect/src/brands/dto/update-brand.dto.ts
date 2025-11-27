@@ -49,8 +49,24 @@ export class UpdateBrandDto {
   @IsOptional()
   @IsBoolean()
   isVerified?: boolean;
-    twitter: any;
-    description: any;
-    facebook: any;
-    tiktok: any;
+  
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  facebook?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  twitter?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  tiktok?: string;
 }

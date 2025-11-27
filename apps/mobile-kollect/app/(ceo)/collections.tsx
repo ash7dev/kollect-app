@@ -394,7 +394,9 @@ export default function CollectionScreen() {
 
   const renderCollectionCard = ({ item }: { item: Collection }) => {
     const statusConfig = STATUS_CONFIG[item.status];
-    const productCount = item._count?.products || 0;
+    const productCount = item.products
+      ? item.products.filter((p: any) => !p.isDeleted).length
+      : item._count?.products || 0;
     const countdown = countdowns[item.id];
     
     // Le bouton "Lancer maintenant" n'est plus nécessaire car le lancement est géré par le serveur

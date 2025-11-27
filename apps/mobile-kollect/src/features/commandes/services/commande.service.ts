@@ -2,6 +2,7 @@
 // src/features/commandes/services/commande.service.ts
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { useAuthStore } from '../../../store/authStore';
 
 // ============================================
 // TYPES
@@ -44,11 +45,7 @@ export interface Commande {
   orderNumber: string;
   clientId: string;
   brandId: string;
-  // Status déjà mappé côté front via mapApiStatusToFrontend
-  status: 'en attente' | 'confirmée' | 'annulée';
-  subtotal: number;
-  shippingFee: number;
-  discount: number;
+  status: CommandeStatus;
   total: number;
   shippingAddress: string;
   shippingCity: string;
@@ -85,48 +82,17 @@ export type CommandeStatus =
   | 'CONFIRMEE' 
   | 'ANNULEE';
 
-/**
- * Informations pour créer une nouvelle commande
- */
 export interface CreateCommandeDto {
-  /**
-   * Liste des produits à commander
-   */
   items: Array<{
-    productId: string;
+    variantId: string;
     quantity: number;
-    size?: string;
-    color?: string;
   }>;
-  /**
-   * Informations de livraison
-   */
   adresseLivraison: {
-    /**
-     * Nom du destinataire
-     */
-    nom: string;
-    /**
-     * Adresse de livraison
-     */
     adresse: string;
-    /**
-     * Ville de livraison
-     */
     ville: string;
-    /**
-     * Téléphone du destinataire
-     */
     telephone: string;
   };
-  /**
-   * Code promo (facultatif)
-   */
   codePromo?: string;
-  /**
-   * Notes (facultatif)
-   */
-  notes?: string;
 }
 
 export interface QueryCommandesDto {
@@ -176,8 +142,20 @@ commandeApi.interceptors.request.use(
 // Intercepteur pour gérer les erreurs
 commandeApi.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const status = error.response?.status;
     const message = error.response?.data?.message || error.message;
+
+    // 401 = on nettoie l'auth pour sortir immédiatement du contexte protégé (CEO / commandes)
+    if (status === 401) {
+      console.warn('🔒 [Commande API] 401 Non autorisé - clear authStore');
+      try {
+        await useAuthStore.getState()._clearAuth();
+      } catch (e) {
+        console.warn('[Commande API] Erreur lors du clearAuth après 401', e);
+      }
+    }
+
     console.error('❌ [Commande API Error]:', message);
     return Promise.reject(new Error(message));
   }
@@ -202,7 +180,7 @@ export const mapFrontendStatusToApi = (frontendStatus: 'en attente' | 'confirmé
 
 const transformCommande = (apiCommande: any): Commande => ({
   ...apiCommande,
-  status: mapApiStatusToFrontend(apiCommande.status as CommandeStatus),
+  status: mapApiStatusToFrontend(apiCommande.status),
 });
 
 // ============================================
@@ -294,14 +272,14 @@ async annulerCommande(id: string, notes?: string): Promise<Commande> {
   const response = await this.getBoutiqueCommandes({ limit: 1000 });
   const commandes = response.data; // Accès aux données de la réponse
   
-  // Calculer les statistiques (sur les statuts frontend)
-  const enAttente = commandes.filter(c => c.status === 'en attente').length;
-  const confirmees = commandes.filter(c => c.status === 'confirmée').length;
-  const annulees = commandes.filter(c => c.status === 'annulée').length;
+  // Calculer les statistiques
+  const enAttente = commandes.filter(c => c.status === 'EN_ATTENTE').length;
+  const confirmees = commandes.filter(c => c.status === 'CONFIRMEE').length;
+  const annulees = commandes.filter(c => c.status === 'ANNULEE').length;
   
   // Calculer le revenu total des commandes confirmées
   const revenueTotal = commandes
-    .filter(c => c.status === 'confirmée')
+    .filter(c => c.status === 'CONFIRMEE')
     .reduce((sum, c) => sum + c.total, 0);
 
   return {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ export default function ProductDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageAspectRatio, setImageAspectRatio] = useState(1); // width / height
 
   const { data: product, isLoading, error } = useProductDetails(id || '');
   const deleteProduct = useDeleteProduct();
@@ -74,10 +75,13 @@ export default function ProductDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <SafeAreaView 
+        style={[styles.container, { backgroundColor: isDark ? theme.colors.backgroundDark : theme.colors.background }]} 
+        edges={['top']}
+      >
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+          <ActivityIndicator size="large" color={isDark ? theme.colors.textDark : theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: isDark ? theme.colors.textSecondaryDark : theme.colors.textSecondary }]}>
             Chargement du produit...
           </Text>
         </View>
@@ -87,14 +91,17 @@ export default function ProductDetailScreen() {
 
   if (error || !product) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <SafeAreaView 
+        style={[styles.container, { backgroundColor: isDark ? theme.colors.backgroundDark : theme.colors.background }]} 
+        edges={['top']}
+      >
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color={theme.colors.error} />
-          <Text style={[styles.errorText, { color: theme.colors.text }]}>
+          <Text style={[styles.errorText, { color: isDark ? theme.colors.textDark : theme.colors.text }]}>
             Produit non trouvé
           </Text>
           <TouchableOpacity
-            style={[styles.backButton, { backgroundColor: theme.colors.primary }]}
+            style={[styles.backButton, { backgroundColor: theme.colors.accent }]}
             onPress={() => router.back()}
           >
             <Text style={styles.backButtonText}>Retour</Text>
@@ -108,20 +115,47 @@ export default function ProductDetailScreen() {
   const currentImage = images[currentImageIndex] || images[0];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView 
+      style={[styles.container, { backgroundColor: isDark ? theme.colors.backgroundDark : theme.colors.background }]} 
+      edges={['top']}
+    >
       {/* Header avec bouton retour et suppression */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={[styles.headerButton, { backgroundColor: theme.colors.card }]}
+          style={[
+            styles.headerButton,
+            {
+              backgroundColor: isDark ? theme.colors.cardDark : theme.colors.card,
+              borderWidth: 1,
+              borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
+              shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+              shadowOffset: { width: 0, height: isDark ? 4 : 2 },
+              shadowOpacity: 1,
+              shadowRadius: 8,
+              elevation: isDark ? 6 : 3,
+            }
+          ]}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+          <Ionicons name="arrow-back" size={24} color={isDark ? theme.colors.textDark : theme.colors.text} />
         </TouchableOpacity>
         
         <View style={styles.headerSpacer} />
         
         <TouchableOpacity
-          style={[styles.headerButton, styles.deleteButton, { backgroundColor: theme.colors.error + '15' }]}
+          style={[
+            styles.headerButton,
+            {
+              backgroundColor: isDark ? 'rgba(255, 59, 48, 0.2)' : 'rgba(255, 59, 48, 0.1)',
+              borderWidth: 1,
+              borderColor: theme.colors.error,
+              shadowColor: theme.colors.error,
+              shadowOffset: { width: 0, height: isDark ? 4 : 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: isDark ? 6 : 3,
+            }
+          ]}
           onPress={handleDelete}
           disabled={deleteProduct.isPending}
         >
@@ -140,11 +174,11 @@ export default function ProductDetailScreen() {
       >
         {/* Images du produit */}
         {currentImage ? (
-          <View style={styles.imageContainer}>
+          <View style={[styles.imageContainer, { height: width / imageAspectRatio }]}>
             <Image
               source={{ uri: currentImage }}
               style={styles.mainImage}
-              resizeMode="cover"
+              resizeMode="contain"
             />
             
             {images.length > 1 && (
@@ -185,24 +219,38 @@ export default function ProductDetailScreen() {
             )}
           </View>
         ) : (
-          <View style={[styles.imagePlaceholder, { backgroundColor: theme.colors.surface }]}>
-            <Ionicons name="image-outline" size={64} color={theme.colors.textDisabled} />
+          <View style={[
+            styles.imagePlaceholder, 
+            { backgroundColor: isDark ? theme.colors.surfaceDark : theme.colors.surface }
+          ]}>
+            <Ionicons 
+              name="image-outline" 
+              size={64} 
+              color={isDark ? theme.colors.textDisabledDark : theme.colors.textDisabled} 
+            />
           </View>
         )}
 
         {/* Informations du produit */}
         <View style={styles.content}>
           <View style={styles.titleSection}>
-            <Text style={[styles.productName, { color: theme.colors.text }]}>
+            <Text style={[styles.productName, { color: isDark ? theme.colors.textDark : theme.colors.text }]}>
               {product.name}
             </Text>
-            <Text style={[styles.productPrice, { color: theme.colors.primary }]}>
+            <Text style={[styles.productPrice, { color: theme.colors.accent }]}>
               {formatPrice(product.price)}
             </Text>
           </View>
 
           {collection && (
-            <View style={[styles.collectionBadge, { backgroundColor: theme.colors.highlight }]}>
+            <View style={[
+              styles.collectionBadge,
+              {
+                backgroundColor: isDark ? theme.colors.highlightDark : theme.colors.highlight,
+                borderWidth: 1,
+                borderColor: theme.colors.accent,
+              }
+            ]}>
               <Ionicons name="folder-outline" size={16} color={theme.colors.accent} />
               <Text style={[styles.collectionText, { color: theme.colors.accent }]}>
                 {collection.name}
@@ -212,40 +260,83 @@ export default function ProductDetailScreen() {
 
           {product.description && (
             <View style={styles.descriptionSection}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              <Text style={[styles.sectionTitle, { color: isDark ? theme.colors.textDark : theme.colors.text }]}>
                 Description
               </Text>
-              <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
+              <Text style={[
+                styles.description, 
+                { color: isDark ? theme.colors.textSecondaryDark : theme.colors.textSecondary }
+              ]}>
                 {product.description}
               </Text>
             </View>
           )}
 
-          {/* Détails */}
+          {/* Détails - Cards avec style BOOM */}
           <View style={styles.detailsSection}>
-            <View style={styles.detailRow}>
+            {/* Stock */}
+            <View style={[
+              styles.detailCard,
+              {
+                backgroundColor: isDark ? theme.colors.cardDark : theme.colors.card,
+                borderWidth: 1,
+                borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
+                shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+                shadowOffset: { width: 0, height: isDark ? 6 : 4 },
+                shadowOpacity: 1,
+                shadowRadius: 12,
+                elevation: isDark ? 8 : 4,
+              }
+            ]}>
               <View style={styles.detailItem}>
-                <Ionicons name="cube-outline" size={20} color={theme.colors.textSecondary} />
+                <Ionicons 
+                  name="cube-outline" 
+                  size={20} 
+                  color={isDark ? theme.colors.textSecondaryDark : theme.colors.textSecondary} 
+                />
                 <View style={styles.detailContent}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>
+                  <Text style={[
+                    styles.detailLabel, 
+                    { color: isDark ? theme.colors.textSecondaryDark : theme.colors.textSecondary }
+                  ]}>
                     Stock
                   </Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                  <Text style={[styles.detailValue, { color: isDark ? theme.colors.textDark : theme.colors.text }]}>
                     {product.stock} unités
                   </Text>
                 </View>
               </View>
             </View>
 
+            {/* SKU */}
             {product.sku && (
-              <View style={styles.detailRow}>
+              <View style={[
+                styles.detailCard,
+                {
+                  backgroundColor: isDark ? theme.colors.cardDark : theme.colors.card,
+                  borderWidth: 1,
+                  borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
+                  shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+                  shadowOffset: { width: 0, height: isDark ? 6 : 4 },
+                  shadowOpacity: 1,
+                  shadowRadius: 12,
+                  elevation: isDark ? 8 : 4,
+                }
+              ]}>
                 <View style={styles.detailItem}>
-                  <Ionicons name="barcode-outline" size={20} color={theme.colors.textSecondary} />
+                  <Ionicons 
+                    name="barcode-outline" 
+                    size={20} 
+                    color={isDark ? theme.colors.textSecondaryDark : theme.colors.textSecondary} 
+                  />
                   <View style={styles.detailContent}>
-                    <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>
+                    <Text style={[
+                      styles.detailLabel, 
+                      { color: isDark ? theme.colors.textSecondaryDark : theme.colors.textSecondary }
+                    ]}>
                       SKU
                     </Text>
-                    <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                    <Text style={[styles.detailValue, { color: isDark ? theme.colors.textDark : theme.colors.text }]}>
                       {product.sku}
                     </Text>
                   </View>
@@ -253,21 +344,48 @@ export default function ProductDetailScreen() {
               </View>
             )}
 
+            {/* Couleurs */}
             {product.colors && product.colors.length > 0 && (
-              <View style={styles.detailRow}>
+              <View style={[
+                styles.detailCard,
+                {
+                  backgroundColor: isDark ? theme.colors.cardDark : theme.colors.card,
+                  borderWidth: 1,
+                  borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
+                  shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+                  shadowOffset: { width: 0, height: isDark ? 6 : 4 },
+                  shadowOpacity: 1,
+                  shadowRadius: 12,
+                  elevation: isDark ? 8 : 4,
+                }
+              ]}>
                 <View style={styles.detailItem}>
-                  <Ionicons name="color-palette-outline" size={20} color={theme.colors.textSecondary} />
+                  <Ionicons 
+                    name="color-palette-outline" 
+                    size={20} 
+                    color={isDark ? theme.colors.textSecondaryDark : theme.colors.textSecondary} 
+                  />
                   <View style={styles.detailContent}>
-                    <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>
+                    <Text style={[
+                      styles.detailLabel, 
+                      { color: isDark ? theme.colors.textSecondaryDark : theme.colors.textSecondary }
+                    ]}>
                       Couleurs
                     </Text>
                     <View style={styles.colorsContainer}>
                       {product.colors.map((color, index) => (
                         <View
                           key={index}
-                          style={[styles.colorChip, { backgroundColor: theme.colors.card }]}
+                          style={[
+                            styles.colorChip,
+                            {
+                              backgroundColor: isDark ? theme.colors.surfaceDark : theme.colors.surface,
+                              borderWidth: 1,
+                              borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
+                            }
+                          ]}
                         >
-                          <Text style={[styles.colorText, { color: theme.colors.text }]}>
+                          <Text style={[styles.colorText, { color: isDark ? theme.colors.textDark : theme.colors.text }]}>
                             {color}
                           </Text>
                         </View>
@@ -278,21 +396,48 @@ export default function ProductDetailScreen() {
               </View>
             )}
 
+            {/* Tailles */}
             {product.sizes && product.sizes.length > 0 && (
-              <View style={styles.detailRow}>
+              <View style={[
+                styles.detailCard,
+                {
+                  backgroundColor: isDark ? theme.colors.cardDark : theme.colors.card,
+                  borderWidth: 1,
+                  borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
+                  shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+                  shadowOffset: { width: 0, height: isDark ? 6 : 4 },
+                  shadowOpacity: 1,
+                  shadowRadius: 12,
+                  elevation: isDark ? 8 : 4,
+                }
+              ]}>
                 <View style={styles.detailItem}>
-                  <Ionicons name="resize-outline" size={20} color={theme.colors.textSecondary} />
+                  <Ionicons 
+                    name="resize-outline" 
+                    size={20} 
+                    color={isDark ? theme.colors.textSecondaryDark : theme.colors.textSecondary} 
+                  />
                   <View style={styles.detailContent}>
-                    <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>
+                    <Text style={[
+                      styles.detailLabel, 
+                      { color: isDark ? theme.colors.textSecondaryDark : theme.colors.textSecondary }
+                    ]}>
                       Tailles
                     </Text>
                     <View style={styles.sizesContainer}>
                       {product.sizes.map((size, index) => (
                         <View
                           key={index}
-                          style={[styles.sizeChip, { backgroundColor: theme.colors.card }]}
+                          style={[
+                            styles.sizeChip,
+                            {
+                              backgroundColor: isDark ? theme.colors.surfaceDark : theme.colors.surface,
+                              borderWidth: 1,
+                              borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
+                            }
+                          ]}
                         >
-                          <Text style={[styles.sizeText, { color: theme.colors.text }]}>
+                          <Text style={[styles.sizeText, { color: isDark ? theme.colors.textDark : theme.colors.text }]}>
                             {size}
                           </Text>
                         </View>
@@ -306,10 +451,32 @@ export default function ProductDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Bouton de modification en bas */}
-      <View style={[styles.footer, { backgroundColor: theme.colors.background, borderTopColor: theme.colors.borderLight }]}>
+      {/* Bouton de modification en bas - Style BOOM */}
+      <View style={[
+        styles.footer,
+        {
+          backgroundColor: isDark ? theme.colors.backgroundDark : theme.colors.background,
+          borderTopWidth: 1,
+          borderTopColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
+          shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 1,
+          shadowRadius: 12,
+          elevation: 12,
+        }
+      ]}>
         <TouchableOpacity
-          style={[styles.editButton, { backgroundColor: theme.colors.primary }]}
+          style={[
+            styles.editButton,
+            {
+              backgroundColor: theme.colors.accent,
+              shadowColor: theme.colors.accent,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 6,
+            }
+          ]}
           onPress={handleEdit}
           activeOpacity={0.8}
         >
@@ -344,7 +511,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
   },
   backButton: {
@@ -356,7 +523,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#FFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   header: {
     flexDirection: 'row',
@@ -366,14 +533,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  deleteButton: {
-    borderWidth: 1,
   },
   headerSpacer: {
     flex: 1,
@@ -405,7 +569,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -22,
@@ -459,7 +623,7 @@ const styles = StyleSheet.create({
   },
   collectionText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   descriptionSection: {
     marginBottom: 24,
@@ -473,12 +637,14 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 16,
     lineHeight: 24,
+    fontWeight: '400',
   },
   detailsSection: {
     gap: 16,
   },
-  detailRow: {
-    marginBottom: 4,
+  detailCard: {
+    padding: 16,
+    borderRadius: 16,
   },
   detailItem: {
     flexDirection: 'row',
@@ -491,11 +657,11 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontSize: 14,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   detailValue: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   colorsContainer: {
     flexDirection: 'row',
@@ -507,7 +673,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    borderWidth: 1,
   },
   colorText: {
     fontSize: 14,
@@ -523,7 +688,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    borderWidth: 1,
   },
   sizeText: {
     fontSize: 14,
@@ -535,12 +699,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    borderTopWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 8,
   },
   editButton: {
     flexDirection: 'row',
@@ -557,4 +715,3 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
 });
-

@@ -29,11 +29,13 @@ import DropCountdown from '../../src/components/clients/DropCountdown';
 import TrendingGrid from '../../src/components/clients/TrendingGrid';
 import BrandSpotlight from '../../src/components/clients/BrandSpotlight';
 import JustLaunchedDrop from '../../src/components/clients/JustLaunchedDrop';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
+const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev';
+
 export default function ClientHomeScreen() {
-  const { theme, isDark } = useTheme();
+  const { theme, isDark, toggleTheme } = useTheme();
   const router = useRouter();
   const { openCart } = useLocalSearchParams<{ openCart?: string }>();
   const totalCartQty = useCartStore((s) => s.totalQuantity());
@@ -57,11 +59,11 @@ export default function ClientHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
       setError(null);
-      const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev';
       
       const [collectionsResponse, trendingCols, newCols, comingSoonCols] = await Promise.all([
         collectionsApi.getFeatured(6),
@@ -70,7 +72,7 @@ export default function ClientHomeScreen() {
         collectionsApi.getComingSoon(6),
       ]);
       
-      const processedCollections = collectionsResponse.map(collection => ({
+      const normalizeCollection = (collection: CollectionDto) => ({
         ...collection,
         coverImage: collection.coverImage 
           ? collection.coverImage.startsWith('http') 
@@ -90,11 +92,42 @@ export default function ClientHomeScreen() {
               : `${API_URL}${collection.brand.logo.startsWith('/') ? '' : '/'}${collection.brand.logo}`
             : null
         } : null
-      }));
+      });
       
+      const processedCollections = collectionsResponse.map(normalizeCollection);
+      const processedNewCollections = (newCols || []).map(normalizeCollection);
+
+      console.log('[Home] /collections/new brut:', {
+        rawCount: (newCols || []).length,
+        ids: (newCols || []).map((c: any) => ({ id: c.id, status: c.status, launchedAt: c.launchedAt })),
+      });
+
       setFeaturedCollections(processedCollections);
       setTrendingCollections(trendingCols || []);
-      setNewCollections(newCols || []);
+
+      // Filtrer les "new collections" pour ne garder que celles qui ont au moins 1 produit non supprimé
+      const nonEmptyNewCollections: CollectionDto[] = [];
+      for (const col of processedNewCollections) {
+        try {
+          // Utiliser la route publique des collections avec includeProducts=true
+          const res = await collectionsApi.getPublic(col.id, true);
+          const products = (res as any).products || [];
+          const count = Array.isArray(products) ? products.length : 0;
+          console.log('[Home] getPublic collection', col.id, '=>', count, 'produit(s)');
+          if (count > 0) {
+            // Attacher le nombre de produits visibles pour que JustLaunchedDrop n'utilise pas _count obsolète
+            (col as any).visibleProductCount = count;
+            nonEmptyNewCollections.push(col);
+          } else {
+            console.log('[Home] SKIP collection sans produits visibles:', col.id);
+          }
+        } catch (e) {
+          console.log('[Home] ERREUR getByCollection pour', col.id, e instanceof Error ? e.message : e);
+          // En cas d'erreur sur une collection, on la skip sans bloquer le reste
+        }
+      }
+      console.log('[Home] newCollections filtrées (non vides):', nonEmptyNewCollections.map(c => c.id));
+      setNewCollections(nonEmptyNewCollections);
       setComingSoonCollections(comingSoonCols || []);
       
       try {
@@ -131,6 +164,14 @@ export default function ClientHomeScreen() {
   }, [fetchData]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Gérer le focus de l'écran pour contrôler DropCountdown (son/lecture)
+  useFocusEffect(
+    useCallback(() => {
+      setIsScreenFocused(true);
+      return () => setIsScreenFocused(false);
+    }, []),
+  );
 
   useEffect(() => {
     void fetchMyNotifications();
@@ -215,14 +256,29 @@ export default function ClientHomeScreen() {
   };
 
   const upcomingDrop = comingSoonCollections[0];
-  const dropData = upcomingDrop?.brand ? {
-    collectionId: upcomingDrop.id,
-    collectionName: upcomingDrop.name,
-    brandName: upcomingDrop.brand.name,
-    brandLogo: upcomingDrop.brand.logo || '',
-    coverImage: upcomingDrop.coverImage || '',
-    launchDate: new Date(upcomingDrop.launchDate as unknown as string),
-  } : null;
+  const dropData = upcomingDrop?.brand
+    ? {
+        collectionId: upcomingDrop.id,
+        collectionName: upcomingDrop.name,
+        brandName: upcomingDrop.brand.name,
+        brandLogo: upcomingDrop.brand.logo
+          ? upcomingDrop.brand.logo.startsWith('http')
+            ? upcomingDrop.brand.logo
+            : `${API_URL}${upcomingDrop.brand.logo.startsWith('/') ? '' : '/'}${upcomingDrop.brand.logo}`
+          : '',
+        coverImage: upcomingDrop.coverImage
+          ? upcomingDrop.coverImage.startsWith('http')
+            ? upcomingDrop.coverImage
+            : `${API_URL}${upcomingDrop.coverImage.startsWith('/') ? '' : '/'}${upcomingDrop.coverImage}`
+          : '',
+        teaserVideo: upcomingDrop.teaserVideo
+          ? upcomingDrop.teaserVideo.startsWith('http')
+            ? upcomingDrop.teaserVideo
+            : `${API_URL}${upcomingDrop.teaserVideo.startsWith('/') ? '' : '/'}${upcomingDrop.teaserVideo}`
+          : undefined,
+        launchDate: new Date(upcomingDrop.launchDate as unknown as string),
+      }
+    : null;
 
   const spotlightSource = verifiedBrands[0];
   const spotlightCollections = spotlightSource
@@ -275,18 +331,17 @@ export default function ClientHomeScreen() {
                 </View>
               )}
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.iconButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]} 
-              onPress={() => setCartOpen(true)}
+
+            <TouchableOpacity
+              style={[styles.iconButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
               activeOpacity={0.7}
+              onPress={toggleTheme}
             >
-              <Ionicons name="bag-outline" size={22} color={theme.colors.text} />
-              {totalCartQty > 0 && (
-                <View style={[styles.badge, { backgroundColor: theme.colors.primary }]}>
-                  <Text style={styles.badgeText}>{totalCartQty}</Text>
-                </View>
-              )}
+              <Ionicons
+                name={isDark ? 'moon' : 'sunny-outline'}
+                size={20}
+                color={theme.colors.text}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -387,6 +442,7 @@ export default function ClientHomeScreen() {
               </View>
               <DropCountdown 
                 {...dropData}
+                isActive={isScreenFocused}
                 onNotifyMe={() => console.log('Notify me')}
                 onPreview={() => router.push(`/clientCollectionid/${dropData.collectionId}`)}
               />
@@ -394,7 +450,7 @@ export default function ClientHomeScreen() {
           )}
 
           {/* Nouveau drop disponible */}
-          {newCollections.length > 0 && newCollections[0].coverImage && (
+          {newCollections.length > 0 && (newCollections[0].coverImage || (newCollections[0] as any).teaserVideo) && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionTitleContainer}>

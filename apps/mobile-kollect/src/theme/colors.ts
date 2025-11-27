@@ -19,7 +19,7 @@ export const colors = {
   // Backgrounds - MODE DARK (Noir profond)
   backgroundDark: '#000000',    // ✨ Noir pur
   surfaceDark: '#1A1A1A',       // Gris très foncé
-  cardDark: '#0A0A0A',          // ✨ Noir profond pour cards avec élévation
+  cardDark: '#0A0A0A',              // ✨ Noir profond pour cards avec élévation
   
   // Textes - MODE LIGHT
   text: '#000000',              // ✨ Noir pur (pas de gris)

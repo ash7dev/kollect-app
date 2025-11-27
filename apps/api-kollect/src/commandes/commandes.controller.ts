@@ -31,7 +31,7 @@ interface UserPayload {
 }
 
 @Controller('commandes')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class CommandesController {
   constructor(private readonly commandesService: CommandesService) {}
 
@@ -40,6 +40,7 @@ export class CommandesController {
    * Créer une nouvelle commande (Client)
    */
   @Post()
+  @Roles('isClient')
   @HttpCode(HttpStatus.CREATED)
   async create(
     @CurrentUser() user: UserPayload,
@@ -53,6 +54,7 @@ export class CommandesController {
    * Liste des commandes du client connecté
    */
   @Get('me')
+  @Roles('isClient')
   async getMyCommandes(
     @CurrentUser() user: UserPayload,
     @Query() query: QueryCommandesDto,

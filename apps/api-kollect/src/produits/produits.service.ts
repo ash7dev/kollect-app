@@ -179,6 +179,45 @@ export class ProduitsService {
     };
   }
 
+  async findDeletedForCEO(userId: string, query: QueryProduitsDto) {
+    const user = await this.prisma.utilisateur.findUnique({
+      where: { id: userId },
+      select: { brand: { select: { id: true } } },
+    });
+    if (!user?.brand) throw new ForbiddenException('Aucune marque associée');
+
+    const { collectionId, page = 1, limit = 10 } = query;
+
+    const where: Prisma.ProduitWhereInput = {
+      brandId: user.brand.id,
+      isDeleted: true,
+      ...(collectionId && { collectionId }),
+    };
+
+    const [products, total] = await Promise.all([
+      this.prisma.produit.findMany({
+        where,
+        include: {
+          collection: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.produit.count({ where }),
+    ]);
+
+    return {
+      data: products,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   async findOneForCEO(userId: string, id: string) {
     const user = await this.prisma.utilisateur.findUnique({
       where: { id: userId },
@@ -341,6 +380,40 @@ export class ProduitsService {
     });
 
     return { message: 'Produit supprimé avec succès' };
+  }
+
+  async restore(userId: string, id: string) {
+    const user = await this.prisma.utilisateur.findUnique({
+      where: { id: userId },
+      select: { isCEO: true, brand: { select: { id: true } } },
+    });
+    if (!user?.isCEO || !user.brand) {
+      throw new ForbiddenException('Seuls les CEOs avec une marque peuvent restaurer des produits');
+    }
+
+    const product = await this.prisma.produit.findUnique({
+      where: { id },
+      select: { id: true, brandId: true, isDeleted: true },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Produit non trouvé');
+    }
+
+    if (product.brandId !== user.brand.id) {
+      throw new ForbiddenException('Ce produit n\'appartient pas à votre marque');
+    }
+
+    if (!product.isDeleted) {
+      throw new BadRequestException('Ce produit n\'est pas supprimé');
+    }
+
+    await this.prisma.produit.update({
+      where: { id },
+      data: { isDeleted: false },
+    });
+
+    return { message: 'Produit restauré avec succès' };
   }
 
   /**

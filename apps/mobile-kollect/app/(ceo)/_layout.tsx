@@ -5,7 +5,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { Platform } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../../src/store/authStore';
@@ -60,49 +60,53 @@ const TabBarIcon = ({
 export default function CeoLayout() {
   const { theme, isDark } = useTheme();
   const router = useRouter();
-  const { isAuthenticated, token, user, isLoading: isAuthLoading } = useAuthStore();
+  const { isAuthenticated, token, user, isLoading: isAuthLoading, isInitialized } = useAuthStore();
   const hasMyBrand = useBrandStore((state) => !!state.myBrand);
-  const [isAppLoading, setIsAppLoading] = useState(true);
-  
-  // Simuler un chargement d'application
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsAppLoading(false);
-    }, 1500); // Temps de chargement simulé
-    
-    return () => clearTimeout(timer);
-  }, []);
 
   // ⚠️ GUARD: Vérifications complètes d'authentification et de rôle
   useEffect(() => {
-    if (!isAppLoading) {
-      // 1. Vérifier l'authentification
-      if (!isAuthenticated || !token || !user) {
-        console.log('🚫 [CEO Layout] Utilisateur non authentifié - Redirection vers (auth)/login');
-        router.replace('/(auth)/login');
-        return;
-      }
-      
-      // 2. Vérifier si l'utilisateur est CEO
-      if (!user.isCEO) {
-        console.log('🚫 [CEO Layout] Utilisateur n\'est pas CEO - Redirection vers (client)');
-        router.replace('/(client)');
-        return;
-      }
-      
-      // 3. Vérifier si CEO a une marque (depuis user OU store) - sinon afficher CreateBrand
-      if (user.isCEO && !user.brand && !hasMyBrand) {
-        console.log('🚫 [CEO Layout] CEO sans marque - Redirection vers CreateBrand');
-        // Note: On ne peut pas naviguer vers une route qui n'est pas dans le Stack
-        // On va plutôt afficher CreateBrandScreen directement
-        return;
-      }
+    // Tant que l'auth n'est pas initialisée ou en cours → ne rien faire (on affiche juste un loader neutre)
+    if (!isInitialized || isAuthLoading) {
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, token, user, hasMyBrand, isAppLoading]);
+
+    // 1. Utilisateur non authentifié → ne JAMAIS rester dans le layout CEO
+    if (!isAuthenticated) {
+      console.log('🚫 [CEO Layout] Utilisateur non authentifié - Redirection vers (client)');
+      router.replace('/(client)');
+      return;
+    }
+
+    // 2. État d'auth incohérent (token ou user manquants) → vers login
+    if (!token || !user) {
+      console.log('🚫 [CEO Layout] État d\'auth incohérent - Redirection vers (auth)/login');
+      router.replace('/(auth)/login');
+      return;
+    }
+    
+    // 3. Utilisateur authentifié mais pas CEO → forcer vers client
+    if (!user.isCEO) {
+      console.log('🚫 [CEO Layout] Utilisateur n\'est pas CEO - Redirection vers (client)');
+      router.replace('/(client)');
+      return;
+    }
+
+    // 4. CEO sans marque : on ne redirige pas, mais on reste dans un état contrôlé
+    if (user && user.isCEO && !user.brand && !hasMyBrand) {
+      console.log('🏪 [CEO Layout] CEO sans marque - Affichage CreateBrandScreen');
+      return;
+    }
+  }, [isAuthenticated, token, user, hasMyBrand, isInitialized, isAuthLoading, router]);
 
   // Afficher un loader stylisé pendant la vérification ou le chargement
-  const isLoadingState = isAuthLoading || !isAuthenticated || !token || !user || !user.isCEO || isAppLoading;
+  // Tant qu'on n'a PAS un vrai CEO authentifié, on ne doit pas rendre les Tabs CEO.
+  const isLoadingState =
+    !isInitialized ||
+    isAuthLoading ||
+    !isAuthenticated ||
+    !token ||
+    !user ||
+    !user.isCEO;
   
   if (isLoadingState) {
     return (
@@ -137,7 +141,7 @@ export default function CeoLayout() {
   }
 
   // ⚠️ CEO sans marque → Afficher CreateBrandScreen
-  if (user.isCEO && !user.brand && !hasMyBrand) {
+  if (user && user.isCEO && !user.brand && !hasMyBrand) {
     console.log('🏪 [CEO Layout] CEO sans marque - Affichage CreateBrandScreen');
     try {
       const { CreateBrandScreen } = require('../../src/screen/CreateBrandScreen');

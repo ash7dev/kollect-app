@@ -5,7 +5,9 @@ export const CreateProduitSchema = z.object({
   name: z.string().min(3).max(200),
   description: z.string().optional().nullable(),
   price: z.number().int().min(0), // en FCFA (centimes)
-  images: z.array(z.string().url()).min(1).max(10),
+  // Les images réelles sont gérées via upload; ici on accepte un tableau optionnel
+  // Le contrôleur vérifie ensuite qu'au moins une image existe après upload
+  images: z.array(z.string().url()).max(10).optional().default([]),
   stock: z.number().int().min(0).default(0),
   sizes: z.array(z.string()).default([]),
   colors: z.array(z.string()).default([]),

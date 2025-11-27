@@ -608,18 +608,22 @@ async findAllForCEO(
       },
       ...(includeProducts && {
         products: {
-          where: isPublic 
-            ? { isDeleted: false, isVisible: true } 
+          // Pour les requêtes publiques, on ne filtre plus par isVisible ici
+          // afin que le client mobile puisse afficher les produits "bientôt disponibles"
+          // (isVisible = false) pour les collections en mode TEASER.
+          where: isPublic
+            ? { isDeleted: false }
             : {},
           select: {
             id: true,
             name: true,
             price: true,
             images: true, // Toujours inclure les images
-            ...(isPublic 
-              ? { stock: true } 
-              : { isVisible: true, isDeleted: true }
-            ),
+            // On renvoie toujours isVisible au client, quelle que soit la requête,
+            // pour qu'il décide de l'affichage (bientôt disponible, etc.).
+            stock: isPublic ? true : undefined,
+            isVisible: true,
+            isDeleted: !isPublic ? true : undefined,
           },
           ...(isPublic && { take: 10 }), // Limiter pour les requêtes publiques
         },
@@ -974,15 +978,15 @@ async findAllForCEO(
   async findNew(limit = 10) {
     this.logger.log(`🆕 Récupération des nouvelles collections (limit: ${limit})`);
 
-    // Collections lancées dans les 14 derniers jours
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    // Collections lancées dans les 30 derniers jours
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const collections = await this.prisma.collection.findMany({
       where: {
         status: CollectionStatus.DISPONIBLE,
         launchedAt: {
-          gte: fourteenDaysAgo,
+          gte: thirtyDaysAgo,
         },
       },
       include: {

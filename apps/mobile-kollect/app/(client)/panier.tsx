@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React from 'react';
 import {
   View,
@@ -6,20 +5,21 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Animated,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
 import { useCartStore, type CartItem } from '../../src/store/cartStore';
+import { useAuthStore } from '../../src/store/authStore';
 
 export default function CartScreen() {
   const { theme, isDark } = useTheme();
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
   const items = useCartStore((s) => s.items);
   const subtotal = useCartStore((s) => s.subtotal());
   const totalQty = useCartStore((s) => s.totalQuantity());
@@ -29,13 +29,70 @@ export default function CartScreen() {
 
   const total = subtotal;
 
+  const handleCheckout = () => {
+    if (!user) {
+      Alert.alert(
+        'Connexion requise',
+        'Connecte-toi pour finaliser ta commande.',
+        [
+          { text: 'Plus tard', style: 'cancel' },
+          {
+            text: 'Se connecter',
+            onPress: () => router.push('/(auth)/login?redirect=/checkout'),
+          },
+        ],
+      );
+      return;
+    }
+
+    router.push('/checkout');
+  };
+
+  // 🔥 Couleurs dynamiques centralisées
+  const colors = {
+    // Backgrounds
+    container: theme.colors.background,
+    card: isDark ? 'rgba(255,255,255,0.06)' : theme.colors.card,
+    cardBorder: isDark ? 'rgba(255,255,255,0.1)' : theme.colors.borderLight,
+    surface: isDark ? 'rgba(255,255,255,0.08)' : theme.colors.surface,
+    
+    // Textes
+    text: theme.colors.text,
+    textSecondary: theme.colors.textSecondary,
+    textMuted: isDark ? '#888' : '#666',
+    
+    // Tags & Controls
+    tagBg: isDark ? 'rgba(255,255,255,0.1)' : theme.colors.surface,
+    tagText: isDark ? '#aaa' : '#666',
+    controlBg: isDark ? 'rgba(255,255,255,0.06)' : '#f8f8f8',
+    controlBorder: isDark ? 'rgba(255,255,255,0.1)' : '#e8e8e8',
+    
+    // Badge
+    badgeBg: isDark ? '#fff' : '#000',
+    badgeText: isDark ? '#000' : '#fff',
+    
+    // Empty state
+    emptyIconBg: isDark ? 'rgba(255,255,255,0.06)' : '#f5f5f5',
+    emptyIcon: isDark ? '#444' : '#ddd',
+    
+    // Footer
+    footerGradient: isDark
+      ? ['rgba(0,0,0,0)', 'rgba(0,0,0,0.95)', theme.colors.background] as const
+      : ['rgba(255,255,255,0)', 'rgba(250,250,250,0.95)', theme.colors.background] as const,
+    
+    // Danger
+    danger: '#ff4444',
+    dangerBg: isDark ? 'rgba(255,68,68,0.15)' : '#fff5f5',
+  };
+
   const renderItem = ({ item }: { item: CartItem }) => (
     <View
       style={[
         styles.itemContainer,
         {
-          backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff',
-          borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#f0f0f0',
+          backgroundColor: colors.card,
+          borderColor: colors.cardBorder,
+          shadowOpacity: isDark ? 0.3 : 0.05,
         },
       ]}
     >
@@ -51,29 +108,28 @@ export default function CartScreen() {
             <View
               style={[
                 styles.imagePlaceholder,
-                { backgroundColor: isDark ? '#333' : '#f5f5f5' },
+                { backgroundColor: colors.surface },
               ]}
             >
               <Ionicons
                 name="image-outline"
                 size={24}
-                color={isDark ? '#666' : '#ccc'}
+                color={colors.textSecondary}
               />
             </View>
           )}
           {item.quantity > 1 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{item.quantity}</Text>
+            <View style={[styles.badge, { backgroundColor: colors.badgeBg }]}>
+              <Text style={[styles.badgeText, { color: colors.badgeText }]}>
+                {item.quantity}
+              </Text>
             </View>
           )}
         </View>
 
         <View style={styles.itemInfo}>
           <Text
-            style={[
-              styles.itemName,
-              { color: isDark ? '#fff' : '#000' },
-            ]}
+            style={[styles.itemName, { color: colors.text }]}
             numberOfLines={2}
           >
             {item.name}
@@ -81,27 +137,22 @@ export default function CartScreen() {
 
           <View style={styles.variantRow}>
             {item.size && (
-              <View style={[styles.tag, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#f5f5f5' }]}>
-                <Text style={[styles.tagText, { color: isDark ? '#aaa' : '#666' }]}>
+              <View style={[styles.tag, { backgroundColor: colors.tagBg }]}>
+                <Text style={[styles.tagText, { color: colors.tagText }]}>
                   {item.size}
                 </Text>
               </View>
             )}
             {item.color && (
-              <View style={[styles.tag, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#f5f5f5' }]}>
-                <Text style={[styles.tagText, { color: isDark ? '#aaa' : '#666' }]}>
+              <View style={[styles.tag, { backgroundColor: colors.tagBg }]}>
+                <Text style={[styles.tagText, { color: colors.tagText }]}>
                   {item.color}
                 </Text>
               </View>
             )}
           </View>
 
-          <Text
-            style={[
-              styles.itemPrice,
-              { color: theme.colors.primary },
-            ]}
-          >
+          <Text style={[styles.itemPrice, { color: theme.colors.text }]}>
             {item.price.toLocaleString()} CFA
           </Text>
         </View>
@@ -112,8 +163,8 @@ export default function CartScreen() {
           style={[
             styles.qtyControl,
             {
-              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f8f8f8',
-              borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#e8e8e8',
+              backgroundColor: colors.controlBg,
+              borderColor: colors.controlBorder,
             },
           ]}
         >
@@ -125,15 +176,12 @@ export default function CartScreen() {
               })
             }
             style={styles.qtyBtn}
+            activeOpacity={0.7}
           >
-            <Ionicons
-              name="remove"
-              size={16}
-              color={theme.colors.primary}
-            />
+            <Ionicons name="remove" size={16} color={theme.colors.text} />
           </TouchableOpacity>
 
-          <Text style={[styles.qtyValue, { color: isDark ? '#fff' : '#000' }]}>
+          <Text style={[styles.qtyValue, { color: colors.text }]}>
             {item.quantity}
           </Text>
 
@@ -145,12 +193,9 @@ export default function CartScreen() {
               })
             }
             style={styles.qtyBtn}
+            activeOpacity={0.7}
           >
-            <Ionicons
-              name="add"
-              size={16}
-              color={theme.colors.primary}
-            />
+            <Ionicons name="add" size={16} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -162,12 +207,9 @@ export default function CartScreen() {
             })
           }
           style={styles.removeBtn}
+          activeOpacity={0.7}
         >
-          <Ionicons
-            name="trash-outline"
-            size={18}
-            color="#ff4444"
-          />
+          <Ionicons name="trash-outline" size={18} color={colors.danger} />
         </TouchableOpacity>
       </View>
     </View>
@@ -175,26 +217,25 @@ export default function CartScreen() {
 
   return (
     <SafeAreaView
-      style={[
-        styles.container,
-        { backgroundColor: isDark ? '#000' : '#fafafa' },
-      ]}
+      style={[styles.container, { backgroundColor: colors.container }]}
       edges={['top']}
     >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={[styles.title, { color: isDark ? '#fff' : '#000' }]}>
+          <Text style={[styles.title, { color: colors.text }]}>
             Mon Panier
           </Text>
           {items.length > 0 && (
-            <View style={[styles.cartBadge, { backgroundColor: theme.colors.primary }]}>
+            <View
+              style={[styles.cartBadge, { backgroundColor: theme.colors.accent }]}
+            >
               <Text style={styles.cartBadgeText}>{totalQty}</Text>
             </View>
           )}
         </View>
         {items.length > 0 && (
-          <Text style={[styles.subtitle, { color: isDark ? '#888' : '#666' }]}>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             {items.length} article{items.length > 1 ? 's' : ''} dans votre panier
           </Text>
         )}
@@ -202,17 +243,15 @@ export default function CartScreen() {
 
       {items.length === 0 ? (
         <View style={styles.emptyState}>
-          <View style={[styles.emptyIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f5f5f5' }]}>
-            <Ionicons
-              name="cart-outline"
-              size={64}
-              color={isDark ? '#444' : '#ddd'}
-            />
+          <View
+            style={[styles.emptyIcon, { backgroundColor: colors.emptyIconBg }]}
+          >
+            <Ionicons name="cart-outline" size={64} color={colors.emptyIcon} />
           </View>
-          <Text style={[styles.emptyTitle, { color: isDark ? '#fff' : '#000' }]}>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
             Votre panier est vide
           </Text>
-          <Text style={[styles.emptyText, { color: isDark ? '#888' : '#666' }]}>
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
             Ajoutez des articles pour commencer
           </Text>
         </View>
@@ -231,27 +270,24 @@ export default function CartScreen() {
           {/* Footer with gradient */}
           <View style={styles.footerContainer}>
             <LinearGradient
-              colors={
-                isDark
-                  ? ['rgba(0,0,0,0)', 'rgba(0,0,0,0.95)', '#000']
-                  : ['rgba(255,255,255,0)', 'rgba(250,250,250,0.95)', '#fafafa']
-              }
+              colors={colors.footerGradient}
               style={styles.footerGradient}
             >
               <View
                 style={[
                   styles.footer,
                   {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff',
-                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#f0f0f0',
+                    backgroundColor: colors.card,
+                    borderColor: colors.cardBorder,
+                    shadowOpacity: isDark ? 0.4 : 0.1,
                   },
                 ]}
               >
                 <View style={styles.summaryRow}>
-                  <Text style={[styles.summaryLabel, { color: isDark ? '#aaa' : '#666' }] }>
+                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
                     Total
                   </Text>
-                  <Text style={[styles.summaryValue, { color: isDark ? '#fff' : '#000' }]}>
+                  <Text style={[styles.summaryValue, { color: colors.text }]}>
                     {total.toLocaleString()} CFA
                   </Text>
                 </View>
@@ -262,25 +298,25 @@ export default function CartScreen() {
                     style={[
                       styles.clearBtn,
                       {
-                        backgroundColor: isDark ? 'rgba(255,68,68,0.1)' : '#fff5f5',
-                        borderColor: '#ff4444',
+                        backgroundColor: colors.dangerBg,
+                        borderColor: colors.danger,
                       },
                     ]}
+                    activeOpacity={0.8}
                   >
-                    <Ionicons name="trash-outline" size={18} color="#ff4444" />
-                    <Text style={[styles.clearText, { color: '#ff4444' }]}>
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                    <Text style={[styles.clearText, { color: colors.danger }]}>
                       Vider
                     </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    onPress={() => router.push('/checkout')}
-                    style={[
-                      styles.checkoutBtn,
-                    ]}
+                    onPress={handleCheckout}
+                    style={styles.checkoutBtn}
+                    activeOpacity={0.9}
                   >
                     <LinearGradient
-                      colors={[theme.colors.primary, theme.colors.primary + 'dd']}
+                      colors={[theme.colors.accent, theme.colors.accentDark]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.checkoutGradient}
@@ -373,7 +409,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
@@ -404,7 +439,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
-    backgroundColor: '#000',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -413,7 +447,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   badgeText: {
-    color: '#fff',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -484,7 +517,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
     marginBottom: 90,
@@ -502,22 +534,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(128,128,128,0.2)',
-    marginVertical: 12,
-  },
-  totalRow: {
-    marginBottom: 20,
-  },
-  totalLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  totalValue: {
-    fontSize: 24,
-    fontWeight: '900',
-  },
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -530,7 +546,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 10,
     borderRadius: 10,
-    borderWidth: 1.2,
+    borderWidth: 1.5,
     flex: 0.8,
   },
   clearText: {

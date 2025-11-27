@@ -8,10 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useCreateBrand } from '../../src/features/brands/hooks/useBrandQueries';
 import { BrandFormInput } from '../../src/features/brands/components/BrandFormInput';
 import { BrandLogoUploader } from '../../src/features/brands/components/BrandLogoUploader';
@@ -33,16 +35,16 @@ export const CreateBrandScreen = () => {
   });
 
   const createSlug = (name: string): string => {
-  return name
-    .toLowerCase()
-    .normalize('NFD') // Normaliser les caractères accentués
-    .replace(/[\u0300-\u036f]/g, '') // Supprimer les accents
-    .replace(/\s+/g, '-') // Remplacer les espaces par des tirets
-    .replace(/[^\w\-]+/g, '') // Supprimer les caractères non alphanumériques
-    .replace(/\-\-+/g, '-') // Remplacer les tirets multiples par un seul
-    .replace(/^-+/, '') // Supprimer les tirets du début
-    .replace(/-+$/, ''); // Supprimer les tirets de fin
-};
+    return name
+      .toLowerCase()
+      .normalize('NFD') // Normaliser les caractères accentués
+      .replace(/[\u0300-\u036f]/g, '') // Supprimer les accents
+      .replace(/\s+/g, '-') // Remplacer les espaces par des tirets
+      .replace(/[^\w\-]+/g, '') // Supprimer les caractères non alphanumériques
+      .replace(/\-\-+/g, '-') // Remplacer les tirets multiples par un seul
+      .replace(/^-+/, '') // Supprimer les tirets du début
+      .replace(/-+$/, ''); // Supprimer les tirets de fin
+  };
 
   const [logo, setLogo] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -228,6 +230,20 @@ export const CreateBrandScreen = () => {
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       edges={['top']}
     >
+      {/* Bouton retour flottant */}
+      <TouchableOpacity
+        onPress={() => {
+          if ((router as any).canGoBack && (router as any).canGoBack()) {
+            router.back();
+          } else {
+            router.replace('/(client)');
+          }
+        }}
+        activeOpacity={0.7}
+        style={[styles.backButton, { backgroundColor: theme.colors.card }]}
+      >
+        <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
+      </TouchableOpacity>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -359,6 +375,8 @@ export const CreateBrandScreen = () => {
   );
 };
 
+export default CreateBrandScreen;
+
 // ========================================
 // STYLES
 // ========================================
@@ -366,6 +384,21 @@ export const CreateBrandScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 48,
+    left: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   keyboardView: {
     flex: 1,
@@ -377,6 +410,24 @@ const styles = StyleSheet.create({
   header: {
     marginTop: 24,
     marginBottom: 32,
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  backIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.04)',
+  },
+  backText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   headerBadge: {
     flexDirection: 'row',

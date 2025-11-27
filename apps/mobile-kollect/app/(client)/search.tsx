@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Video, ResizeMode } from 'expo-av';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
 import { produitsService, ProduitDto } from '@/features/produits/services/produits.service';
@@ -425,7 +426,17 @@ export default function SearchScreen() {
           >
             {activeTab === 'all' ? (
               <>
-                {c.coverImage ? (
+                {c.teaserVideo && c.teaserVideo.trim() !== '' ? (
+                  <Video
+                    source={{ uri: c.teaserVideo }}
+                    style={[styles.cardImage, { backgroundColor: '#000' }]}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay
+                    useNativeControls={false}
+                    isMuted
+                    isLooping={false}
+                  />
+                ) : c.coverImage ? (
                   <Image
                     source={{ uri: c.coverImage }}
                     style={styles.cardImage}
@@ -453,7 +464,17 @@ export default function SearchScreen() {
               </>
             ) : (
               <View style={styles.listCardContent}>
-                {c.coverImage ? (
+                {c.teaserVideo && c.teaserVideo.trim() !== '' ? (
+                  <Video
+                    source={{ uri: c.teaserVideo }}
+                    style={[styles.listImage, { backgroundColor: '#000' }]}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay
+                    useNativeControls={false}
+                    isMuted
+                    isLooping={false}
+                  />
+                ) : c.coverImage ? (
                   <Image
                     source={{ uri: c.coverImage }}
                     style={styles.listImage}

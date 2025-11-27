@@ -81,7 +81,8 @@ function RootLayoutContent() {
   useEffect(() => {
     if (initOnceRef.current) return;
     initOnceRef.current = true;
-
+    //const logout = useAuthStore.getState().logout;
+   //logout();
     const initializeAll = async () => {
       console.log('🚀 [Init] Démarrage initialisation parallèle');
 
@@ -237,7 +238,7 @@ function RootLayoutContent() {
   // RENDU CONDITIONNEL
   // ============================================
 
-  // 1. Splash personnalisé (toujours affiché en premier)
+  // 1. Splash personnalisé (toujours affiché au lancement jusqu'à la fin de l'animation + init)
   if (showCustomSplash) {
     return <SplashScreen onAnimationComplete={handleSplashComplete} />;
   }
@@ -273,19 +274,18 @@ function RootLayoutContent() {
     );
   }
 
-  // 4. Non authentifié → Stack Auth (geste retour désactivé)
+  // 4. Non authentifié → Mode client public (stack Client, actions protégées dans les écrans)
   if (!isAuthenticated || !token) {
     return (
       <>
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: theme.colors.background },
             gestureEnabled: false,
           }}
-          initialRouteName="(auth)"
+          initialRouteName="(client)"
         >
-          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(client)" />
         </Stack>
         <StatusBar style={isDark ? 'light' : 'dark'} />
       </>
@@ -316,7 +316,7 @@ function RootLayoutContent() {
     );
   }
 
-  // 7. CEO sans marque → CreateBrand
+  // 7. CEO sans marque → CreateBrand (avant d'entrer dans les stacks principales)
   if (isAuthenticated && token && user && user.isCEO && !user.brand) {
     try {
       const { CreateBrandScreen } = require('../src/screen/CreateBrandScreen');
@@ -339,7 +339,7 @@ function RootLayoutContent() {
     }
   }
 
-  // 8. CEO avec marque → Stack CEO
+  // 8. CEO avec marque → Stack CEO (le layout CEO garde son propre guard interne)
   if (isAuthenticated && token && user?.isCEO && !!user?.brand) {
     return (
       <>
@@ -351,7 +351,7 @@ function RootLayoutContent() {
     );
   }
 
-  // 9. Client par défaut → Stack Client (geste retour désactivé)
+  // 9. Autres utilisateurs authentifiés → Stack Client
   return (
     <>
       <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
@@ -396,5 +396,5 @@ export default function RootLayout() {
 }
 
 export const unstable_settings = {
-  initialRouteName: '(auth)',
+  initialRouteName: '(client)',
 };

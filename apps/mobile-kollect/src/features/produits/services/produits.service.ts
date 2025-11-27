@@ -14,6 +14,8 @@ export interface ProduitDto {
   brandId: string;
   createdAt?: string;
   updatedAt?: string; 
+  isVisible?: boolean;
+  isDeleted?: boolean;
   collection?: {
     id: string;
     name: string;
@@ -122,9 +124,15 @@ export const produitsService = {
     const token = await getToken();
     const formData = new FormData();
     
+    // Construire un tableau d'images conforme au schéma backend (URLs non vides)
+    const hasLocalImages = imageUris && imageUris.length > 0;
+    const jsonImages = hasLocalImages
+      ? imageUris!.map((_, index) => `https://temp.kollect.local/product-image-${index}-${Date.now()}.jpg`)
+      : payload.images || [];
+
     const produitData = {
       ...payload,
-      images: imageUris && imageUris.length > 0 ? [] : payload.images || [],
+      images: jsonImages,
     };
     
     formData.append('data', JSON.stringify(produitData));
@@ -175,6 +183,22 @@ export const produitsService = {
       },
     });
     if (!res.ok) throw new Error('Erreur chargement produits');
+    return res.json() as Promise<{ data: ProduitDto[]; meta: any }>;
+  },
+
+  async listDeletedForCEO(params?: { collectionId?: string; page?: number; limit?: number }) {
+    const qs = new URLSearchParams();
+    if (params?.collectionId) qs.append('collectionId', params.collectionId);
+    if (params?.page) qs.append('page', String(params.page));
+    if (params?.limit) qs.append('limit', String(params.limit));
+    const token = await getToken();
+    const res = await fetch(`${API_URL}/produits/deleted?${qs.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!res.ok) throw new Error('Erreur chargement produits supprimés');
     return res.json() as Promise<{ data: ProduitDto[]; meta: any }>;
   },
 
@@ -245,6 +269,22 @@ export const produitsService = {
     if (!res.ok) {
       const error = await res.json().catch(() => ({ message: 'Erreur suppression produit' }));
       throw new Error(error.message || 'Erreur suppression produit');
+    }
+    return res.json() as Promise<{ message: string }>;
+  },
+
+  async restore(id: string) {
+    const token = await getToken();
+    const res = await fetch(`${API_URL}/produits/${id}/restore`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ message: 'Erreur restauration produit' }));
+      throw new Error(error.message || 'Erreur restauration produit');
     }
     return res.json() as Promise<{ message: string }>;
   },

@@ -99,7 +99,7 @@ export const HorizontalAccordionCard: React.FC<AccordionItemProps> = ({
         nativeAnimations
       ])
     ]).start();
-  }, [isExpanded]);
+  }, [contentHeight, contentOpacity, isExpanded, scaleAnim]);
 
   const getStatusColor = () => {
     switch (status) {
@@ -256,7 +256,7 @@ export const HorizontalAccordionCard: React.FC<AccordionItemProps> = ({
 };
 
 interface AccordionEffetProps {
-  items: Array<{
+  items: {
     id: string;
     title: string;
     content: React.ReactNode;
@@ -266,7 +266,7 @@ interface AccordionEffetProps {
     status?: string;
     viewCount?: number;
     productCount?: number;
-  }>;
+  }[];
   theme: {
     colors: {
       text: string;

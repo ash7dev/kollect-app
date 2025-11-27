@@ -150,16 +150,37 @@ export class AuthService {
     hasSeenCreatorPrompt: boolean
   ): Promise<AuthResponseWithToken> {
     try {
-      // Pour 'vendeur', nous mettons isCEO à true et isClient à false
-      // Car dans votre schéma, vous avez isCEO et isClient comme rôles principaux
-      const updatedUser = await this.prisma.utilisateur.update({
+      // Récupérer l'état actuel pour savoir si on passe réellement de client -> vendeur
+      const currentUser = await this.prisma.utilisateur.findUnique({
         where: { id: userId },
-        data: {
-          isClient: role === 'client',
-          isCEO: role === 'vendeur',
-          has_seen_creator_prompt: hasSeenCreatorPrompt,
-        },
       });
+
+      if (!currentUser) {
+        throw new Error('User not found');
+      }
+
+      const isFirstUpgradeToSeller = !currentUser.isCEO && role === 'vendeur';
+
+      // Pour 'vendeur', nous mettons isCEO à true et isClient à false
+      // et, lors du tout premier passage client -> vendeur, on nettoie les données purement client
+      const [updatedUser] = await this.prisma.$transaction([
+        this.prisma.utilisateur.update({
+          where: { id: userId },
+          data: {
+            isClient: role === 'client',
+            isCEO: role === 'vendeur',
+            has_seen_creator_prompt: hasSeenCreatorPrompt,
+          },
+        }),
+        ...(isFirstUpgradeToSeller
+          ? [
+              // Nettoyage des favoris client
+              this.prisma.favori.deleteMany({ where: { userId } }),
+              // Nettoyage des notifications existantes (historiques client)
+              this.prisma.notification.deleteMany({ where: { userId } }),
+            ]
+          : []),
+      ]);
 
       const token = this.generateJwtToken({
         id: updatedUser.id,

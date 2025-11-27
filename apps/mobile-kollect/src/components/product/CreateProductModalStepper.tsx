@@ -63,6 +63,7 @@ export const CreateProductModalStepper: React.FC<CreateProductModalStepperProps>
             onClose={handleBack}
             onSubmit={handleProductSubmit}
             collectionName="Nouveau produit"
+            autoCloseOnSuccess={false}
           />
         )}
 

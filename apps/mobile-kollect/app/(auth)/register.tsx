@@ -121,6 +121,15 @@ export default function RegisterScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        {/* Back button */}
+        <TouchableOpacity
+          style={[styles.backButton, { backgroundColor: theme.colors.card }]}
+          activeOpacity={0.7}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
+        </TouchableOpacity>
+
         {/* Header */}
         <View style={styles.header}>
           <View style={[
@@ -321,6 +330,21 @@ const styles = StyleSheet.create({
     flex: 1, 
     justifyContent: 'center', 
     paddingHorizontal: 24,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 48,
+    left: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   header: { 
     alignItems: 'center', 

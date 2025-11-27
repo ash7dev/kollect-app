@@ -21,7 +21,7 @@ export const useCollectionsStore = create<CollectionsState>((set) => ({
   fetchCollections: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await collectionsApi.listForCEO();
+      const response = await collectionsApi.listForCEO({ includeProducts: true });
       set({ collections: response?.data || [], loading: false });
     } catch (error: any) {
       console.error('Error fetching collections:', error);

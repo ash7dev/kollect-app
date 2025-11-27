@@ -60,11 +60,14 @@ export default function ClientLayout() {
   const { isAuthenticated, token, user, isLoading } = useAuthStore();
   const totalCartQty = useCartStore((s) => s.totalQuantity());
 
-  // ⚠️ GUARD: Empêcher l'accès au layout Client si l'utilisateur n'est pas authentifié ou n'est pas client
+  // ⚠️ GUARD: Empêcher l'accès au layout Client uniquement si l'état d'auth est incohérent
   useEffect(() => {
     if (!isLoading) {
-      if (!isAuthenticated || !token || !user) {
-        console.log('🚫 [Client Layout] Utilisateur non authentifié - Redirection vers (auth)/login');
+      // Autoriser le mode public (utilisateur non authentifié)
+      // Si l'application pense que l'utilisateur est authentifié mais que les données sont manquantes,
+      // on redirige vers le login pour corriger l'état.
+      if (isAuthenticated && (!token || !user)) {
+        console.log('🚫 [Client Layout] État d\'auth incohérent - Redirection vers (auth)/login');
         router.replace('/(auth)/login');
         return;
       }
@@ -73,8 +76,8 @@ export default function ClientLayout() {
     }
   }, [isAuthenticated, token, user, isLoading, router]);
 
-  // Afficher un loader pendant la vérification
-  if (isLoading || !isAuthenticated || !token || !user) {
+  // Afficher un loader pendant la vérification uniquement
+  if (isLoading) {
     return (
       <View style={{
         flex: 1,
@@ -100,6 +103,9 @@ export default function ClientLayout() {
           height: Platform.OS === 'ios' ? 72 : 64,
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
+          borderTopWidth: 0,
+          borderTopColor: 'transparent',
+          overflow: 'hidden',
           backgroundColor: isDark
             ? 'rgba(15,15,15,0.98)'
             : 'rgba(255,255,255,0.98)',

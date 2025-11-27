@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
@@ -6,10 +7,12 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
-  ImageBackground,
   Dimensions,
   Alert,
+  Animated,
+  Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,51 +20,71 @@ import { useTheme } from '../context/ThemeContext';
 import { collectionsApi, CollectionStatus, type CollectionDto } from '../../src/features/collections/services/collections.service';
 import TrendingGrid from '../../src/components/clients/TrendingGrid';
 import { useCartStore } from '../../src/store/cartStore';
-import { formatPrice } from '@/features/commandes/types/commande.types';
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Video, ResizeMode } from 'expo-av';
 
 const { width } = Dimensions.get('window');
+const HERO_HEIGHT = 480;
 
 export default function ClientCollectionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { theme } = useTheme();
-
+  const { theme, isDark } = useTheme();
   const [collection, setCollection] = useState<CollectionDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const scrollY = new Animated.Value(0);
+  const [heroMuted, setHeroMuted] = useState(true);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const addItemToCart = useCartStore((s) => s.addItem);
 
+  // 🔥 Couleurs dynamiques
+  const colors = {
+    bg: theme.colors.background,
+    card: theme.colors.card,
+    cardBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+    surface: theme.colors.surface,
+    text: theme.colors.text,
+    textSecondary: theme.colors.textSecondary,
+    textMuted: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',
+    accent: theme.colors.accent,
+    primary: theme.colors.primary,
+    shadowOpacity: isDark ? 0.5 : 0.08,
+    // Hero gradient
+    heroGradient: [
+      'rgba(0,0,0,0.1)',
+      'rgba(0,0,0,0.05)',
+      'rgba(0,0,0,0.6)',
+      isDark ? 'rgba(0,0,0,0.98)' : 'rgba(0,0,0,0.85)',
+    ] as const,
+    // Glass button
+    glassBg: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.25)',
+    glassBorder: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.2)',
+    // Badges
+    teaserBg: isDark ? 'rgba(251,191,36,0.2)' : 'rgba(251,191,36,0.15)',
+    teaserText: isDark ? '#FBBF24' : '#B45309',
+    availableBg: isDark ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.15)',
+    availableText: isDark ? '#22C55E' : '#15803D',
+  };
+
   useEffect(() => {
     let isMounted = true;
-
     const fetchCollection = async () => {
       if (!id) return;
       try {
         setError(null);
         setLoading(true);
         const res = await collectionsApi.getPublic(String(id), true);
-        if (isMounted) {
-          setCollection(res);
-        }
+        if (isMounted) setCollection(res);
       } catch (e: any) {
-        if (isMounted) {
-          setError(e?.message || 'Collection non disponible');
-        }
+        if (isMounted) setError(e?.message || 'Collection non disponible');
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     };
-
     fetchCollection();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [id]);
 
   const isTeaser = collection?.status === CollectionStatus.TEASER;
@@ -80,17 +103,16 @@ export default function ClientCollectionDetailScreen() {
       stock: p.stock,
       colors: p.colors,
       sizes: p.sizes,
-      isNew: isTeaser,
+      // On relaie simplement le flag de visibilité backend si présent
+      isVisible: (p as any)?.isVisible,
       discount: undefined,
     }));
   }, [collection, isTeaser]);
 
   const handleAddToCart = (product: any) => {
     if (!isAvailable) return;
-
-    const defaultColor = product.colors && product.colors.length > 0 ? product.colors[0] : undefined;
-    const defaultSize = product.sizes && product.sizes.length > 0 ? product.sizes[0] : undefined;
-
+    const defaultColor = product.colors?.[0];
+    const defaultSize = product.sizes?.[0];
     void addItemToCart(
       {
         productId: product.id,
@@ -108,23 +130,9 @@ export default function ClientCollectionDetailScreen() {
             'Changer de marque ?',
             `Tu as déjà des articles de ${currentBrandName} dans ton panier.\n\nSouhaites-tu vider ton panier pour ajouter ${newBrandName} ?`,
             [
-              {
-                text: 'Voir mon panier',
-                onPress: () => {
-                  resolve(false);
-                  router.push('/(client)?openCart=1');
-                },
-              },
-              {
-                text: 'Vider & ajouter',
-                style: 'destructive',
-                onPress: () => resolve(true),
-              },
-              {
-                text: 'Annuler',
-                style: 'cancel',
-                onPress: () => resolve(false),
-              },
+              { text: 'Voir mon panier', onPress: () => { resolve(false); router.push('/(client)?openCart=1'); } },
+              { text: 'Vider & ajouter', style: 'destructive', onPress: () => resolve(true) },
+              { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
             ],
             { cancelable: true },
           );
@@ -133,494 +141,354 @@ export default function ClientCollectionDetailScreen() {
     );
   };
 
+  // Loading state
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]} edges={['top']}>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-            Chargement de la collection...
-          </Text>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Chargement...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  // Error state
   if (error || !collection) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]} edges={['top']}>
         <View style={styles.centerContainer}>
-          <View style={[styles.errorIconContainer, { backgroundColor: theme.colors.error + '15' }]}>
-            <Ionicons name="alert-circle-outline" size={48} color={theme.colors.error} />
+          <View style={[styles.errorIcon, { backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.1)' }]}>
+            <Ionicons name="cloud-offline-outline" size={40} color={theme.colors.error} />
           </View>
-          <Text style={[styles.errorTitle, { color: theme.colors.text }]}>Oups!</Text>
-          <Text style={[styles.errorText, { color: theme.colors.textSecondary }]}>
-            Cette collection n&pos;est pas disponible pour le moment
+          <Text style={[styles.errorTitle, { color: colors.text }]}>Collection introuvable</Text>
+          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+            Cette collection n&apos;est pas disponible pour le moment
           </Text>
           <TouchableOpacity
-            style={[styles.errorButton, { backgroundColor: theme.colors.primary }]}
+            style={[styles.errorButton, { backgroundColor: colors.accent }]}
             activeOpacity={0.85}
             onPress={() => router.back()}
           >
             <Ionicons name="arrow-back" size={18} color="#FFF" />
-            <Text style={styles.errorButtonText}>Retour aux collections</Text>
+            <Text style={styles.errorButtonText}>Retour</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        bounces={true}
-      >
-        {/* Hero Header avec image/vidéo */}
-        <View style={styles.heroContainer}>
-          <ImageBackground
-            source={
-              collection.coverImage
-                ? { uri: collection.coverImage }
-                : collection.teaserVideo
-                ? { uri: collection.teaserVideo }
-                : undefined
-            }
-            style={styles.heroImage}
-            imageStyle={styles.heroImageStyle}
-          >
-            {/* Gradient overlay pour meilleure lisibilité */}
-            <LinearGradient
-              colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
-              locations={[0, 0.5, 1]}
-              style={styles.heroGradient}
-            />
+  const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'long', year: 'numeric'
+  });
 
-            {/* Bouton retour glassmorphism */}
-            <View style={styles.headerTopRow}>
+  const hasTeaserVideo = !!collection.teaserVideo;
+  const heroImage = collection.coverImage || undefined;
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <Animated.ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        scrollEventThrottle={16}
+      >
+        {/* Hero Section (vidéo teaser si disponible, sinon image) */}
+        <View style={styles.heroContainer}>
+          {hasTeaserVideo ? (
+            <Video
+              source={{ uri: collection.teaserVideo as string }}
+              style={styles.heroImage}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay
+              isLooping
+              isMuted={heroMuted}
+              volume={heroMuted ? 0 : 1}
+              posterSource={heroImage ? { uri: heroImage } : undefined}
+              usePoster={!!heroImage}
+            />
+          ) : heroImage ? (
+            <Image
+              source={{ uri: heroImage }}
+              style={styles.heroImage}
+              contentFit="cover"
+            />
+          ) : null}
+          
+          <LinearGradient colors={colors.heroGradient} locations={[0, 0.3, 0.7, 1]} style={styles.heroGradient} />
+
+          {/* Back Button + Sound Toggle */}
+          <SafeAreaView edges={['top']} style={styles.headerAbsolute}>
+            <View style={styles.headerRow}>
               <TouchableOpacity
-                style={styles.glassButton}
+                style={[styles.backButton, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}
                 activeOpacity={0.8}
                 onPress={() => router.back()}
               >
-                <BlurView intensity={20} tint="dark" style={styles.blurContainer}>
-                  <Ionicons name="chevron-back" size={24} color="#FFF" />
-                </BlurView>
+                <Ionicons name="chevron-back" size={24} color="#FFF" />
               </TouchableOpacity>
+
+              {hasTeaserVideo && (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity
+                    style={[styles.soundButton, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}
+                    activeOpacity={0.8}
+                    onPress={() => setHeroMuted((prev) => !prev)}
+                  >
+                    <Ionicons
+                      name={heroMuted ? 'volume-mute' : 'volume-high'}
+                      size={18}
+                      color="#FFF"
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.soundButton, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}
+                    activeOpacity={0.8}
+                    onPress={() => setIsPreviewOpen(true)}
+                  >
+                    <Ionicons name="expand" size={18} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </SafeAreaView>
+
+          {/* Hero Content */}
+          <View style={styles.heroContent}>
+            {/* Status Badge */}
+            <View style={[
+              styles.statusBadge,
+              { backgroundColor: isTeaser ? colors.teaserBg : isAvailable ? colors.availableBg : colors.glassBg }
+            ]}>
+              <View style={[styles.statusDot, { backgroundColor: isTeaser ? colors.teaserText : colors.availableText }]} />
+              <Text style={[styles.statusText, { color: isTeaser ? colors.teaserText : colors.availableText }]}>
+                {isTeaser ? 'Bientôt disponible' : isAvailable ? 'Disponible' : 'Collection'}
+              </Text>
             </View>
 
-            {/* Icône play pour vidéo teaser */}
-            {collection.teaserVideo && !collection.coverImage && (
-              <View style={styles.playIconContainer}>
-                <View style={styles.playIconRing}>
-                  <Ionicons name="play" size={32} color="#FFF" />
-                </View>
+            {/* Brand */}
+            {collection.brand && (
+              <Text style={styles.heroBrand}>{collection.brand.name}</Text>
+            )}
+
+            {/* Collection Name */}
+            <Text style={styles.heroTitle}>{collection.name}</Text>
+
+            {/* Launch Date */}
+            {collection.launchDate && (
+              <View style={styles.launchRow}>
+                <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.launchText}>{formatDate(collection.launchDate)}</Text>
               </View>
             )}
 
-            {/* Contenu hero */}
-            <View style={styles.heroContent}>
-              {/* Badge de statut moderne */}
-              <View style={styles.statusContainer}>
-                <View
-                  style={[
-                    styles.modernBadge,
-                    isTeaser && styles.teaserModernBadge,
-                    isAvailable && styles.availableModernBadge,
-                  ]}
-                >
-                  <View style={styles.badgeDot} />
-                  <Text style={styles.modernBadgeText}>
-                    {isTeaser ? 'Bientôt disponible' : isAvailable ? 'Disponible maintenant' : 'Collection'}
-                  </Text>
-                </View>
+            {/* Stats Row */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{mappedProducts.length}</Text>
+                <Text style={styles.statLabel}>Pièces</Text>
               </View>
-
-              {/* Brand et nom */}
               {collection.brand && (
-                <Text style={styles.heroBrandName}>{collection.brand.name.toUpperCase()}</Text>
-              )}
-              <Text style={styles.heroCollectionName}>{collection.name}</Text>
-
-              {/* Date de lancement */}
-              {collection.launchDate && (
-                <View style={styles.launchDateContainer}>
-                  <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.9)" />
-                  <Text style={styles.heroLaunchDate}>
-                    Lancement le {new Date(collection.launchDate).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
-                  </Text>
-                </View>
+                <>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{collection.brand.name}</Text>
+                    <Text style={styles.statLabel}>Marque</Text>
+                  </View>
+                </>
               )}
             </View>
-          </ImageBackground>
+          </View>
         </View>
 
-        {/* Description avec carte élégante */}
-        {collection.description && (
-          <View style={[styles.descriptionCard, { backgroundColor: theme.colors.surface }]}>
-            <View style={styles.descriptionHeader}>
-              <View style={[styles.decorativeLine, { backgroundColor: theme.colors.primary }]} />
-              <Text style={[styles.descriptionTitle, { color: theme.colors.text }]}>
-                À propos de la collection
+        {/* Main Content */}
+        <View style={[styles.mainContent, { backgroundColor: colors.bg }]}>
+          {/* Description */}
+          {collection.description && (
+            <View style={[styles.section, styles.descriptionSection]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>À propos</Text>
+              <Text style={[styles.descriptionText, { color: colors.textSecondary }]}>
+                {collection.description}
               </Text>
             </View>
-            <Text style={[styles.descriptionText, { color: theme.colors.textSecondary }]}>
-              {collection.description}
-            </Text>
-          </View>
-        )}
+          )}
 
-        {/* Banner info pour teaser */}
-        {isTeaser && (
-          <View style={[styles.teaserBanner, { backgroundColor: theme.colors.warning + '15' }]}>
-            <View style={[styles.teaserIconContainer, { backgroundColor: theme.colors.warning }]}>
-              <Ionicons name="time-outline" size={20} color="#FFF" />
+          {/* Teaser Banner */}
+          {isTeaser && (
+            <View style={[styles.teaserCard, { backgroundColor: colors.teaserBg, borderColor: isDark ? 'rgba(251,191,36,0.3)' : 'transparent' }]}>
+              <View style={[styles.teaserIconBox, { backgroundColor: isDark ? 'rgba(251,191,36,0.3)' : 'rgba(251,191,36,0.2)' }]}>
+                <Ionicons name="sparkles" size={20} color={colors.teaserText} />
+              </View>
+              <View style={styles.teaserContent}>
+                <Text style={[styles.teaserTitle, { color: colors.teaserText }]}>Avant-première</Text>
+                <Text style={[styles.teaserDesc, { color: colors.textSecondary }]}>
+                  Découvrez les pièces en exclusivité. Bientôt disponible à l&apos;achat.
+                </Text>
+              </View>
             </View>
-            <View style={styles.teaserTextContainer}>
-              <Text style={[styles.teaserTitle, { color: theme.colors.text }]}>
-                Avant-première exclusive
-              </Text>
-              <Text style={[styles.teaserDescription, { color: theme.colors.textSecondary }]}>
-                Découvrez en exclusivité les pièces de cette collection. Disponible à l&apos;achat très bientôt.
-              </Text>
-            </View>
-          </View>
-        )}
+          )}
 
-        {/* Section produits */}
-        <View style={styles.productsSection}>
-          <View style={styles.productsSectionHeader}>
-            <View>
-              <Text style={[styles.productsSectionTitle, { color: theme.colors.text }]}>
-                Pièces de la collection
-              </Text>
-              <Text style={[styles.productsSectionSubtitle, { color: theme.colors.textSecondary }]}>
-                {mappedProducts.length} {mappedProducts.length > 1 ? 'articles' : 'article'}
-              </Text>
+          {/* Products Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Pièces</Text>
+              <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : colors.surface }]}>
+                <Text style={[styles.countText, { color: colors.textSecondary }]}>{mappedProducts.length}</Text>
+              </View>
             </View>
-            {mappedProducts.length > 0 && (
-              <View style={[styles.productsCountBadge, { backgroundColor: theme.colors.primary + '20' }]}>
-                <Text style={[styles.productsCountText, { color: theme.colors.primary }]}>
-                  {mappedProducts.length}
+
+            {mappedProducts.length > 0 ? (
+              <TrendingGrid
+                products={mappedProducts as any}
+                // On autorise toujours la consultation de la fiche produit,
+                // même en mode teaser
+                onProductPress={(p) => router.push(`/clientProductid/${p.id}`)}
+                // Mais on ne permet l'ajout au panier que si la collection est disponible
+                onAddToCart={isAvailable ? handleAddToCart : undefined}
+                onLike={() => {}}
+                contentContainerStyle={{ paddingHorizontal: 0 }}
+              />
+            ) : (
+              <View style={[styles.emptyState, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+                <View style={[styles.emptyIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}>
+                  <Ionicons name="cube-outline" size={32} color={colors.textSecondary} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>Bientôt disponible</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  Les pièces seront ajoutées prochainement
                 </Text>
               </View>
             )}
           </View>
 
-          {mappedProducts.length > 0 ? (
-            <TrendingGrid
-              products={mappedProducts as any}
-              onProductPress={
-                isAvailable
-                  ? (product) => router.push(`/clientProductid/${product.id}`)
-                  : undefined
-              }
-              onAddToCart={isAvailable ? handleAddToCart : undefined}
-              onLike={() => {}}
-              contentContainerStyle={{ paddingHorizontal: 0 }}
-            />
-          ) : (
-            <View style={[styles.emptyState, { backgroundColor: theme.colors.surface }]}>
-              <View style={[styles.emptyIconContainer, { backgroundColor: theme.colors.primary + '15' }]}>
-                <Ionicons name="cube-outline" size={36} color={theme.colors.primary} />
-              </View>
-              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-                Bientôt disponible
-              </Text>
-              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-                Les pièces de cette collection seront bientôt ajoutées. Revenez plus tard!
-              </Text>
-            </View>
-          )}
+          <View style={{ height: 40 }} />
         </View>
+      </Animated.ScrollView>
 
-        {/* Espace en bas */}
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-    </SafeAreaView>
+      {/* Modal de prévisualisation plein écran pour le teaser client */}
+      <Modal
+        visible={isPreviewOpen}
+        transparent={false}
+        statusBarTranslucent
+        onRequestClose={() => setIsPreviewOpen(false)}
+      >
+        <View style={styles.fullscreenContainer}>
+          {hasTeaserVideo ? (
+            <Video
+              source={{ uri: collection.teaserVideo as string }}
+              style={styles.fullscreenVideo}
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+              isLooping
+              useNativeControls
+            />
+          ) : heroImage ? (
+            <Image
+              source={{ uri: heroImage }}
+              style={styles.fullscreenImage}
+              contentFit="contain"
+            />
+          ) : null}
+
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setIsPreviewOpen(false)}
+          >
+            <Ionicons name="close" size={30} color="white" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1 },
+  scrollView: { flex: 1 },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  loadingText: { fontSize: 15, fontWeight: '500', marginTop: 16 },
+  
+  // Error
+  errorIcon: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  errorTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8 },
+  errorText: { fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  errorButton: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
+  errorButtonText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
+
+  // Hero
+  heroContainer: { height: HERO_HEIGHT, position: 'relative' },
+  heroImage: { width: '100%', height: '100%' },
+  heroGradient: { ...StyleSheet.absoluteFillObject },
+  headerAbsolute: { position: 'absolute', top: 0, left: 16, right: 16, zIndex: 10 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+  backButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  soundButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  
+  // Fullscreen preview
+  fullscreenContainer: {
     flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  centerContainer: {
-    flex: 1,
+    backgroundColor: 'black',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
   },
-  loadingText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: 16,
-  },
-  errorIconContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 15,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  errorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  errorButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  heroContainer: {
-    marginBottom: 20,
-  },
-  heroImage: {
+  fullscreenImage: {
     width: '100%',
-    height: 440,
-    justifyContent: 'flex-end',
+    height: '100%',
   },
-  heroImageStyle: {
-    resizeMode: 'cover',
+  fullscreenVideo: {
+    width: '100%',
+    height: '80%',
+    backgroundColor: 'black',
+    alignSelf: 'center',
   },
-  heroGradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  headerTopRow: {
+  closeButton: {
     position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 16,
-    zIndex: 10,
-  },
-  glassButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  blurContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playIconContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playIconRing: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.5)',
-  },
-  heroContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-  },
-  statusContainer: {
-    marginBottom: 16,
-  },
-  modernBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    top: 60,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    gap: 6,
-  },
-  teaserModernBadge: {
-    backgroundColor: 'rgba(234,179,8,0.95)',
-  },
-  availableModernBadge: {
-    backgroundColor: 'rgba(34,197,94,0.95)',
-  },
-  badgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FFF',
-  },
-  modernBadgeText: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  heroBrandName: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    marginBottom: 6,
-  },
-  heroCollectionName: {
-    color: '#FFF',
-    fontSize: 32,
-    fontWeight: '800',
-    lineHeight: 38,
-    marginBottom: 12,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  launchDateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  heroLaunchDate: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  descriptionCard: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  descriptionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  decorativeLine: {
-    width: 4,
-    height: 24,
-    borderRadius: 2,
-  },
-  descriptionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  descriptionText: {
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  teaserBanner: {
-    marginHorizontal: 16,
-    marginBottom: 24,
-    padding: 16,
-    borderRadius: 16,
-    flexDirection: 'row',
-    gap: 14,
-  },
-  teaserIconContainer: {
     width: 40,
     height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
     justifyContent: 'center',
-  },
-  teaserTextContainer: {
-    flex: 1,
-  },
-  teaserTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  teaserDescription: {
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  productsSection: {
-    paddingHorizontal: 16,
-  },
-  productsSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
   },
-  productsSectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  productsSectionSubtitle: {
-    fontSize: 14,
-  },
-  productsCountBadge: {
-    minWidth: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  productsCountText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-  },
-  emptyIconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  bottomSpacer: {
-    height: 32,
-  },
+  heroContent: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 28 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 6, marginBottom: 12 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
+  heroBrand: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  heroTitle: { color: '#FFF', fontSize: 28, fontWeight: '800', lineHeight: 34, marginBottom: 10 },
+  launchRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
+  launchText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '500' },
+  
+  statsRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: 12, gap: 16 },
+  statItem: { alignItems: 'center' },
+  statValue: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  statLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '500', marginTop: 2 },
+  statDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.2)' },
+
+  // Main
+  mainContent: { marginTop: -20, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 24 },
+  section: { paddingHorizontal: 16, marginBottom: 24 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: '700' },
+  countBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  countText: { fontSize: 13, fontWeight: '600' },
+
+  // Description
+  descriptionSection: { marginBottom: 20 },
+  descriptionText: { fontSize: 14, lineHeight: 22 },
+
+  // Teaser
+  teaserCard: { marginHorizontal: 16, marginBottom: 24, padding: 16, borderRadius: 16, flexDirection: 'row', gap: 14, borderWidth: 1 },
+  teaserIconBox: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  teaserContent: { flex: 1 },
+  teaserTitle: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  teaserDesc: { fontSize: 13, lineHeight: 18 },
+
+  // Empty
+  emptyState: { alignItems: 'center', padding: 40, borderRadius: 16, borderWidth: 1 },
+  emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', marginBottom: 6 },
+  emptyText: { fontSize: 13, textAlign: 'center' },
 });

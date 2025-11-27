@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { brandService, type Brand } from '../../src/features/brands/services/brand.service';
 import type { ProduitDto } from '../../src/features/produits/services/produits.service';
-import type { CollectionDto } from '../../src/features/collections/services/collections.service';
+import { collectionsApi, type CollectionDto } from '../../src/features/collections/services/collections.service';
 import BrandSpotlight from '../../src/components/clients/BrandSpotlight';
 import TrendingGrid from '../../src/components/clients/TrendingGrid';
 import DropCountdown from '../../src/components/clients/DropCountdown';
@@ -23,6 +23,9 @@ import { useCartStore } from '../../src/store/cartStore';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Video, ResizeMode } from 'expo-av';
+
+const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev';
 
 type TabKey = 'products' | 'collections';
 
@@ -102,7 +105,28 @@ export default function BrandDetailScreen() {
 
       setBrand(brandData as any);
       setProducts(((brandData as any).products || []) as ProduitDto[]);
-      setCollections(((brandData as any).collections || []) as CollectionDto[]);
+      const rawCollections = (((brandData as any).collections || []) as CollectionDto[]);
+
+      // Filtrer les collections pour ne garder que celles qui ont au moins 1 produit public non supprimé
+      const visibleCollections: CollectionDto[] = [];
+      for (const col of rawCollections) {
+        try {
+          const res = await collectionsApi.getPublic(col.id, true);
+          const products = (res as any).products || [];
+          const count = Array.isArray(products) ? products.length : 0;
+
+          if (count > 0) {
+            // Attacher un compteur de produits visibles pour l'affichage
+            (col as any).visibleProductCount = count;
+            visibleCollections.push(col);
+          }
+        } catch (e) {
+          // En cas d'erreur sur une collection, on la skip sans bloquer le reste
+          console.log('[ClientBrand] ERREUR getPublic collection', col.id, e instanceof Error ? e.message : e);
+        }
+      }
+
+      setCollections(visibleCollections);
     } catch (e: any) {
       setError(e?.message || 'Impossible de charger la marque');
     } finally {
@@ -165,6 +189,8 @@ export default function BrandDetailScreen() {
     name: brand.name,
     slug: brand.slug,
     logo: brand.logo || '',
+    // Si la marque n'a qu'un teaser vidéo (sans cover image), BrandSpotlight pourra l'afficher
+    teaserVideo: (brand as any).teaserVideo || undefined,
     coverImage: brand.coverImage || firstCollectionWithCover?.coverImage || '',
     description:
       brand.description ||
@@ -205,6 +231,26 @@ export default function BrandDetailScreen() {
     return launchTime > Date.now();
   });
 
+  const nextCollection = upcomingCollections[0];
+
+  const brandLogoFull = brand.logo
+    ? brand.logo.startsWith('http')
+      ? brand.logo
+      : `${API_URL}${brand.logo.startsWith('/') ? '' : '/'}${brand.logo}`
+    : '';
+
+  const nextCoverFull = nextCollection?.coverImage
+    ? nextCollection.coverImage.startsWith('http')
+      ? nextCollection.coverImage
+      : `${API_URL}${nextCollection.coverImage.startsWith('/') ? '' : '/'}${nextCollection.coverImage}`
+    : firstCollectionWithCover?.coverImage || brand.coverImage || '';
+
+  const nextTeaserVideoFull = nextCollection?.teaserVideo
+    ? nextCollection.teaserVideo.startsWith('http')
+      ? nextCollection.teaserVideo
+      : `${API_URL}${nextCollection.teaserVideo.startsWith('/') ? '' : '/'}${nextCollection.teaserVideo}`
+    : undefined;
+
   const renderCollectionCard = (item: CollectionDto, index: number) => (
     <TouchableOpacity
       key={item.id}
@@ -213,7 +259,22 @@ export default function BrandDetailScreen() {
       onPress={() => router.push(`/clientCollectionid/${item.id}`)}
     >
       <View style={styles.collectionImageWrapper}>
-        {item.coverImage ? (
+        {item.teaserVideo && item.teaserVideo.trim() !== '' ? (
+          <>
+            <Video
+              source={{ uri: item.teaserVideo }}
+              style={styles.collectionImage}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay={false}
+              isMuted
+              useNativeControls={false}
+              isLooping={false}
+            />
+            <View style={styles.collectionVideoIndicator}>
+              <Ionicons name="play-circle" size={34} color="rgba(255,255,255,0.95)" />
+            </View>
+          </>
+        ) : item.coverImage ? (
           <Image 
             source={{ uri: item.coverImage }} 
             style={styles.collectionImage} 
@@ -238,7 +299,7 @@ export default function BrandDetailScreen() {
             <View style={styles.collectionMetaItem}>
               <Ionicons name="cube-outline" size={14} color="#FFF" />
               <Text style={styles.collectionMetaText}>
-                {item._count?.products || 0} {(item._count?.products || 0) > 1 ? 'pièces' : 'pièce'}
+                {((item as any).visibleProductCount ?? item._count?.products ?? 0)} {(((item as any).visibleProductCount ?? item._count?.products ?? 0) > 1 ? 'pièces' : 'pièce')}
               </Text>
             </View>
             {item.launchDate && (
@@ -323,16 +384,17 @@ export default function BrandDetailScreen() {
           />
         </View>
 
-        {upcomingCollections.length > 0 && (
+        {nextCollection && (
           <View style={styles.dropCountdownWrapper}>
             <DropCountdown
-              collectionId={upcomingCollections[0].id}
-              collectionName={upcomingCollections[0].name}
+              collectionId={nextCollection.id}
+              collectionName={nextCollection.name}
               brandName={brand.name}
-              brandLogo={brand.logo || ''}
-              coverImage={upcomingCollections[0].coverImage || firstCollectionWithCover?.coverImage || brand.coverImage || ''}
-              launchDate={new Date(upcomingCollections[0].launchDate as any)}
-              onPreview={() => router.push(`/clientCollectionid/${upcomingCollections[0].id}`)}
+              brandLogo={brandLogoFull}
+              coverImage={nextCoverFull}
+              teaserVideo={nextTeaserVideoFull}
+              launchDate={new Date(nextCollection.launchDate as any)}
+              onPreview={() => router.push(`/clientCollectionid/${nextCollection.id}`)}
             />
           </View>
         )}
@@ -653,6 +715,13 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  collectionVideoIndicator: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -17,
+    marginTop: -17,
   },
   collectionGradient: {
     position: 'absolute',

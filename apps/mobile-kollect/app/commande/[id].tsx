@@ -1,4 +1,3 @@
- 
 import React, { useState } from 'react';
 import {
   View,
@@ -19,9 +18,6 @@ import { useTheme } from '../context/ThemeContext';
 import { useCommandeById, useConfirmerCommande, useAnnulerCommande } from '@/features/commandes/hooks/useCommandeQueries';
 import { useCommandeHelpers } from '@/features/commandes/store/commandeStore';
 
-// ============================================
-// COMPOSANT PRINCIPAL
-// ============================================
 export default function CommandeDetailScreen() {
   const { theme, isDark } = useTheme();
   const router = useRouter();
@@ -110,19 +106,19 @@ export default function CommandeDetailScreen() {
   };
 
   // ============================================
-  // RENDER FUNCTIONS
+  // RENDER - LOADING
   // ============================================
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#000' : '#fafafa' }]} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <View style={styles.loadingContainer}>
           <View style={[styles.loadingIcon, { backgroundColor: `${theme.colors.primary}15` }]}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
           </View>
-          <Text style={[styles.loadingText, { color: isDark ? '#fff' : '#000' }]}>
+          <Text style={[styles.loadingText, { color: theme.colors.text }]}>
             Chargement de la commande...
           </Text>
-          <Text style={[styles.loadingSubtext, { color: isDark ? '#888' : '#666' }]}>
+          <Text style={[styles.loadingSubtext, { color: theme.colors.textSecondary }]}>
             Veuillez patienter
           </Text>
         </View>
@@ -130,17 +126,20 @@ export default function CommandeDetailScreen() {
     );
   }
 
+  // ============================================
+  // RENDER - ERROR
+  // ============================================
   if (error || !commande) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#000' : '#fafafa' }]} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
-          <View style={[styles.errorIcon, { backgroundColor: isDark ? 'rgba(244, 67, 54, 0.1)' : '#ffebee' }]}>
-            <Ionicons name="alert-circle" size={64} color="#f44336" />
+          <View style={[styles.errorIcon, { backgroundColor: `${theme.colors.error}15` }]}>
+            <Ionicons name="alert-circle" size={64} color={theme.colors.error} />
           </View>
-          <Text style={[styles.errorTitle, { color: isDark ? '#fff' : '#000' }]}>
+          <Text style={[styles.errorTitle, { color: theme.colors.text }]}>
             Commande non trouvée
           </Text>
-          <Text style={[styles.errorText, { color: isDark ? '#888' : '#666' }]}>
+          <Text style={[styles.errorText, { color: theme.colors.textSecondary }]}>
             Impossible de charger les détails de cette commande
           </Text>
           <TouchableOpacity
@@ -148,13 +147,13 @@ export default function CommandeDetailScreen() {
             onPress={() => router.back()}
           >
             <LinearGradient
-              colors={[theme.colors.primary, theme.colors.primary + 'dd']}
+              colors={[theme.colors.primary, theme.colors.primaryLight]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.errorButtonGradient}
             >
-              <Ionicons name="arrow-back" size={20} color="#FFF" />
-              <Text style={styles.errorButtonText}>Retour</Text>
+              <Ionicons name="arrow-back" size={20} color={theme.colors.card} />
+              <Text style={[styles.errorButtonText, { color: theme.colors.card }]}>Retour</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -167,18 +166,21 @@ export default function CommandeDetailScreen() {
   const statusLabel = getStatusLabel(commandeStatus);
   const canProcess = commandeStatus === 'en attente' && !isProcessing;
 
+  // ============================================
+  // RENDER - SUCCESS
+  // ============================================
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#000' : '#fafafa' }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       {/* Header with Gradient */}
       <LinearGradient
         colors={isDark 
-          ? ['rgba(0,0,0,1)', 'rgba(0,0,0,0.95)']
-          : ['#ffffff', '#fafafa']
+          ? [theme.colors.background, theme.colors.surface]
+          : [theme.colors.card, theme.colors.background]
         }
-        style={[styles.header, { borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : '#f0f0f0' }]}
+        style={[styles.header, { borderBottomColor: theme.colors.divider }]}
       >
         <TouchableOpacity
-          style={[styles.backButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f5f5f5' }]}
+          style={[styles.backButton, { backgroundColor: theme.colors.surface }]}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
@@ -186,10 +188,10 @@ export default function CommandeDetailScreen() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
-            <Text style={[styles.headerTitle, { color: isDark ? '#fff' : '#000' }]}>
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
               #{commande.orderNumber}
             </Text>
-            <Text style={[styles.headerSubtitle, { color: isDark ? '#888' : '#666' }]}>
+            <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
               Détails de la commande
             </Text>
           </View>
@@ -197,8 +199,8 @@ export default function CommandeDetailScreen() {
             style={[
               styles.statusBadge,
               {
-                backgroundColor: statusColor + '15',
-                borderColor: statusColor + '40',
+                backgroundColor: `${statusColor}15`,
+                borderColor: `${statusColor}40`,
               },
             ]}
           >
@@ -217,25 +219,29 @@ export default function CommandeDetailScreen() {
       >
         {/* Timeline / Date Card */}
         {commande.createdAt && (
-          <View style={[styles.timelineCard, { 
-            backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff',
-            borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#f0f0f0',
-          }]}>
+          <View style={[
+            styles.timelineCard,
+            { 
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.borderLight,
+              shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+            }
+          ]}>
             <View style={[styles.timelineIcon, { backgroundColor: `${theme.colors.primary}15` }]}>
-              <Ionicons name="time-outline" size={24} color={theme.colors.primary} />
+              <Ionicons name="time-outline" size={24} color={theme.colors.accent} />
             </View>
             <View style={styles.timelineContent}>
-              <Text style={[styles.timelineLabel, { color: isDark ? '#888' : '#666' }]}>
+              <Text style={[styles.timelineLabel, { color: theme.colors.textSecondary }]}>
                 Date de commande
               </Text>
-              <Text style={[styles.timelineDate, { color: isDark ? '#fff' : '#000' }]}>
+              <Text style={[styles.timelineDate, { color: theme.colors.text }]}>
                 {new Date(commande.createdAt).toLocaleDateString('fr-FR', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric',
                 })}
               </Text>
-              <Text style={[styles.timelineTime, { color: isDark ? '#aaa' : '#999' }]}>
+              <Text style={[styles.timelineTime, { color: theme.colors.textSecondary }]}>
                 {new Date(commande.createdAt).toLocaleTimeString('fr-FR', {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -246,15 +252,19 @@ export default function CommandeDetailScreen() {
         )}
 
         {/* Informations client */}
-        <View style={[styles.section, { 
-          backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff',
-          borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#f0f0f0',
-        }]}>
+        <View style={[
+          styles.section,
+          { 
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.borderLight,
+            shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+          }
+        ]}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIconContainer, { backgroundColor: `${theme.colors.primary}15` }]}>
-              <Ionicons name="person" size={20} color={theme.colors.primary} />
+              <Ionicons name="person" size={20} color={theme.colors.accent} />
             </View>
-            <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Informations client
             </Text>
           </View>
@@ -262,14 +272,14 @@ export default function CommandeDetailScreen() {
           {commande.client && (
             <View style={styles.infoCard}>
               <View style={styles.infoRow}>
-                <View style={[styles.infoIconBg, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f8f8f8' }]}>
-                  <Ionicons name="person-outline" size={18} color={isDark ? '#888' : '#666'} />
+                <View style={[styles.infoIconBg, { backgroundColor: theme.colors.surface }]}>
+                  <Ionicons name="person-outline" size={18} color={theme.colors.accent} />
                 </View>
                 <View style={styles.infoContent}>
-                  <Text style={[styles.infoLabel, { color: isDark ? '#888' : '#666' }]}>
+                  <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>
                     Nom complet
                   </Text>
-                  <Text style={[styles.infoText, { color: isDark ? '#fff' : '#000' }]}>
+                  <Text style={[styles.infoText, { color: theme.colors.text }]}>
                     {commande.client.firstName} {commande.client.lastName}
                   </Text>
                 </View>
@@ -277,14 +287,14 @@ export default function CommandeDetailScreen() {
               
               {commande.client?.phone && (
                 <View style={styles.infoRow}>
-                  <View style={[styles.infoIconBg, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f8f8f8' }]}>
-                    <Ionicons name="call-outline" size={18} color={isDark ? '#888' : '#666'} />
+                  <View style={[styles.infoIconBg, { backgroundColor: theme.colors.surface }]}>
+                    <Ionicons name="call-outline" size={18} color={theme.colors.textSecondary} />
                   </View>
                   <View style={styles.infoContent}>
-                    <Text style={[styles.infoLabel, { color: isDark ? '#888' : '#666' }]}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>
                       Téléphone
                     </Text>
-                    <Text style={[styles.infoText, { color: isDark ? '#fff' : '#000' }]}>
+                    <Text style={[styles.infoText, { color: theme.colors.text }]}>
                       {commande.client.phone}
                     </Text>
                   </View>
@@ -295,35 +305,39 @@ export default function CommandeDetailScreen() {
         </View>
 
         {/* Adresse de livraison */}
-        <View style={[styles.section, { 
-          backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff',
-          borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#f0f0f0',
-        }]}>
+        <View style={[
+          styles.section,
+          { 
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.borderLight,
+            shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+          }
+        ]}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIconContainer, { backgroundColor: `${theme.colors.primary}15` }]}>
-              <Ionicons name="location" size={20} color={theme.colors.primary} />
+              <Ionicons name="location" size={20} color={theme.colors.accent} />
             </View>
-            <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Adresse de livraison
             </Text>
           </View>
           
           <View style={styles.infoCard}>
             <View style={styles.addressContainer}>
-              <View style={[styles.addressIconBg, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f8f8f8' }]}>
-                <Ionicons name="location-outline" size={20} color={theme.colors.primary} />
+              <View style={[styles.addressIconBg, { backgroundColor: theme.colors.surface }]}>
+                <Ionicons name="location-outline" size={20} color={theme.colors.accent} />
               </View>
               <View style={styles.addressContent}>
-                <Text style={[styles.addressText, { color: isDark ? '#fff' : '#000' }]}>
+                <Text style={[styles.addressText, { color: theme.colors.text }]}>
                   {commande.shippingAddress || 'Non spécifiée'}
                 </Text>
-                <Text style={[styles.cityText, { color: isDark ? '#aaa' : '#666' }]}>
+                <Text style={[styles.cityText, { color: theme.colors.textSecondary }]}>
                   {commande.shippingCity || ''}
                 </Text>
                 {commande.shippingPhone && (
                   <View style={styles.phoneRow}>
-                    <Ionicons name="call" size={14} color={isDark ? '#888' : '#999'} />
-                    <Text style={[styles.phoneText, { color: isDark ? '#888' : '#666' }]}>
+                    <Ionicons name="call" size={14} color={theme.colors.accent} />
+                    <Text style={[styles.phoneText, { color: theme.colors.textSecondary }]}>
                       {commande.shippingPhone}
                     </Text>
                   </View>
@@ -334,16 +348,20 @@ export default function CommandeDetailScreen() {
         </View>
 
         {/* Articles */}
-        <View style={[styles.section, { 
-          backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff',
-          borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#f0f0f0',
-        }]}>
+        <View style={[
+          styles.section,
+          { 
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.borderLight,
+            shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+          }
+        ]}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIconContainer, { backgroundColor: `${theme.colors.primary}15` }]}>
-              <Ionicons name="cart" size={20} color={theme.colors.primary} />
+              <Ionicons name="cart" size={20} color={theme.colors.accent} />
             </View>
             <View style={styles.sectionHeaderContent}>
-              <Text style={[styles.sectionTitle, { color: isDark ? '#fff' : '#000' }]}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
                 Articles
               </Text>
               <View style={[styles.itemCountBadge, { backgroundColor: `${theme.colors.primary}20` }]}>
@@ -361,8 +379,8 @@ export default function CommandeDetailScreen() {
                 style={[
                   styles.itemCard,
                   { 
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#fafafa',
-                    borderColor: isDark ? 'rgba(255,255,255,0.05)' : '#f0f0f0',
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.borderLight,
                   }
                 ]}
               >
@@ -374,32 +392,32 @@ export default function CommandeDetailScreen() {
                       resizeMode="cover"
                     />
                   ) : (
-                    <View style={[styles.itemImagePlaceholder, { backgroundColor: isDark ? '#222' : '#e8e8e8' }]}>
-                      <Ionicons name="image-outline" size={32} color={isDark ? '#666' : '#ccc'} />
+                    <View style={[styles.itemImagePlaceholder, { backgroundColor: theme.colors.surface }]}>
+                      <Ionicons name="image-outline" size={32} color={theme.colors.textDisabled} />
                     </View>
                   )}
                   <View style={[styles.quantityBadge, { backgroundColor: theme.colors.primary }]}>
-                    <Text style={styles.quantityText}>×{item.quantity}</Text>
+                    <Text style={[styles.quantityText, { color: theme.colors.card }]}>×{item.quantity}</Text>
                   </View>
                 </View>
                 
                 <View style={styles.itemInfo}>
-                  <Text style={[styles.itemName, { color: isDark ? '#fff' : '#000' }]} numberOfLines={2}>
+                  <Text style={[styles.itemName, { color: theme.colors.text }]} numberOfLines={2}>
                     {item.productName || item.product?.name || 'Produit'}
                   </Text>
                   
                   {(item.size || item.color) && (
                     <View style={styles.itemVariants}>
                       {item.size && (
-                        <View style={[styles.variantTag, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#f0f0f0' }]}>
-                          <Text style={[styles.variantText, { color: isDark ? '#aaa' : '#666' }]}>
+                        <View style={[styles.variantTag, { backgroundColor: theme.colors.surface }]}>
+                          <Text style={[styles.variantText, { color: theme.colors.textSecondary }]}>
                             {item.size}
                           </Text>
                         </View>
                       )}
                       {item.color && (
-                        <View style={[styles.variantTag, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#f0f0f0' }]}>
-                          <Text style={[styles.variantText, { color: isDark ? '#aaa' : '#666' }]}>
+                        <View style={[styles.variantTag, { backgroundColor: theme.colors.surface }]}>
+                          <Text style={[styles.variantText, { color: theme.colors.textSecondary }]}>
                             {item.color}
                           </Text>
                         </View>
@@ -407,7 +425,7 @@ export default function CommandeDetailScreen() {
                     </View>
                   )}
                   
-                  <Text style={[styles.itemPrice, { color: theme.colors.primary }]}>
+                  <Text style={[styles.itemPrice, { color: theme.colors.accent }]}>
                     {typeof item.price === 'number'
                       ? `${item.price.toLocaleString('fr-FR')} CFA`
                       : '0 CFA'}
@@ -419,20 +437,21 @@ export default function CommandeDetailScreen() {
         </View>
 
         {/* Total Card */}
-        <View style={[styles.totalCard, { 
-          backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff',
-          borderColor: `${theme.colors.primary}40`,
-        }]}>
+        <View style={[
+          styles.totalCard,
+          { 
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.accent,
+            shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+          }
+        ]}>
           <LinearGradient
-            colors={isDark 
-              ? [`${theme.colors.primary}10`, `${theme.colors.primary}05`]
-              : [`${theme.colors.primary}05`, '#ffffff']
-            }
+            colors={[`${theme.colors.accent}10`, theme.colors.card]}
             style={styles.totalGradient}
           >
             <View style={styles.totalHeader}>
-              <Ionicons name="wallet" size={24} color={theme.colors.primary} />
-              <Text style={[styles.totalLabel, { color: isDark ? '#fff' : '#000' }]}>
+              <Ionicons name="wallet" size={24} color={theme.colors.accent} />
+              <Text style={[styles.totalLabel, { color: theme.colors.text }]}>
                 Total à payer
               </Text>
             </View>
@@ -444,7 +463,6 @@ export default function CommandeDetailScreen() {
           </LinearGradient>
         </View>
 
-        {/* Spacer for fixed buttons */}
         <View style={{ height: 20 }} />
       </ScrollView>
 
@@ -454,8 +472,9 @@ export default function CommandeDetailScreen() {
           style={[
             styles.actionsContainer,
             {
-              backgroundColor: isDark ? '#000' : '#fff',
-              borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : '#f0f0f0',
+              backgroundColor: theme.colors.background,
+              borderTopColor: theme.colors.divider,
+              shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
             },
           ]}
         >
@@ -463,8 +482,8 @@ export default function CommandeDetailScreen() {
             style={[
               styles.cancelButton,
               {
-                backgroundColor: isDark ? 'rgba(244, 67, 54, 0.1)' : '#ffebee',
-                borderColor: '#f44336',
+                backgroundColor: `${theme.colors.error}15`,
+                borderColor: theme.colors.error,
               },
             ]}
             onPress={handleCancel}
@@ -472,11 +491,11 @@ export default function CommandeDetailScreen() {
             activeOpacity={0.8}
           >
             {isCancelling ? (
-              <ActivityIndicator size="small" color="#f44336" />
+              <ActivityIndicator size="small" color={theme.colors.error} />
             ) : (
               <>
-                <Ionicons name="close-circle" size={20} color="#f44336" />
-                <Text style={styles.cancelButtonText}>Annuler</Text>
+                <Ionicons name="close-circle" size={20} color={theme.colors.error} />
+                <Text style={[styles.cancelButtonText, { color: theme.colors.error }]}>Annuler</Text>
               </>
             )}
           </TouchableOpacity>
@@ -488,17 +507,17 @@ export default function CommandeDetailScreen() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['#4caf50', '#45a049']}
+              colors={[theme.colors.success, `${theme.colors.success}dd`]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.confirmGradient}
             >
               {isConfirming ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={theme.colors.card} />
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
-                  <Text style={styles.confirmButtonText}>Confirmer</Text>
+                  <Ionicons name="checkmark-circle" size={22} color={theme.colors.card} />
+                  <Text style={[styles.confirmButtonText, { color: theme.colors.card }]}>Confirmer</Text>
                 </>
               )}
             </LinearGradient>
@@ -580,7 +599,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   errorButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -650,6 +668,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 16,
     gap: 14,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   timelineIcon: {
     width: 56,
@@ -678,11 +700,10 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -812,7 +833,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   quantityText: {
-    color: '#fff',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -849,11 +869,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 2,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 6,
   },
   totalGradient: {
     padding: 24,
@@ -883,9 +902,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 12,
     borderTopWidth: 1,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 1,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -900,7 +918,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cancelButtonText: {
-    color: '#f44336',
     fontSize: 15,
     fontWeight: '700',
   },
@@ -922,7 +939,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   confirmButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
   },

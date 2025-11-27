@@ -1,6 +1,6 @@
  
 import * as SecureStore from 'expo-secure-store';
- 
+import { useAuthStore } from '../../../store/authStore';
 import * as ImagePicker from 'expo-image-picker';
 
 // Types
@@ -140,6 +140,16 @@ class BrandService {
     });
 
     if (!response.ok) {
+      // Si non autorisé → forcer un logout global pour sortir immédiatement du flow CEO
+      if (response.status === 401) {
+        console.warn('🔒 [Brand Service] 401 Non autorisé - clear authStore');
+        try {
+          await useAuthStore.getState()._clearAuth();
+        } catch (e) {
+          console.warn('[Brand Service] Erreur lors du clearAuth après 401', e);
+        }
+      }
+
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || `Request failed: ${response.status}`);
     }
@@ -174,6 +184,16 @@ class BrandService {
     });
 
     if (!response.ok) {
+      // Même logique que pour authenticatedFetch : 401 = on nettoie l'auth
+      if (response.status === 401) {
+        console.warn('🔒 [Brand Service] 401 Non autorisé (FormData) - clear authStore');
+        try {
+          await useAuthStore.getState()._clearAuth();
+        } catch (e) {
+          console.warn('[Brand Service] Erreur lors du clearAuth après 401 (FormData)', e);
+        }
+      }
+
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || `Request failed: ${response.status}`);
     }

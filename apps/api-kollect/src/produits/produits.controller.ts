@@ -163,6 +163,17 @@ export class ProduitsController {
   }
 
   /**
+   * GET /api/produits/deleted (CEO)
+   * Lister les produits soft-deleted de la marque du CEO
+   */
+  @Get('deleted')
+  @Roles('isCEO')
+  @UsePipes(new ZodValidationPipe(QueryProduitsSchema))
+  async findDeletedForCEO(@Request() req: any, @Query() query: QueryProduitsDto) {
+    return this.produitsService.findDeletedForCEO(req.user.id, query);
+  }
+
+  /**
    * GET /api/produits/ceo/:id (CEO)
    */
   @Get('ceo/:id')
@@ -292,6 +303,17 @@ export class ProduitsController {
   @HttpCode(HttpStatus.OK)
   async delete(@Request() req: any, @Param('id') id: string) {
     return this.produitsService.delete(req.user.id, id);
+  }
+
+  /**
+   * PATCH /api/produits/:id/restore
+   * Restaurer un produit soft-deleted
+   */
+  @Patch(':id/restore')
+  @Roles('isCEO')
+  @HttpCode(HttpStatus.OK)
+  async restore(@Request() req: any, @Param('id') id: string) {
+    return this.produitsService.restore(req.user.id, id);
   }
 
   /**

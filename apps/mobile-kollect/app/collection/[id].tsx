@@ -19,7 +19,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import { CollectionStatus, CollectionDto } from '@/features/collections/services/collections.service';
 import { collectionsApi } from '@/features/collections/services/collections.service';
+import { produitsService } from '@/features/produits/services/produits.service';
 import { AddProductModal } from '@/components/collection/AddProductModal';
+
+const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev';
 // Import nettoyé pour le MVP
 
 const STATUS_CONFIG = {
@@ -61,14 +64,30 @@ export default function CollectionDetailScreen() {
 
   const handleAddProduct = async (productData: any) => {
     try {
-      // Logique d'ajout de produit
-      console.log('Ajout du produit:', productData);
-      // TODO: Implémenter l'appel API pour ajouter le produit
+      if (!collection) {
+        throw new Error("Collection introuvable pour l'ajout du produit");
+      }
+
+      await produitsService.create(
+        {
+          collectionId: collection.id,
+          name: productData.name,
+          description: productData.description,
+          price: productData.price,
+          images: productData.images,
+          stock: productData.stock,
+          sizes: productData.sizes,
+          colors: productData.colors,
+          sku: productData.sku,
+        },
+        productData.images,
+      );
+
+      await loadCollection(); // Recharger les données après création
       setShowAddProductModal(false);
-      await loadCollection(); // Recharger les données
     } catch (error) {
-      console.error('Erreur lors de l\'ajout du produit:', error);
-      Alert.alert('Erreur', 'Impossible d\'ajouter le produit');
+      console.error("Erreur lors de l'ajout du produit:", error);
+      Alert.alert('Erreur', "Impossible d'ajouter le produit");
     }
   };
 
@@ -80,10 +99,27 @@ export default function CollectionDetailScreen() {
     try {
       setIsLoading(true);
       const data: any = await collectionsApi.getOne(id, true);
-      setCollection(data);
+
+      // Normaliser les URLs des médias (teaserVideo, coverImage)
+      const processed: CollectionDto = {
+        ...data,
+        coverImage: data.coverImage
+          ? data.coverImage.startsWith('http')
+            ? data.coverImage
+            : `${API_URL}${data.coverImage.startsWith('/') ? '' : '/'}${data.coverImage}`
+          : null,
+        teaserVideo: data.teaserVideo
+          ? data.teaserVideo.startsWith('http')
+            ? data.teaserVideo
+            : `${API_URL}${data.teaserVideo.startsWith('/') ? '' : '/'}${data.teaserVideo}`
+          : null,
+      } as CollectionDto;
+
+      setCollection(processed);
       
       if (data.products && Array.isArray(data.products)) {
-        setProducts(data.products);
+        // Masquer les produits déjà soft-supprimés côté backend
+        setProducts(data.products.filter((p: any) => !p.isDeleted));
       } else {
         setProducts([]);
       }
@@ -111,26 +147,13 @@ export default function CollectionDetailScreen() {
     setIsPreviewOpen(false);
   };
 
-  // Forcer la lecture de la vidéo
+  // Lecture de la vidéo via le bouton play
   const handlePlayVideo = useCallback(async () => {
     try {
-      if (videoRef.current && collection?.teaserVideo) {
+      if (videoRef.current) {
         console.log('Tentative de lecture de la vidéo...');
-        setVideoStatus('Chargement...');
-        
-        // D'abord arrêter toute lecture en cours
-        await videoRef.current.pauseAsync();
-        
-        // Recharger la vidéo
-        await videoRef.current.loadAsync(
-          { uri: collection.teaserVideo },
-          { shouldPlay: true },
-          false
-        );
-        
-        // Démarrer la lecture
-        await videoRef.current.playAsync();
         setVideoStatus('Lecture en cours');
+        await videoRef.current.playAsync();
         console.log('Vidéo en lecture');
       }
     } catch (error: any) {
@@ -138,18 +161,7 @@ export default function CollectionDetailScreen() {
       console.error('Erreur lors de la lecture:', error);
       setVideoStatus('Erreur: ' + errorMsg);
     }
-  }, [collection?.teaserVideo]);
-
-  // Démarrer la lecture quand le modal s'ouvre
-  useEffect(() => {
-    if (isPreviewOpen && collection?.teaserVideo) {
-      const timer = setTimeout(() => {
-        handlePlayVideo();
-      }, 100); // Petit délai pour s'assurer que le composant est monté
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isPreviewOpen, collection?.teaserVideo, handlePlayVideo]);
+  }, []);
 
   if (isLoading) {
     return (
@@ -209,14 +221,22 @@ export default function CollectionDetailScreen() {
         {/* Header avec image/vidéo BOOM */}
         <View style={styles.headerContainer}>
           {collection.teaserVideo ? (
-            <Video
-              source={{ uri: collection.teaserVideo }}
-              style={styles.headerMedia}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay={false}
-              useNativeControls={false}
-              isMuted
-            />
+            <TouchableOpacity onPress={openPreview} activeOpacity={0.9} style={styles.coverImageWrapper}>
+              <Video
+                source={{ uri: collection.teaserVideo }}
+                style={styles.headerMedia}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay={false}
+                useNativeControls={false}
+                isMuted
+                posterSource={collection.coverImage ? { uri: collection.coverImage } : undefined}
+                usePoster={!!collection.coverImage}
+              />
+              <View style={styles.previewOverlay}>
+                <Ionicons name="expand" size={24} color="white" />
+                <Text style={styles.previewText}>Appuyez pour prévisualiser</Text>
+              </View>
+            </TouchableOpacity>
           ) : collection.coverImage ? (
             <TouchableOpacity onPress={openPreview} style={styles.coverImageWrapper}>
               <Image
@@ -506,7 +526,34 @@ export default function CollectionDetailScreen() {
                           }
                         ]}
                         onPress={() => {
-                          Alert.alert('Supprimer', `Supprimer ${item.name} ?`);
+                          Alert.alert(
+                            'Supprimer le produit',
+                            `Supprimer "${item.name}" de cette collection ?`,
+                            [
+                              { text: 'Annuler', style: 'cancel' },
+                              {
+                                text: 'Supprimer',
+                                style: 'destructive',
+                                onPress: async () => {
+                                  try {
+                                    await produitsService.delete(item.id);
+                                    await loadCollection();
+                                  } catch (error) {
+                                    console.error('Erreur suppression produit:', error);
+
+                                    const message = error instanceof Error ? error.message : '';
+                                    // Si le backend dit que le produit est déjà supprimé, on considère l'état comme cohérent
+                                    if (message.includes('déjà supprimé')) {
+                                      await loadCollection();
+                                      return;
+                                    }
+
+                                    Alert.alert('Erreur', "Impossible de supprimer le produit");
+                                  }
+                                },
+                              },
+                            ],
+                          );
                         }}
                         activeOpacity={0.7}
                       >
@@ -587,12 +634,14 @@ export default function CollectionDetailScreen() {
                 }}
               />
               <Text style={styles.videoStatusText}>{videoStatus}</Text>
-              <TouchableOpacity
-                style={styles.playButton}
-                onPress={handlePlayVideo}
-              >
-                <Ionicons name="play" size={40} color="white" />
-              </TouchableOpacity>
+              {videoStatus !== 'Lecture en cours' && (
+                <TouchableOpacity
+                  style={styles.playButton}
+                  onPress={handlePlayVideo}
+                >
+                  <Ionicons name="play" size={40} color="white" />
+                </TouchableOpacity>
+              )}
             </>
           ) : collection?.coverImage ? (
             <Image

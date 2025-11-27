@@ -1,40 +1,76 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Switch, ScrollView } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/authStore';
+import { useRouter } from 'expo-router';
 
 const SettingItem = ({ 
   icon, 
   title, 
   onPress, 
-  rightComponent 
+  rightComponent,
+  showChevron = true,
+  isDark,
+  isLast = false
 }: {
   icon: string;
   title: string;
   onPress?: () => void;
   rightComponent?: React.ReactNode;
-}) => (
-  <TouchableOpacity 
-    style={styles.settingItem}
-    onPress={onPress}
-    activeOpacity={0.7}
-  >
-    <View style={styles.settingIconContainer}>
-      <Ionicons name={icon as any} size={22} color="#6B7280" />
-    </View>
-    <Text style={styles.settingText}>{title}</Text>
-    <View style={styles.settingRight}>
-      {rightComponent}
-      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-    </View>
-  </TouchableOpacity>
-);
+  showChevron?: boolean;
+  isDark: boolean;
+  isLast?: boolean;
+}) => {
+  return (
+    <TouchableOpacity 
+      style={[
+        styles.settingItem,
+        !isLast && { 
+          borderBottomWidth: 1,
+          borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
+        }
+      ]}
+      onPress={onPress}
+      activeOpacity={0.6}
+      disabled={!onPress}
+    >
+      <View style={[
+        styles.settingIconContainer,
+        { backgroundColor: isDark ? 'rgba(255, 59, 48, 0.15)' : 'rgba(255, 59, 48, 0.1)' }
+      ]}>
+        <Ionicons 
+          name={icon as any} 
+          size={20} 
+          color="#FF3B30" 
+        />
+      </View>
+      <Text style={[
+        styles.settingText, 
+        { color: isDark ? '#FFFFFF' : '#000000' }
+      ]}>
+        {title}
+      </Text>
+      <View style={styles.settingRight}>
+        {rightComponent}
+        {showChevron && onPress && (
+          <Ionicons 
+            name="chevron-forward" 
+            size={18} 
+            color={isDark ? '#666666' : '#B8B8B8'} 
+          />
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 export default function ProfileScreen() {
   const { theme, themeMode, setThemeMode } = useTheme();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const isLoading = useAuthStore((state) => state.isLoading);
+  const router = useRouter();
+  const isDark = themeMode === 'dark';
 
   const handleLogout = () => {
     Alert.alert(
@@ -61,193 +97,351 @@ export default function ProfileScreen() {
     );
   };
 
+  const cardStyle = {
+    backgroundColor: isDark ? '#0A0A0A' : '#FFFFFF',
+    borderWidth: 1,
+    borderColor: isDark ? '#333333' : '#E5E5E5',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: isDark ? 8 : 6 },
+    shadowOpacity: isDark ? 0.5 : 0.15,
+    shadowRadius: 12,
+    elevation: isDark ? 8 : 4,
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.content, { backgroundColor: theme.colors.card }]}>
-        <View style={styles.header}>
-          <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
-            <Ionicons name="person" size={32} color="#FFFFFF" />
+    <ScrollView 
+      style={[
+        styles.container, 
+        { backgroundColor: isDark ? '#000000' : '#FFFFFF' }
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.content}>
+        {/* Header Profile */}
+        <View style={[styles.headerCard, cardStyle]}>
+          <View style={[
+            styles.avatarContainer,
+            { 
+              backgroundColor: isDark ? 'rgba(255, 59, 48, 0.15)' : 'rgba(255, 59, 48, 0.1)',
+            }
+          ]}>
+            <View style={styles.avatar}>
+              <Ionicons name="person" size={40} color="#FF3B30" />
+            </View>
           </View>
-          <Text style={[styles.name, { color: theme.colors.text }]}>
+          
+          <Text style={[
+            styles.name, 
+            { color: isDark ? '#FFFFFF' : '#000000' }
+          ]}>
             {user?.firstName} {user?.lastName}
           </Text>
+          
+          <Text style={[
+            styles.email, 
+            { color: isDark ? '#B0B0B0' : '#4D4D4D' }
+          ]}>
+            {user?.email}
+          </Text>
+
+          {user && (user.isAdmin || user.isCEO) && (
+            <View style={styles.rolesContainer}>
+              {user.isAdmin && (
+                <View style={[
+                  styles.roleBadge, 
+                  { 
+                    backgroundColor: isDark ? '#FF3B30' : '#FF3B30',
+                    borderWidth: 1,
+                    borderColor: isDark ? '#FF3B30' : '#FF3B30',
+                  }
+                ]}>
+                  <Text style={styles.roleText}>ADMIN</Text>
+                </View>
+              )}
+              {user.isCEO && (
+                <View style={[
+                  styles.roleBadge, 
+                  { 
+                    backgroundColor: isDark ? '#FFFFFF' : '#000000',
+                    borderWidth: 1,
+                    borderColor: isDark ? '#FFFFFF' : '#000000',
+                  }
+                ]}>
+                  <Text style={[
+                    styles.roleText,
+                    { color: isDark ? '#000000' : '#FFFFFF' }
+                  ]}>
+                    CEO
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
+        {/* Section Boutique */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
-            Préférences
+          <Text style={[
+            styles.sectionTitle, 
+            { color: isDark ? '#B0B0B0' : '#4D4D4D' }
+          ]}>
+            MA BOUTIQUE
           </Text>
-          <View style={[styles.sectionContent, { backgroundColor: theme.colors.surface }]}>
+          <View style={[styles.sectionContent, cardStyle]}>
             <SettingItem
-              icon="moon-outline"
-              title="Mode sombre"
-              rightComponent={
-                <Switch
-                  value={themeMode === 'dark'}
-                  onValueChange={(value) => setThemeMode(value ? 'dark' : 'light')}
-                  trackColor={{ false: '#E5E7EB', true: theme.colors.primary }}
-                  thumbColor="white"
-                  style={{ marginRight: 8 }}
-                />
-              }
+              icon="storefront-outline"
+              title="Voir ma boutique publique"
+              isDark={isDark}
+              onPress={() => {
+                const slug = user?.brand?.slug;
+                if (!slug) {
+                  Alert.alert('Boutique indisponible', 'Aucune marque n\'est associée à ce compte.');
+                  return;
+                }
+                router.push(`/ClientbrandId/${slug}`);
+              }}
+            />
+            <SettingItem
+              icon="build-outline"
+              title="Paramètres de la marque"
+              isDark={isDark}
+              onPress={() => {
+                router.push('/settingBrand');
+              }}
+            />
+            <SettingItem
+              icon="construct-outline"
+              title="Outils avancés"
+              isDark={isDark}
+              isLast
+              onPress={() => router.push('/outil-avances' as any)}
             />
           </View>
         </View>
 
+        {/* Section Préférences */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
-            Compte
+          <Text style={[
+            styles.sectionTitle, 
+            { color: isDark ? '#B0B0B0' : '#4D4D4D' }
+          ]}>
+            APPARENCE
           </Text>
-          <View style={[styles.sectionContent, { backgroundColor: theme.colors.surface }]}>
-            <View style={styles.settingItem}>
-              <View style={styles.settingIconContainer}>
-                <Ionicons name="mail-outline" size={22} color="#6B7280" />
+          <View style={[styles.sectionContent, cardStyle]}>
+            <View style={[
+              styles.settingItem,
+            ]}>
+              <View style={[
+                styles.settingIconContainer,
+                { backgroundColor: isDark ? 'rgba(255, 59, 48, 0.15)' : 'rgba(255, 59, 48, 0.1)' }
+              ]}>
+                <Ionicons 
+                  name={isDark ? "moon" : "moon-outline"}
+                  size={20} 
+                  color="#FF3B30" 
+                />
               </View>
-              <View>
-                <Text style={[styles.settingText, { color: theme.colors.text }]}>
-                  {user?.email}
+              <View style={{ flex: 1 }}>
+                <Text style={[
+                  styles.settingText, 
+                  { color: isDark ? '#FFFFFF' : '#000000' }
+                ]}>
+                  Mode sombre
                 </Text>
-                <Text style={[styles.settingSubtext, { color: theme.colors.textSecondary }]}>
-                  Adresse email
+                <Text style={[
+                  styles.settingSubtext,
+                  { color: isDark ? '#666666' : '#B8B8B8' }
+                ]}>
+                  {isDark ? 'Activé' : 'Désactivé'}
                 </Text>
               </View>
+              <TouchableOpacity
+                style={[
+                  styles.toggleContainer,
+                  { 
+                    backgroundColor: isDark ? '#FF3B30' : '#E5E5E5',
+                  }
+                ]}
+                onPress={() => setThemeMode(isDark ? 'light' : 'dark')}
+                activeOpacity={0.7}
+              >
+                <View style={[
+                  styles.toggleThumb,
+                  isDark ? styles.toggleThumbActive : styles.toggleThumbInactive
+                ]} />
+              </TouchableOpacity>
             </View>
-
-            {user && (
-              <View style={styles.rolesContainer}>
-                {user.isAdmin && (
-                  <View style={[styles.roleBadge, { backgroundColor: theme.colors.error }]}>
-                    <Text style={styles.roleText}>Admin</Text>
-                  </View>
-                )}
-                {user.isCEO && (
-                  <View style={[styles.roleBadge, { backgroundColor: theme.colors.primary }]}>
-                    <Text style={styles.roleText}>CEO</Text>
-                  </View>
-                )}
-              </View>
-            )}
           </View>
         </View>
 
+        {/* Bouton Déconnexion */}
         <TouchableOpacity
-          style={[styles.logoutButton, { backgroundColor: theme.colors.error }]}
+          style={[
+            styles.logoutButton,
+            { 
+              backgroundColor: '#FF3B30',
+              borderWidth: 1,
+              borderColor: isDark ? 'rgba(255, 59, 48, 0.3)' : 'rgba(255, 59, 48, 0.2)',
+              shadowColor: '#FF3B30',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 4,
+            }
+          ]}
           onPress={handleLogout}
           disabled={isLoading}
+          activeOpacity={0.8}
         >
-          <Ionicons name="log-out-outline" size={20} color="white" />
+          <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
           <Text style={styles.logoutButtonText}>
-            {isLoading ? 'Déconnexion...' : 'Se déconnecter'}
+            {isLoading ? 'DÉCONNEXION...' : 'SE DÉCONNECTER'}
           </Text>
         </TouchableOpacity>
+
+        <View style={{ height: 20 }} />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
   },
   content: {
-    borderRadius: 12,
     padding: 20,
-    marginTop: 20,
   },
-  header: {
+  headerCard: {
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 28,
+  },
+  avatarContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
   },
   name: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
+    letterSpacing: 0.5,
   },
   email: {
-    fontSize: 16,
+    fontSize: 15,
     textAlign: 'center',
-    marginBottom: 24,
+    fontWeight: '400',
+    letterSpacing: 0.2,
+  },
+  rolesContainer: {
+    flexDirection: 'row',
+    marginTop: 20,
+    gap: 10,
+  },
+  roleBadge: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  roleText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
   },
   section: {
-    marginTop: 24,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-    paddingHorizontal: 4,
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 12,
+    paddingHorizontal: 6,
+    letterSpacing: 1.5,
   },
   sectionContent: {
-    borderRadius: 12,
+    borderRadius: 20,
     overflow: 'hidden',
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
   },
   settingIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   settingText: {
+    flex: 1,
     fontSize: 16,
-    color: '#111827',
-    marginBottom: 2,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   settingSubtext: {
     fontSize: 13,
-    color: '#6B7280',
+    fontWeight: '400',
+    marginTop: 4,
+    letterSpacing: 0.2,
   },
   settingRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
-  rolesContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 8,
+  toggleContainer: {
+    width: 56,
+    height: 32,
+    borderRadius: 16,
+    padding: 2,
+    justifyContent: 'center',
   },
-  roleBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+  toggleThumb: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
   },
-  roleText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
+  toggleThumbActive: {
+    alignSelf: 'flex-end',
+  },
+  toggleThumbInactive: {
+    alignSelf: 'flex-start',
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 24,
-    gap: 8,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    marginTop: 12,
+    gap: 10,
   },
   logoutButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
 });

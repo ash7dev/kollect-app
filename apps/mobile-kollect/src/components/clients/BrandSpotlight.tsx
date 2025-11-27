@@ -8,6 +8,7 @@ import {
   ScrollView,
   Linking,
   Animated,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -93,25 +94,61 @@ export default function BrandSpotlight({
     return num.toString();
   };
 
-  const handleOpenInstagram = () => {
+  const handleOpenInstagram = async () => {
     if (!brand.instagram) return;
     const username = brand.instagram.replace('@', '').trim();
     const url = `https://instagram.com/${username}`;
-    void Linking.openURL(url);
+
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        Alert.alert('Instagram indisponible', "Impossible d'ouvrir ce profil Instagram sur cet appareil.");
+        return;
+      }
+
+      await Linking.openURL(url);
+    } catch (err) {
+      console.warn('[BrandSpotlight] Error opening Instagram URL', err);
+      Alert.alert('Erreur', "Impossible d'ouvrir Instagram pour le moment.");
+    }
   };
 
-  const handleOpenWebsite = () => {
+  const handleOpenWebsite = async () => {
     if (!brand.website) return;
     const hasProtocol = brand.website.startsWith('http://') || brand.website.startsWith('https://');
     const url = hasProtocol ? brand.website : `https://${brand.website}`;
-    void Linking.openURL(url);
+
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        Alert.alert('Site indisponible', "Impossible d'ouvrir ce site sur cet appareil.");
+        return;
+      }
+
+      await Linking.openURL(url);
+    } catch (err) {
+      console.warn('[BrandSpotlight] Error opening website URL', err);
+      Alert.alert('Erreur', "Impossible d'ouvrir le site pour le moment.");
+    }
   };
 
-  const handleOpenWhatsApp = () => {
+  const handleOpenWhatsApp = async () => {
     if (!brand.whatsapp) return;
     const phone = brand.whatsapp.replace(/\s+/g, '');
     const url = `https://wa.me/${phone}`;
-    void Linking.openURL(url);
+
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        Alert.alert('WhatsApp indisponible', "Impossible d'ouvrir WhatsApp sur cet appareil.");
+        return;
+      }
+
+      await Linking.openURL(url);
+    } catch (err) {
+      console.warn('[BrandSpotlight] Error opening WhatsApp URL', err);
+      Alert.alert('Erreur', "Impossible d'ouvrir WhatsApp pour le moment.");
+    }
   };
 
   // Parallax effect sur cover
@@ -132,8 +169,30 @@ export default function BrandSpotlight({
 
   const hasVideo = brand.teaserVideo || brand.coverImage?.includes('.mp4');
 
+  // 🔥 Couleurs dynamiques pour le mode sombre
+  const dynamicStyles = {
+    logoBorder: isDark ? theme.colors.surfaceDark : '#FFFFFF',
+    statsBorder: theme.colors.divider,
+    gradientColors: isDark 
+      ? ['transparent', 'rgba(0,0,0,0.95)'] as const
+      : ['transparent', 'rgba(0,0,0,0.7)'] as const,
+    verifiedBadgeBg: isDark ? theme.colors.surfaceDark : 'rgba(255,255,255,0.95)',
+    tagBg: isDark ? 'rgba(255,255,255,0.08)' : theme.colors.surface,
+    tagBorder: isDark ? 'rgba(255,255,255,0.15)' : theme.colors.borderLight,
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
+    <View 
+      style={[
+        styles.container, 
+        { 
+          backgroundColor: theme.colors.card,
+          // 🔥 Ombres adaptatives
+          shadowColor: isDark ? '#000' : '#000',
+          shadowOpacity: isDark ? 0.5 : 0.15,
+        }
+      ]}
+    >
       {/* Cover Image/Video avec Parallax */}
       <View style={styles.coverContainer}>
         <Animated.View
@@ -160,14 +219,20 @@ export default function BrandSpotlight({
           )}
         </Animated.View>
         
+        {/* 🔥 Gradient adaptatif */}
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.7)']}
+          colors={dynamicStyles.gradientColors}
           style={styles.coverGradient}
         />
         
         {/* Verified Badge */}
         {brand.verified && (
-          <View style={styles.verifiedBadge}>
+          <View 
+            style={[
+              styles.verifiedBadge,
+              { backgroundColor: dynamicStyles.verifiedBadgeBg }
+            ]}
+          >
             <Ionicons name="checkmark-circle" size={24} color="#34C759" />
           </View>
         )}
@@ -175,9 +240,15 @@ export default function BrandSpotlight({
 
       {/* Brand Info */}
       <View style={styles.infoContainer}>
-        {/* Logo */}
+        {/* Logo - 🔥 Border adaptatif */}
         <View style={styles.logoContainer}>
-          <Image source={{ uri: brand.logo }} style={styles.logo} />
+          <Image 
+            source={{ uri: brand.logo }} 
+            style={[
+              styles.logo,
+              { borderColor: dynamicStyles.logoBorder }
+            ]} 
+          />
         </View>
 
         {/* Brand Name & Description */}
@@ -233,7 +304,7 @@ export default function BrandSpotlight({
           </View>
         )}
 
-        {/* Tags */}
+        {/* Tags - 🔥 Couleurs adaptatives */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -246,22 +317,25 @@ export default function BrandSpotlight({
               style={[
                 styles.tag,
                 {
-                  backgroundColor: isDark
-                    ? 'rgba(255,255,255,0.1)'
-                    : theme.colors.surface,
-                  borderColor: theme.colors.border,
+                  backgroundColor: dynamicStyles.tagBg,
+                  borderColor: dynamicStyles.tagBorder,
                 },
               ]}
             >
-              <Text style={[styles.tagText, { color: theme.colors.primary }]}>
+              <Text style={[styles.tagText, { color: theme.colors.accent }]}>
                 #{tag}
               </Text>
             </View>
           ))}
         </ScrollView>
 
-        {/* Stats */}
-        <View style={styles.statsContainer}>
+        {/* Stats - 🔥 Border adaptatif */}
+        <View 
+          style={[
+            styles.statsContainer,
+            { borderColor: dynamicStyles.statsBorder }
+          ]}
+        >
           <View style={styles.stat}>
             <Text style={[styles.statNumber, { color: theme.colors.text }]}>
               {formatNumber(followersCount)}
@@ -273,7 +347,7 @@ export default function BrandSpotlight({
             </Text>
           </View>
           <View
-            style={[styles.statDivider, { backgroundColor: theme.colors.border }]}
+            style={[styles.statDivider, { backgroundColor: theme.colors.divider }]}
           />
           <View style={styles.stat}>
             <Text style={[styles.statNumber, { color: theme.colors.text }]}>
@@ -286,7 +360,7 @@ export default function BrandSpotlight({
             </Text>
           </View>
           <View
-            style={[styles.statDivider, { backgroundColor: theme.colors.border }]}
+            style={[styles.statDivider, { backgroundColor: theme.colors.divider }]}
           />
           <View style={styles.stat}>
             <Text style={[styles.statNumber, { color: theme.colors.text }]}>
@@ -314,21 +388,22 @@ export default function BrandSpotlight({
               },
             ]}
             onPress={handleFollow}
+            activeOpacity={0.8}
           >
             <Ionicons
               name={isFollowing ? 'checkmark' : 'add'}
               size={18}
-              color={isFollowing ? theme.colors.accent : 'white'}
+              color={isFollowing ? theme.colors.accent : '#FFFFFF'}
             />
             <Text
               style={[
                 styles.followButtonText,
                 {
-                  color: isFollowing ? theme.colors.accent : 'white',
+                  color: isFollowing ? theme.colors.accent : '#FFFFFF',
                 },
               ]}
             >
-              {isFollowing ? 'Ne plus suivre' : 'S\'abonner'}
+              {isFollowing ? 'Abonné' : "S'abonner"}
             </Text>
           </TouchableOpacity>
 
@@ -338,12 +413,15 @@ export default function BrandSpotlight({
                 styles.visitButton,
                 {
                   backgroundColor: isDark
-                    ? 'rgba(255,255,255,0.1)'
+                    ? 'rgba(255,255,255,0.08)'
                     : theme.colors.surface,
-                  borderColor: theme.colors.border,
+                  borderColor: isDark 
+                    ? 'rgba(255,255,255,0.15)' 
+                    : theme.colors.borderLight,
                 },
               ]}
               onPress={onVisit}
+              activeOpacity={0.8}
             >
               <Text style={[styles.visitButtonText, { color: theme.colors.text }]}>
                 Visiter
@@ -364,9 +442,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginHorizontal: 16,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 6 },
     shadowRadius: 12,
     elevation: 5,
   },
@@ -378,7 +454,7 @@ const styles = StyleSheet.create({
   },
   coverWrapper: {
     width: '100%',
-    height: '120%', // Plus haut pour permettre le parallax sans espaces blancs
+    height: '120%',
   },
   coverImage: {
     width: '100%',
@@ -393,13 +469,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '50%',
+    height: '60%',
   },
   verifiedBadge: {
     position: 'absolute',
     top: 16,
     right: 16,
-    backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 20,
     padding: 4,
   },
@@ -415,7 +490,6 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 20,
     borderWidth: 4,
-    borderColor: 'white',
   },
   textContainer: {
     marginBottom: 16,
@@ -429,8 +503,8 @@ const styles = StyleSheet.create({
   socialButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
     gap: 6,
   },
@@ -478,7 +552,6 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
     marginBottom: 20,
   },
   stat: {
@@ -496,7 +569,7 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 40,
-    opacity: 0.2,
+    opacity: 0.3,
   },
   actionsContainer: {
     flexDirection: 'row',
@@ -512,7 +585,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   followingButton: {
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   followButtonText: {
     fontSize: 15,

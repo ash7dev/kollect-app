@@ -27,6 +27,7 @@ interface AddProductModalProps {
   onClose: () => void;
   onSubmit: (product: ProductDraft) => Promise<void>;
   collectionName: string;
+  autoCloseOnSuccess?: boolean;
 }
 
 const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
@@ -45,6 +46,7 @@ export function AddProductModal({
   onClose,
   onSubmit,
   collectionName,
+  autoCloseOnSuccess = true,
 }: AddProductModalProps) {
   const { theme, isDark } = useTheme();
 
@@ -187,19 +189,23 @@ export function AddProductModal({
 
       await onSubmit(product);
 
-      Alert.alert(
-        'Succès ✅',
-        `Le produit "${name}" a été ajouté à la collection !`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              resetForm();
-              onClose();
+      if (autoCloseOnSuccess) {
+        Alert.alert(
+          'Succès ✅',
+          `Le produit "${name}" a été ajouté à la collection !`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                resetForm();
+                onClose();
+              }
             }
-          }
-        ]
-      );
+          ]
+        );
+      } else {
+        resetForm();
+      }
     } catch (err) {
       console.error('❌ Erreur lors de la sauvegarde du produit:', err);
       Alert.alert(
