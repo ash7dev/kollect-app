@@ -6,9 +6,10 @@ import {
   SuiviFavoritesController,
 } from './suivi.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, MetricsModule],
   providers: [SuiviService],
   controllers: [
     SuiviController,

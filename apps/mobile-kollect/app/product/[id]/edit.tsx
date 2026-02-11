@@ -19,19 +19,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProductDetails } from '@/features/produits/hooks/useProducts';
 import { useUpdateProduct } from '@/features/produits/hooks/useProductMutations';
 import { UpdateProduitPayload } from '@/features/produits/services/produits.service';
+import { PRODUCT_COLORS } from '@/constants/productColors';
 
 const { width } = Dimensions.get('window');
 
 const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
-const AVAILABLE_COLORS = [
-  { name: 'Noir', value: 'black' },
-  { name: 'Blanc', value: 'white' },
-  { name: 'Rouge', value: 'red' },
-  { name: 'Bleu', value: 'blue' },
-  { name: 'Vert', value: 'green' },
-  { name: 'Jaune', value: 'yellow' },
-  { name: 'Rose', value: 'pink' },
-];
 
 export default function EditProductScreen() {
   const { theme, isDark } = useTheme();
@@ -377,9 +369,9 @@ export default function EditProductScreen() {
             Couleurs disponibles
           </Text>
           <View style={styles.chipsContainer}>
-            {AVAILABLE_COLORS.map(color => (
+            {PRODUCT_COLORS.map(color => (
               <TouchableOpacity
-                key={color.value}
+                key={`${color.value}-${color.name}`}
                 style={[
                   styles.chip,
                   {

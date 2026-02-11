@@ -188,11 +188,19 @@ export const ModernSalesChart = ({ refreshing=false, onRefresh }: ModernSalesCha
     );
   }
 
-  // Vérifier si toutes les valeurs de vente sont à zéro
-  const allSalesZero = salesData?.every(sale => sale.value === 0) ?? true;
-  
-  // Afficher EmptyState si pas de données ou si toutes les ventes sont à zéro
-  if (!stats || !salesData || salesData.length === 0 || allSalesZero) {
+  console.log('💡 Debug ModernSalesChart:', {
+    hasStats: !!stats,
+    hasSalesData: !!salesData,
+    salesDataLength: salesData?.length,
+    salesDataSample: salesData?.slice(0, 2) // Afficher les 2 premières entrées pour inspection
+  });
+
+  // Afficher EmptyState uniquement si pas de données du tout
+  if (!stats || !salesData) {
+    console.log('🔄 Affiche EmptyState car:', {
+      noStats: !stats,
+      noSalesData: !salesData
+    });
     return <EmptyState />;
   }
 
@@ -216,20 +224,25 @@ export const ModernSalesChart = ({ refreshing=false, onRefresh }: ModernSalesCha
   };
 
   // 🔥 Utiliser les vraies données de ventes
-  const data = salesData;
+  const data = salesData || [];
   const values = data.map(d => d.value);
-  const maxValue = Math.max(...values, 1);
-  const minValue = Math.min(...values, 0);
-  const range = maxValue - minValue || 1;
+  const maxValue = values.length > 0 ? Math.max(...values) : 0;
+  const minValue = values.length > 0 ? Math.min(...values) : 0;
+  const range = Math.max(1, maxValue - minValue);
 
   // Courbe fluide
   const createSmoothPath = () => {
-    if (data.length === 0) return '';
+    if (!data || data.length === 0) return '';
     
     const points = data.map((item: { value: number; }, i: number) => ({
-      x: (i / (data.length - 1)) * CHART_WIDTH,
-      y: CHART_HEIGHT - ((item.value - minValue) / range) * (CHART_HEIGHT - 30),
+      x: (i / Math.max(1, data.length - 1)) * CHART_WIDTH,
+      y: CHART_HEIGHT - ((item.value - minValue) / Math.max(1, range)) * (CHART_HEIGHT - 30),
     }));
+
+    // Si toutes les valeurs sont à 0, on dessine une ligne droite en bas
+    if (maxValue === 0) {
+      return `M 0 ${CHART_HEIGHT} L ${CHART_WIDTH} ${CHART_HEIGHT}`;
+    }
 
     let path = `M ${points[0].x} ${points[0].y}`;
     for (let i = 0; i < points.length - 1; i++) {
@@ -245,9 +258,15 @@ export const ModernSalesChart = ({ refreshing=false, onRefresh }: ModernSalesCha
 
   // Axe Y gradué (4 niveaux)
   const yLabels = Array.from({ length: 4 }, (_, i) => {
-    const val = maxValue - (range / 3) * i;
-    const y = ((val - minValue) / range) * (CHART_HEIGHT - 30);
-    return { val, y: CHART_HEIGHT - y };
+    // Si maxValue est 0, on affiche des valeurs fixes pour l'échelle
+    const val = maxValue > 0 
+      ? maxValue - (range / 3) * i 
+      : 3 - i; // Affiche 3, 2, 1, 0 si toutes les valeurs sont à 0
+    const y = ((val - minValue) / Math.max(1, range)) * (CHART_HEIGHT - 30);
+    return { 
+      val: Math.round(val * 100) / 100, // Arrondir à 2 décimales
+      y: CHART_HEIGHT - y 
+    };
   });
 
   // Total et tendance

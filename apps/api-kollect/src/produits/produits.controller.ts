@@ -134,11 +134,11 @@ export class ProduitsController {
       } else if (error instanceof z.ZodError) {
         this.logger.error(
           'Erreurs de validation:',
-          JSON.stringify(error.errors, null, 2),
+          JSON.stringify((error as any).errors, null, 2),
         );
         throw new BadRequestException({
           message: 'Données invalides',
-          errors: error.errors,
+          errors: (error as any).errors,
         });
       }
 
@@ -259,11 +259,11 @@ export class ProduitsController {
       } else if (error instanceof z.ZodError) {
         this.logger.error(
           'Erreurs de validation:',
-          JSON.stringify(error.errors, null, 2),
+          JSON.stringify((error as any).errors, null, 2),
         );
         throw new BadRequestException({
           message: 'Données invalides',
-          errors: error.errors,
+          errors: (error as any).errors,
         });
       }
 

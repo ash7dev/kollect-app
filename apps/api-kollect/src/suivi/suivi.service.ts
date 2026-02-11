@@ -4,10 +4,14 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FavoriType } from '@prisma/client';
+import { MetricsService } from '../metrics/metrics.service';
 
 @Injectable()
 export class SuiviService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private metricsService: MetricsService,
+  ) {}
 
   async followBrand(userId: string, brandId: string) {
     return this.prisma.$transaction(async (tx) => {
@@ -33,12 +37,15 @@ export class SuiviService {
       });
 
       // Mettre à jour le compteur
-      await tx.marque.update({
+      const updatedBrand = await tx.marque.update({
         where: { id: brandId },
         data: { followerCount: { increment: 1 } },
+        select: { followerCount: true },
       });
 
-      return { success: true, followerCount: brand.followerCount + 1 };
+      this.metricsService.incrementBrandFollow('follow', brandId);
+
+      return { success: true, followerCount: updatedBrand.followerCount };
     });
   }
 
@@ -65,6 +72,8 @@ export class SuiviService {
         data: { followerCount: { decrement: 1 } },
         select: { followerCount: true },
       });
+
+      this.metricsService.incrementBrandFollow('unfollow', brandId);
 
       return { success: true, followerCount: brand.followerCount };
     });
@@ -128,9 +137,11 @@ export class SuiviService {
           select: { favoriteCount: true } as any,
         });
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        this.metricsService.incrementProductFavorite('follow');
         return { success: true, favoriteCount: (updated as any).favoriteCount };
       } catch {
         // Si le champ favoriteCount n'existe pas, on retourne juste success
+        this.metricsService.incrementProductFavorite('follow');
         return { success: true };
       }
     });
@@ -161,8 +172,10 @@ export class SuiviService {
           select: { favoriteCount: true } as any,
         });
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        this.metricsService.incrementProductFavorite('unfollow');
         return { success: true, favoriteCount: (updated as any).favoriteCount };
       } catch {
+        this.metricsService.incrementProductFavorite('unfollow');
         return { success: true };
       }
     });

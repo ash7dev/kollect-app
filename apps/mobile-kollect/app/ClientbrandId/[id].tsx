@@ -126,7 +126,21 @@ export default function BrandDetailScreen() {
         }
       }
 
-      setCollections(visibleCollections);
+      const normalizedCollections = visibleCollections.map((col) => ({
+        ...col,
+        coverImage: col.coverImage
+          ? col.coverImage.startsWith('http')
+            ? col.coverImage
+            : `${API_URL}${col.coverImage.startsWith('/') ? '' : '/'}${col.coverImage}`
+          : null,
+        teaserVideo: col.teaserVideo
+          ? col.teaserVideo.startsWith('http')
+            ? col.teaserVideo
+            : `${API_URL}${col.teaserVideo.startsWith('/') ? '' : '/'}${col.teaserVideo}`
+          : null,
+      }));
+
+      setCollections(normalizedCollections);
     } catch (e: any) {
       setError(e?.message || 'Impossible de charger la marque');
     } finally {
@@ -182,7 +196,7 @@ export default function BrandDetailScreen() {
     return null;
   }
 
-  const firstCollectionWithCover = collections.find((c) => c.coverImage);
+  const firstCollectionWithCover = collections.find((c) => c.coverImage || c.teaserVideo);
 
   const spotlightBrand = {
     id: brand.id,
@@ -191,7 +205,9 @@ export default function BrandDetailScreen() {
     logo: brand.logo || '',
     // Si la marque n'a qu'un teaser vidéo (sans cover image), BrandSpotlight pourra l'afficher
     teaserVideo: (brand as any).teaserVideo || undefined,
-    coverImage: brand.coverImage || firstCollectionWithCover?.coverImage || '',
+    coverImage:
+      brand.coverImage ||
+      (firstCollectionWithCover?.coverImage || firstCollectionWithCover?.teaserVideo || ''),
     description:
       brand.description ||
       brand.bio ||
@@ -240,16 +256,12 @@ export default function BrandDetailScreen() {
     : '';
 
   const nextCoverFull = nextCollection?.coverImage
-    ? nextCollection.coverImage.startsWith('http')
-      ? nextCollection.coverImage
-      : `${API_URL}${nextCollection.coverImage.startsWith('/') ? '' : '/'}${nextCollection.coverImage}`
-    : firstCollectionWithCover?.coverImage || brand.coverImage || '';
-
-  const nextTeaserVideoFull = nextCollection?.teaserVideo
-    ? nextCollection.teaserVideo.startsWith('http')
+    ? nextCollection.coverImage
+    : nextCollection?.teaserVideo
       ? nextCollection.teaserVideo
-      : `${API_URL}${nextCollection.teaserVideo.startsWith('/') ? '' : '/'}${nextCollection.teaserVideo}`
-    : undefined;
+      : (firstCollectionWithCover?.coverImage || firstCollectionWithCover?.teaserVideo || brand.coverImage || '');
+
+  const nextTeaserVideoFull = nextCollection?.teaserVideo ?? undefined;
 
   const renderCollectionCard = (item: CollectionDto, index: number) => (
     <TouchableOpacity

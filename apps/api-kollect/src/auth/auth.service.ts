@@ -5,8 +5,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { MetricsService } from '../metrics/metrics.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { SyncUserDto } from './dto/sync-user.dto';
@@ -40,6 +41,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private metricsService: MetricsService,
   ) {}
 
   private toUserProfile(user: {
@@ -281,13 +283,15 @@ return {
         },
       });
 
+      this.metricsService.incrementUserRegistered();
+
       // After registration, log the user in with their credentials
       return this.login({
         email: registerDto.email,
         password: registerDto.password
       });
     } catch (error) {
-      if (error instanceof PrismaClientKnownRequestError) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
           throw new UnauthorizedException('Email already in use');
         }

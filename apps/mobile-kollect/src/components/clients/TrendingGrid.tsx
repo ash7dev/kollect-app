@@ -15,6 +15,7 @@ import { useSuiviStore } from '../../features/suivi/store/suiviStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { formatPrice } from '../../features/commandes/types/commande.types';
 import { useAuthStore } from '../../store/authStore';
+import { PRODUCT_COLORS } from '../../constants/productColors';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = (width - 48) / 2;
@@ -99,6 +100,16 @@ export default function TrendingGrid({
     const isLiked = !!followingProducts[productId];
     isLiked ? void unfollowProduct(productId) : void followProduct(productId);
     onLike?.(productId);
+  };
+
+  // Fonction helper pour mapper les couleurs avec leurs noms
+  const getColorInfo = (colorValue: string) => {
+    const mapped = PRODUCT_COLORS.find((c) => c.value === colorValue);
+    return {
+      name: mapped?.name || colorValue,
+      value: colorValue,
+      isMapped: !!mapped,
+    };
   };
 
   const renderProduct = ({ item }: { item: Product }) => {
@@ -235,16 +246,40 @@ export default function TrendingGrid({
           <View style={styles.attributesRow}>
             {item.colors && item.colors.length > 0 && (
               <View style={styles.colorsContainer}>
-                {item.colors.slice(0, 3).map((color, idx) => (
-                  <View
-                    key={idx}
-                    style={[styles.colorDot, { backgroundColor: color, borderColor: colors.colorDotBorder }]}
-                  />
-                ))}
-                {item.colors.length > 3 && (
-                  <View style={[styles.moreIndicator, { backgroundColor: colors.attrBg, borderColor: colors.moreIndicatorBorder }]}>
-                    <Text style={[styles.moreText, { color: colors.textSecondary }]}>+{item.colors.length - 3}</Text>
+                {item.colors.length === 1 ? (
+                  // Afficher le nom de la couleur si une seule couleur
+                  <View style={[styles.singleColorChip, { backgroundColor: colors.attrBg, borderColor: colors.colorDotBorder }]}>
+                    <View 
+                      style={[styles.singleColorDot, { backgroundColor: item.colors[0] }]} 
+                    />
+                    <Text style={[styles.singleColorText, { color: colors.textSecondary }]}>
+                      {getColorInfo(item.colors[0]).name}
+                    </Text>
                   </View>
+                ) : (
+                  // Afficher les points de couleur si plusieurs couleurs
+                  <>
+                    {item.colors.slice(0, 2).map((color, idx) => {
+                      const colorInfo = getColorInfo(color);
+                      return (
+                        <View
+                          key={idx}
+                          style={[
+                            styles.colorDot, 
+                            { 
+                              backgroundColor: colorInfo.value, 
+                              borderColor: colors.colorDotBorder 
+                            }
+                          ]}
+                        />
+                      );
+                    })}
+                    {item.colors.length > 2 && (
+                      <View style={[styles.moreIndicator, { backgroundColor: colors.attrBg, borderColor: colors.moreIndicatorBorder }]}>
+                        <Text style={[styles.moreText, { color: colors.textSecondary }]}>+{item.colors.length - 2}</Text>
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
             )}
@@ -394,6 +429,9 @@ const styles = StyleSheet.create({
   colorDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 1 },
   moreIndicator: { width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
   moreText: { fontSize: 8, fontWeight: '700' },
+  singleColorChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, gap: 4 },
+  singleColorDot: { width: 12, height: 12, borderRadius: 6 },
+  singleColorText: { fontSize: 10, fontWeight: '600' },
   sizesIndicator: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, gap: 3 },
   sizesText: { fontSize: 10, fontWeight: '600' },
   priceRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },

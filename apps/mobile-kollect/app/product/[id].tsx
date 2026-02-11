@@ -18,6 +18,7 @@ import { useProductDetails } from '@/features/produits/hooks/useProducts';
 import { useDeleteProduct } from '@/features/produits/hooks/useProductMutations';
 import { useCollectionsStore } from '@/features/collections/store/collectionStore';
 import { formatPrice } from '@/features/commandes/types/commande.types';
+import { PRODUCT_COLORS } from '@/constants/productColors';
 
 const { width } = Dimensions.get('window');
 
@@ -373,23 +374,27 @@ export default function ProductDetailScreen() {
                       Couleurs
                     </Text>
                     <View style={styles.colorsContainer}>
-                      {product.colors.map((color, index) => (
-                        <View
-                          key={index}
-                          style={[
-                            styles.colorChip,
-                            {
-                              backgroundColor: isDark ? theme.colors.surfaceDark : theme.colors.surface,
-                              borderWidth: 1,
-                              borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
-                            }
-                          ]}
-                        >
-                          <Text style={[styles.colorText, { color: isDark ? theme.colors.textDark : theme.colors.text }]}>
-                            {color}
-                          </Text>
-                        </View>
-                      ))}
+                      {product.colors.map((colorValue, index) => {
+                        const mapped = PRODUCT_COLORS.find((c) => c.value === colorValue);
+                        const label = mapped?.name ?? colorValue;
+                        return (
+                          <View
+                            key={`${colorValue}-${index}`}
+                            style={[
+                              styles.colorChip,
+                              {
+                                backgroundColor: isDark ? theme.colors.surfaceDark : theme.colors.surface,
+                                borderWidth: 1,
+                                borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
+                              }
+                            ]}
+                          >
+                            <Text style={[styles.colorText, { color: isDark ? theme.colors.textDark : theme.colors.text }]}>
+                              {label}
+                            </Text>
+                          </View>
+                        );
+                      })}
                     </View>
                   </View>
                 </View>

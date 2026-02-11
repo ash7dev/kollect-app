@@ -8,7 +8,6 @@ import {
   TouchableOpacity, 
   Platform,
   ScrollView,
-  ActivityIndicator,
   RefreshControl,
   Alert
 } from 'react-native';
@@ -31,6 +30,7 @@ import BrandSpotlight from '../../src/components/clients/BrandSpotlight';
 import JustLaunchedDrop from '../../src/components/clients/JustLaunchedDrop';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { IsLoading } from '../../src/components/ui/IsLoading';
 
 const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev';
 
@@ -105,17 +105,17 @@ export default function ClientHomeScreen() {
       setFeaturedCollections(processedCollections);
       setTrendingCollections(trendingCols || []);
 
-      // Filtrer les "new collections" pour ne garder que celles qui ont au moins 1 produit non supprimé
+      // Filtrer des "new collections" pour ne garder que celles qui ont au moins 1 produit non supprimé
       const nonEmptyNewCollections: CollectionDto[] = [];
       for (const col of processedNewCollections) {
         try {
-          // Utiliser la route publique des collections avec includeProducts=true
+          // Utilisation de la route publique des collections avec includeProducts=true
           const res = await collectionsApi.getPublic(col.id, true);
           const products = (res as any).products || [];
           const count = Array.isArray(products) ? products.length : 0;
           console.log('[Home] getPublic collection', col.id, '=>', count, 'produit(s)');
           if (count > 0) {
-            // Attacher le nombre de produits visibles pour que JustLaunchedDrop n'utilise pas _count obsolète
+            // Attachement du nombre de produits visibles pour que JustLaunchedDrop n'utilise pas _count obsolète
             (col as any).visibleProductCount = count;
             nonEmptyNewCollections.push(col);
           } else {
@@ -183,21 +183,7 @@ export default function ClientHomeScreen() {
   }, [openCart]);
   
   if (loading && !refreshing) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.loadingContent}>
-          <View style={[styles.loadingSpinner, { borderColor: theme.colors.primary }]}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-          </View>
-          <Text style={[styles.loadingTitle, { color: theme.colors.text }]}>
-            Kollect
-          </Text>
-          <Text style={[styles.loadingSubtitle, { color: theme.colors.textSecondary }]}>
-            Préparation de votre expérience...
-          </Text>
-        </View>
-      </View>
-    );
+    return <IsLoading />;
   }
   
   if (error) {
@@ -280,31 +266,70 @@ export default function ClientHomeScreen() {
       }
     : null;
 
-  const spotlightSource = verifiedBrands[0];
-  const spotlightCollections = spotlightSource
-    ? featuredCollections.filter(c => c.brand?.id === spotlightSource.id && c.coverImage)
-    : [];
-  const spotlightCollection = spotlightCollections[0] || featuredCollections.find(c => c.coverImage);
+  // Fonction helper pour obtenir l'image d'une collection
+  const getCollectionImage = (collection: any) => {
+    // 1. Utiliser coverImage si disponible
+    if (collection.coverImage) {
+      return collection.coverImage;
+    }
+    
+    // 2. Sinon, utiliser la première image du premier produit
+    if (collection.products && collection.products.length > 0) {
+      const firstProduct = collection.products[0];
+      if (firstProduct.images && firstProduct.images.length > 0) {
+        return firstProduct.images[0];
+      }
+    }
+    
+    // 3. En dernier recours, utiliser un placeholder avec le nom de la collection
+    return `https://via.placeholder.com/400x300/1a1a1a/ffffff?text=${encodeURIComponent(collection.name || 'Collection')}`;
+  };
+
+  // Déterminer la collection de référence pour le "Créateur en vedette"
+  // On part toujours d'une collection en vedette, pour éviter de mélanger
+  // une marque avec l'image/les produits d'une autre marque.
+  const spotlightCollection = featuredCollections[0];
+
+  // Trouver la marque correspondante à cette collection parmi les marques vérifiées,
+  // ou à défaut utiliser la marque attachée à la collection.
+  const spotlightSource =
+    spotlightCollection?.brand &&
+    (verifiedBrands.find((b) => b.id === spotlightCollection.brand?.id) ||
+      (spotlightCollection.brand as any));
+
   const totalProductsForBrand = spotlightSource
-    ? featuredCollections.filter(c => c.brand?.id === spotlightSource.id).reduce((sum, c) => sum + (c._count?.products || 0), 0)
+    ? featuredCollections
+        .filter((c) => c.brand?.id === spotlightSource.id)
+        .reduce((sum, c) => sum + (c._count?.products || 0), 0)
     : 0;
 
-  const spotlightBrand = spotlightSource && spotlightCollection ? {
-    id: spotlightSource.id,
-    name: spotlightSource.name,
-    slug: spotlightSource.slug,
-    logo: spotlightSource.logo || '',
-    coverImage: spotlightCollection.coverImage || '',
-    description: (spotlightSource as any).description || (spotlightSource as any).bio || spotlightCollection.description || `Découvrez l'univers de ${spotlightSource.name}`,
-    stats: {
-      followers: (spotlightSource as any).followerCount ?? 0,
-      collections: (spotlightSource as any)._count?.collections ?? 0,
-      products: (spotlightSource as any)._count?.products ?? totalProductsForBrand ?? 0,
-    },
-    tags: ['sénégal', 'créateur', 'local'],
-    verified: spotlightSource.isVerified ?? false,
-    isFollowing: false,
-  } : null;
+  const spotlightBrand = spotlightSource && spotlightCollection
+    ? {
+        id: spotlightSource.id,
+        name: spotlightSource.name,
+        slug: spotlightSource.slug,
+        logo: spotlightSource.logo || '',
+        // L'image de couverture vient toujours de la collection en vedette,
+        // pour rester cohérent avec ce qui est affiché dans le carrousel.
+        coverImage: getCollectionImage(spotlightCollection),
+        description:
+          (spotlightSource as any).description ||
+          (spotlightSource as any).bio ||
+          spotlightCollection.description ||
+          `Découvrez l'univers de ${spotlightSource.name}`,
+        stats: {
+          followers: (spotlightSource as any).followerCount ?? 0,
+          collections: (spotlightSource as any)._count?.collections ?? 0,
+          products:
+            (spotlightSource as any)._count?.products ??
+            totalProductsForBrand ??
+            0,
+        },
+        tags: ['sénégal', 'créateur', 'local'],
+        verified: spotlightSource.isVerified ?? false,
+        isFollowing: false,
+      }
+    : null;
   
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -482,20 +507,18 @@ export default function ClientHomeScreen() {
                 </TouchableOpacity>
               </View>
               <DepthCarousel 
-                data={featuredCollections
-                  .filter(collection => collection.coverImage)
-                  .map(collection => ({
-                    id: collection.id,
-                    title: collection.name,
-                    image: collection.coverImage as string,
-                    brandName: collection.brand?.name,
-                    brandLogo: collection.brand?.logo || undefined,
-                    brandSlug: collection.brand?.slug,
-                    status: collection.status,
-                    viewCount: collection._count?.views || 0,
-                    productCount: collection._count?.products || 0,
-                    description: collection.description || 'Découvrez cette collection exclusive.'
-                  }))} 
+                data={featuredCollections.map(collection => ({
+                  id: collection.id,
+                  title: collection.name,
+                  image: getCollectionImage(collection),
+                  brandName: collection.brand?.name,
+                  brandLogo: collection.brand?.logo || undefined,
+                  brandSlug: collection.brand?.slug,
+                  status: collection.status,
+                  viewCount: collection._count?.views || 0,
+                  productCount: collection._count?.products || 0,
+                  description: collection.description || 'Découvrez cette collection exclusive.'
+                }))} 
                 onBrandPress={(slug) => slug && router.push(`/ClientbrandId/${slug}`)}
               />
             </View>

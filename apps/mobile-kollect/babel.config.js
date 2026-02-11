@@ -14,6 +14,8 @@ module.exports = function (api) {
             '@/src/': './src/',
             '@app': '.',
             '@app/': './',
+            // Mock React compiler runtime for React 19 compatibility
+            'react/compiler-runtime': 'react/jsx-runtime',
           },
           extensions: ['.js', '.jsx', '.ts', '.tsx'],
         },

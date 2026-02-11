@@ -10,10 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "simulator": {
-        "device": "iPhone 14 Pro"
-      },
-      "bundleIdentifier": "com.yourcompany.mobilekollect"
+      "bundleIdentifier": "com.yourcompany.mobilekollect",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -45,7 +43,6 @@
           }
         }
       ],
-      "expo-web-browser",
       [
         "@react-native-firebase/app",
         {
@@ -67,14 +64,14 @@
           "color": "#ffffff"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": false
     },
     "extra": {
-      
       "eas": {
         "projectId": "cdfa3d3d-1030-42a9-bb1b-3fe50a96283f"
       },

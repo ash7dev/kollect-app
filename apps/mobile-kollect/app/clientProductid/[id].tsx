@@ -19,6 +19,7 @@ import { useSuiviStore } from '../../src/features/suivi/store/suiviStore';
 import { produitsService, type ProduitDto } from '../../src/features/produits/services/produits.service';
 import { useCartStore } from '../../src/store/cartStore';
 import { useAuthStore } from '../../src/store/authStore';
+import { PRODUCT_COLORS } from '@/constants/productColors';
 import { formatPrice } from '@/features/commandes/types/commande.types';
 
 const { width } = Dimensions.get('window');
@@ -157,6 +158,41 @@ export default function ClientProductDetailScreen() {
 
   const handleBuyNow = () => {
     if (!product) return;
+
+    // Vérifier si l'utilisateur est connecté
+    if (!user) {
+      Alert.alert(
+        'Connexion requise',
+        'Connecte-toi pour finaliser ta commande.',
+        [
+          { text: 'Plus tard', style: 'cancel' },
+          {
+            text: 'Se connecter',
+            onPress: () => {
+              // Ajoute le produit au panier avant la redirection
+              void addItemToCart(
+                {
+                  productId: product.id,
+                  name: product.name,
+                  image: product.images?.[0] ?? null,
+                  price: product.price,
+                  brandId: product.brandId,
+                  stock: product.stock,
+                  size: selectedSize || undefined,
+                  color: selectedColor || undefined,
+                },
+                async () => true, // Accepte automatiquement le changement de marque
+              );
+              // Redirige vers la page de connexion avec redirection vers le checkout après connexion
+              router.push('/(auth)/login?redirect=/checkout');
+            },
+          },
+        ],
+      );
+      return;
+    }
+
+    // Si l'utilisateur est connecté, continue avec le processus normal
     void addItemToCart(
       {
         productId: product.id,
@@ -386,11 +422,13 @@ export default function ClientProductDetailScreen() {
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>Couleur</Text>
               </View>
               <View style={styles.chipRow}>
-                {product.colors.map((color, index) => {
-                  const isActive = color === selectedColor;
+                {product.colors.map((colorValue, index) => {
+                  const isActive = colorValue === selectedColor;
+                  const mapped = PRODUCT_COLORS.find((c) => c.value === colorValue);
+                  const label = mapped?.name ?? colorValue;
                   return (
                     <TouchableOpacity
-                      key={index}
+                      key={`${colorValue}-${index}`}
                       style={[
                         styles.chip,
                         styles.colorChip,
@@ -399,10 +437,10 @@ export default function ClientProductDetailScreen() {
                           borderColor: isActive ? theme.colors.accent : colors.chipBorder,
                         },
                       ]}
-                      onPress={() => setSelectedColor(color)}
+                      onPress={() => setSelectedColor(colorValue)}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.chipText, { color: isActive ? 'white' : colors.text }]}>{color}</Text>
+                      <Text style={[styles.chipText, { color: isActive ? 'white' : colors.text }]}>{label}</Text>
                       {isActive && <Ionicons name="checkmark-circle" size={16} color="white" style={{ marginLeft: 4 }} />}
                     </TouchableOpacity>
                   );

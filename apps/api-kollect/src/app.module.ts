@@ -13,6 +13,7 @@ import { AppService } from './app.service';
 import { CollectionsModule } from './collections/collections.module';
 import { ProduitsModule } from './produits/produits.module';
 import { SuiviModule } from './suivi/suivi.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SuiviModule } from './suivi/suivi.module';
     CommandesModule,
     CollectionsModule,
     SuiviModule, // Module pour la gestion des commandes
+    MetricsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

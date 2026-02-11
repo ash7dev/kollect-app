@@ -17,6 +17,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailService } from '../email/ email.service';
+import { MetricsService } from '../metrics/metrics.service';
 import {
   CommandeItemDto,
   CreateCommandeDto,
@@ -164,6 +165,7 @@ export class CommandesService {
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
     private emailService: EmailService,
+    private metricsService: MetricsService,
   ) {}
 
   /**
@@ -295,6 +297,7 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
         });
 
         this.logger.log(`Commande ${commande.orderNumber} créée pour l'utilisateur ${userId}`);
+        this.metricsService.incrementOrdersCreated(commande.status);
         return commande;
       },
       {

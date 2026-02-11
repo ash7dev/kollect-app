@@ -8,13 +8,13 @@ export const QueryProduitsSchema = z.object({
     .transform(Number)
     .pipe(z.number().min(1))
     .optional()
-    .default('1'),
+    .default(1),
   limit: z
     .string()
     .transform(Number)
     .pipe(z.number().min(1).max(100))
     .optional()
-    .default('10'),
+    .default(10),
 });
 
 // Schéma pour la récupération aléatoire de produits
@@ -24,13 +24,13 @@ export const RandomProduitsSchema = z.object({
     .transform(Number)
     .pipe(z.number().min(1))
     .optional()
-    .default('1'),
+    .default(1),
   limit: z
     .string()
     .transform(Number)
     .pipe(z.number().min(1).max(100))
     .optional()
-    .default('20'),
+    .default(20),
   seed: z.string().optional(), // Pour une pagination aléatoire cohérente
 });
 

@@ -1,0 +1,657 @@
+MVP KOLLECT – PHASE 1
+======================
+
+1. Contexte & Vision
+--------------------
+
+1.1. Problème et opportunité
+- Kollect vise à faciliter la **vente de collections de produits** (mode / streetwear, etc.) par des **marques indépendantes**.
+- Les clients finaux achètent via une app mobile, avec une expérience centrée sur :
+  - la **découverte de collections** (teasers, lancements, produits mis en avant),
+  - un **tunnel de commande simple**,
+  - des **notifications** claires sur l’état des commandes.
+- Côté marque / CEO, la plateforme doit fournir :
+  - un moyen simple de **créer des collections** (avec produits, médias, dates, statuts…),
+  - un **contrôle fin du catalogue** (visibilité, featured, soft delete),
+  - une **vision des commandes** et des interactions clients.
+
+1.2. Objectif de la phase 1 (MVP)
+- Mettre en place un **socle fonctionnel et technique complet** couvrant :
+  - Gestion des **collections** et **produits**.
+  - Gestion des **commandes** de bout en bout (création, réservation de stock, annulation, emails, métriques).
+  - **Système de notifications** interne (DB) + envoi de **push** (FCM / Expo).
+  - App mobile fonctionnelle consommant l’API (produits, collections, commandes, notifications).
+- Ne pas viser la perfection UI/UX, mais un système **robuste, cohérent** et extensible pour les prochaines phases.
+
+
+2. Stack Technique & Architecture Générale
+-----------------------------------------
+
+2.1. Backend (API Kollect)
+- Framework : **NestJS**.
+- ORM : **Prisma** (PostgreSQL). 
+- Modules clés :
+  - `produits` : gestion du catalogue produit.
+  - `collections` : regroupement des produits par collection, statuts, teaser, lancement.
+  - `commandes` : création, gestion de stock, statut, métriques, emails.
+  - `notifications` : stockage, lecture, envoi push.
+  - `metrics` : tracking des événements métier (commandes, vues, etc.).
+  - `email` : envoi d’emails transactionnels.
+  - **Upload & Cloudinary (UploadModule / UploadService)** : gestion centralisée de l’upload, du remplacement et de la suppression des médias (logo de marque, images de produits et de collections) avec stockage/hosting sur Cloudinary et génération d’URLs servies ensuite au mobile.
+- Principes :
+  - **Transactions Prisma** pour garantir la cohérence (commandes, collections, produits).
+  - **Soft delete** pour certains objets (produits) via `isDeleted`.
+  - **Règles métiers** fortes au niveau du service (permissions, statuts, visibilités…).
+
+2.2. Mobile (apps/mobile-kollect)
+- Stack : **React Native / Expo**.
+- State management : **Zustand** pour des stores comme `useNotificationsStore`.
+- Auth : token JWT stocké via **expo-secure-store**.
+- HTTP : `fetch` (et axios dans certaines features commandes) avec headers :
+  - `Authorization: Bearer <token>` pour routes protégées.
+  - `ngrok-skip-browser-warning: true` pour bypass ngrok.
+- Organisation :
+  - `src/features/produits/services/produits.service.ts`
+  - `src/features/collections/services/collections.service.ts`
+  - `src/features/commandes/services/commande.service.ts`
+  - `src/features/notifications/services/notifications.service.ts` + store.
+
+2.3. Flux généraux front → back
+- Le front appelle des **services TypeScript** typés (`ProduitDto`, `CollectionDto`, `Commande`, `Notification`, …) qui :
+  - récupèrent le **token** via SecureStore,
+  - construisent les **URL** vers l’API (ngrok en dev),
+  - gèrent la **sérialisation** (JSON / FormData),
+  - centralisent les **règles d’erreurs** (401 → reset auth, messages d’erreur user‑friendly).
+- Le backend Nest :
+  - expose des **endpoints REST** alignés avec ces services,
+  - applique les **guards d’authentification** et les **règles métiers**,
+  - persiste les données via Prisma,
+  - publie éventuellement des effets secondaires (emails, notifications push, métriques).
+
+
+3. Produits – Fonctionnel & Technique
+-------------------------------------
+
+3.1. Modèle Produit (côté API)
+- Champs principaux (simplifié) :
+  - `id`, `name`, `slug`, `description`.
+  - `price` (numérique, FCFA “normaux”).
+  - `images: string[]` (URLs d’images produits).
+  - `stock: number` (stock global simple pour phase 1).
+  - `sizes: string[]` (liste de tailles disponibles).
+  - `colors: string[]` (liste de couleurs).
+  - `sku: string | null` (référence unique optionnelle).
+  - `collectionId`, `brandId`.
+  - Flags : `isVisible`, `isDeleted`, `isFeatured`.
+  - `viewCount` pour le tracking de popularité.
+
+- Règles clés :
+  - Un produit appartient à **une collection** et **une marque**.
+  - `isDeleted` gère le **soft delete** :
+    - un produit supprimé n’est plus visible dans les listings publics,
+    - mais reste restaurable (`restore`).
+  - `isVisible` + statut de la collection contrôlent l’accessibilité publique.
+
+3.2. Création & gestion des produits (API)
+- Endpoint de création :
+  - Vérifie que l’utilisateur est un **CEO** avec une **marque** (`utilisateur.isCEO` + `brand`).
+  - Vérifie que la **collection** ciblée appartient à cette marque.
+  - Génère un **slug unique** par collection :
+    - base slugifié à partir du nom du produit,
+    - postfix numérique en cas de collision.
+  - Vérifie l’**unicité du SKU** si fourni.
+  - Définit `isVisible` selon :
+    - valeur fournie dans le DTO, sinon
+    - `true` uniquement si la collection est `DISPONIBLE`.
+  - Crée le produit et retourne l’objet incluant info collection + marque.
+
+- Mise à jour produit :
+  - Vérifie la propriété (marque liée au CEO).
+  - Re-vérifie l’unicité du **SKU** si modifié.
+  - Re‑génère un **slug** si le nom change.
+  - Met à jour les champs optionnels (images, stock, tailles, couleurs, etc.).
+
+- Suppression / restauration :
+  - `delete` :
+    - Vérifie marque du CEO.
+    - Bascule `isDeleted` à `true` (soft delete).
+  - `restore` :
+    - Vérifie marque du CEO.
+    - Remet `isDeleted` à `false`.
+
+3.3. Exposition publique & recherche
+- Endpoints publics principaux :
+  - **Featured** : produits avec `isFeatured = true`, visibles, non supprimés, collection `DISPONIBLE`.
+  - **Popular** : produits récents avec vue max (`viewCount`), fallback sur tri par `createdAt` si peu de vues.
+  - **New** : produits récents (`createdAt` >= N jours).
+  - **Random / Random par collection** : échantillons pseudo-aléatoires sur les produits visibles.
+  - **By brand (public)** : produits visibles, non supprimés d’une marque donnée (`brandSlug`), tri configurable (`recent`, `popular`, `price-asc`, `price-desc`).
+  - **Search avancée** :
+    - filtres : `query`, `brandId`, `collectionId`, `minPrice`, `maxPrice`, `sizes`, `colors`, `inStock`, pagination.
+    - logique : combinaison de conditions dans un `where` Prisma, tri multi‑critère (vues, date).
+
+- Détail produit public :
+  - Incrémente `viewCount` dans une transaction.
+  - Vérifie que :
+    - le produit n’est pas supprimé,
+    - la collection est `DISPONIBLE`,
+    - `isVisible = true`.
+
+3.4. Service front `produitsService` (mobile)
+- Interface `ProduitDto` alignée avec l’API.
+- Fonctions principales :
+  - `create(payload, imageUris?)` :
+    - Construit un `FormData` contenant :
+      - un JSON `data` avec les métadonnées produit + une liste d’URLs d’images “placeholder” (schema backend),
+      - les fichiers images locaux (`image-0`, `image-1`, …) correctement typés (`mimeType`).
+    - Ajoute header `Authorization` avec token JWT.
+  - `listForCEO`, `listDeletedForCEO`, `getForCEO` : consommation des routes CEO protégées.
+  - `update(id, payload, imageUris?)` : même approche `FormData` pour upload d’images.
+  - `delete`, `restore` : actions sur le produit (soft delete / restore).
+  - `getFeatured`, `getPopular`, `getNew`, `search`, `getByBrand`, `getByCollection`, `getRandom`, `getPublic` : mirroring des routes publiques.
+
+- Flux type (ex : création produit) :
+  1. L’écran collecte les infos (nom, prix, images locales, tailles, couleurs, etc.).
+  2. Appel `produitsService.create(...)` avec payload métier + `imageUris`.
+  3. Le service construit la request `multipart/form-data` et l’envoie vers l’API.
+  4. L’API valide, persiste via Prisma, retourne le produit créé.
+  5. Le front met à jour l’état local / navigation.
+
+
+4. Collections – Fonctionnel & Technique
+----------------------------------------
+
+4.1. Modèle Collection (API)
+- Champs principaux :
+  - `id`, `name`, `slug`, `description`.
+  - `status: CollectionStatus` avec valeurs :
+    - `BROUILLON` (si utilisé),
+    - `TEASER`,
+    - `DISPONIBLE`,
+    - `EPUISEE`,
+    - `TERMINE`.
+  - `launchDate` (optionnelle), `launchedAt`.
+  - `isFeatured` (mise en avant).
+  - `coverImage`, `teaserVideo` (média principal).
+  - `brandId` + relation `brand` (avec `slug`, `logo`, `isVerified`, etc.).
+  - `_count.products` : nombre de produits liés.
+  - `viewCount` : compteur de vues (tracking trafic).
+
+4.2. Création d’une collection (API)
+- Vérification du **CEO** et de sa **marque** (l’utilisateur doit être CEO et avoir `brand`).
+- Vérifie qu’il y a **au moins un produit** dans la collection (`dto.products.length > 0`).
+- Génère un **slug unique** pour la collection via `brandId` + `slugify(name)`.
+- Gère le **statut** selon la présence de média :
+  - Si `teaserVideo` ou `coverImage` présents → statut forcé à `TEASER`.
+  - Sinon → collection directement `DISPONIBLE`, `launchDate` ignorée.
+- Règles autour de la `launchDate` :
+  - Si teaser, la `launchDate` est obligatoire.
+  - La date doit être au minimum **+1 heure** par rapport à “maintenant”.
+- Si aucun média n’est fourni mais que le premier produit a une image :
+  - `coverImage` prend la première image du premier produit.
+- Transaction Prisma :
+  - Crée la collection.
+  - Crée tous les produits associés (avec slug unique, `isVisible` en fonction du statut de collection).
+  - Recharge la collection avec `_count.products`.
+  - Logge la création (logger Nest).
+
+4.3. Activation du teaser & lancement de collection (API)
+- `activateTeaser(userId, collectionId, dto)` :
+  - Vérifie l’existence de la collection + appartenance à l’utilisateur.
+  - Vérifie qu’il y a au moins un produit.
+  - Autorise l’activation depuis `BROUILLON` ou `DISPONIBLE` seulement.
+  - Met à jour `coverImage`, `teaserVideo`, `status = TEASER`.
+  - TODO prévu : envoi de **notifications push** à la fanbase.
+
+- `launchCollection(userId, collectionId)` :
+  - Récupère la collection + marque + `_count.products`.
+  - Vérifie :
+    - existence, 
+    - propriété (sauf si `userId === 'system-cron'`),
+    - au moins 1 produit,
+    - que la collection n’est pas déjà `DISPONIBLE`, `EPUISEE` ou `TERMINE`.
+  - Cas particulier : lancement automatique par cron (`userId = 'system-cron'`)
+    - Ne lance que si `status = TEASER` et que `now >= launchDate`.
+  - Transaction Prisma :
+    - Met `status = DISPONIBLE`, renseigne `launchedAt`.
+    - Bascule `isVisible = true` sur tous les produits non supprimés.
+  - TODO : envoi de notifications push.
+
+4.4. Listing & détail des collections (API)
+- `findAllForCEO(userId, query, includeProducts)` :
+  - Filtre par marque liée au CEO.
+  - Filtres : `status`, `isFeatured`, `page`, `limit`.
+  - Option `includeProducts` pour embarquer ou non une liste simplifiée de produits.
+  - Retourne `{ data, meta }` avec pagination.
+
+- `findAllPublic(query, includeProducts)` :
+  - Collections publiques : statuts `TEASER` ou `DISPONIBLE`.
+  - Filtres : `isFeatured`, pagination.
+  - Option `includeProducts` : produits visibles et non supprimés, avec limite par collection.
+  - Tri : statut puis `launchDate`.
+
+- `findOne(id, options)` :
+  - Mode privé (CEO) ou public (`isPublic`).
+  - Si non public :
+    - Vérifie que le `userId` correspond bien au propriétaire de la marque.
+  - Si public :
+    - Vérifie que le statut est dans `[TEASER, DISPONIBLE]`.
+    - Incrémente `viewCount`.
+  - `includeProducts` :
+    - En public, inclut les produits non supprimés (même si `isVisible = false` pour permettre un affichage “bientôt dispo”).
+
+4.5. Service front `collectionsApi` (mobile)
+- `CollectionDto` : reflète le schéma backend, avec `status`, média, `viewCount`, `_count.products`, etc.
+- `create(payload: CreateCollectionPayload)` :
+  - Construit un `FormData` multi‑part :
+    - `data` JSON avec la structure de collection + minis DTO produits (sans URLs réelles d’images).
+    - `collectionMedia` (image ou vidéo teaser) sous forme de fichier unique.
+    - images produits : champs nommés `product-<index>-image-<index>`.
+  - Gère le mimeType des images / vidéos.
+  - Envoie vers `POST /collections` avec token JWT.
+
+- `listForCEO(params)` :
+  - Construit les query params (`page`, `limit`, `includeProducts`).
+  - Consomme `GET /collections` sécurisé.
+
+
+4.6. Marques & Dashboard CEO
+-----------------------------
+
+- Côté backend, les **marques/boutiques** sont gérées via le module `brands` :
+  - Création d’une marque par un **CEO** uniquement :
+    - vérifie que l’utilisateur est bien `isCEO`,
+    - impose qu’un CEO ne possède **qu’une seule boutique** (une `marque` par `userId`),
+    - vérifie l’unicité du `slug` et du `name` de la marque,
+    - gère l’**upload du logo** via `UploadService` (envoi sur Cloudinary) et stocke l’URL résultante.
+  - Page publique de marque (`findBySlug`) :
+    - renvoie les infos de la marque (profil, avatar CEO),
+    - embarque les collections publiques `TEASER` / `DISPONIBLE` avec `_count.products`,
+    - liste une sélection de produits visibles de la marque,
+    - fournit des compteurs agrégés (`_count.products`, `_count.collections`, `_count.favoris`, `_count.reviews`).
+
+- Pour le **dashboard CEO**, plusieurs endpoints exposent la vision 360° de la marque :
+  - `findMyBrand` :
+    - récupère la marque associée au CEO connecté,
+    - renvoie des compteurs (produits, collections, commandes, favoris, reviews) pour alimenter des cartes de stats.
+  - `getStats` :
+    - calcule des agrégats par marque :
+      - `totalProducts`, `totalCollections`, `totalOrders` (hors annulées),
+      - `totalRevenue` (somme des `total` de commandes non annulées),
+      - `totalFollowers`, `totalReviews`, `averageRating`,
+      - `ordersThisMonth`, `ordersChange` (évolution par rapport au mois précédent),
+      - `conversionRate` (taux simple basé sur commandes vs nombre de produits actifs),
+      - `followersChange` (actuellement dérivé/simulé pour le MVP).
+  - `getSalesData` :
+    - renvoie des séries temporelles de ventes (montant total des commandes non annulées) par jour/semaine/mois selon la période (`7days`, `30days`, `90days`),
+    - ces données sont pensées pour alimenter des **graphes de performance** dans un futur dashboard web.
+
+- Toutes les routes sensibles (update, désactivation, stats) vérifient que :
+  - l’utilisateur est bien CEO,
+  - et **propriétaire** de la marque (`BrandOwnerGuard` + vérifications dans `BrandsService`).
+
+
+5. Commandes – Fonctionnel & Technique
+--------------------------------------
+
+5.1. Objectif fonctionnel
+- Permettre à un client de **passer une commande** simple mais robuste :
+  - plusieurs items produits (avec ou sans variantes),
+  - calcul des montants en **FCFA** réels (suppression du travail en centimes),
+  - réservation de stock atomique,
+  - statut initial, annulation (par client ou CEO),
+  - emails de confirmation et notifications.
+
+5.2. Modèle et flux de création (API)
+- DTO `CreateCommandeDto` (simplifié) :
+  - `items: CommandeItemDto[]` (avec `productId` ou `variantId`, `quantity`).
+  - **infos de livraison** et coordonnées client : adresse, ville, téléphone, éventuels compléments.
+
+- Côté mobile, le **formulaire de checkout** (`CheckoutModal`) collecte :
+  - prénom, nom, téléphone,
+  - adresse, ville,
+  - info complémentaire (quartier / précision),
+  puis construit un objet `adresseLivraison` structuré :
+  - `nom` (concaténation prénom + nom ou fallback `Client`),
+  - `telephone`,
+  - `adresse`,
+  - `ville`,
+  - `quartier` (fallback sur la ville si pas renseigné),
+  qui est envoyé tel quel à l’API.
+
+- `createCommande(userId, dto)` :
+  - Vérifie que `dto.items` n’est pas vide.
+  - Regroupe les items par **marque** (`groupItemsByBrand`).
+  - Refuse les commandes multi‑marques pour l’instant (une commande = une marque).
+  - Transaction Prisma :
+    - Pour chaque item :
+      - Si `variantId` :
+        - charge la variante + produit + marque,
+        - vérifie `isActive`, stock suffisant,
+        - décrémente `stock` de la variante via un `update` avec condition `stock >= quantity` (protection contre la concurrence),
+        - détermine le prix (variant.price ou produit.price).
+      - Si `productId` sans variante :
+        - charge le produit,
+        - vérifie `isVisible`, non supprimé, stock suffisant,
+        - décrémente `stock` produit.
+      - Agrège les items dans un tableau local `items` avec :
+        - `productId`, `variantId`, `productName`, `price`, `size`, `color`, `quantity`.
+      - Met à jour le `subtotal`.
+    - Calcule les montants :
+      - `subtotal`, `shippingFee`, `total` en FCFA (valeurs déjà “normales” côté API, plus de centimes).
+    - Crée la commande (`commande`) avec :
+      - `status` initial (`EN_ATTENTE` ou équivalent),
+      - `items` liés,
+      - historique de statut initial dans `statusHistory`.
+    - Met à jour des métriques via `metricsService`.
+
+  - Effets secondaires (hors transaction) :
+    - Envoi **d’emails transactionnels** :
+      - à l’adresse client (confirmation commande, détail items),
+      - à la marque (nouvelle commande).
+    - Envoi de **notifications** via `notificationsService`.
+
+5.3. Annulation de commande (API)
+- `annulerCommande(commandeId, userId, isCEO, notes?)` :
+  - Charge la commande + items + client + marque.
+  - Vérifie les droits :
+    - si `isCEO` → la marque de la commande doit appartenir au CEO.
+    - sinon → le `clientId` doit être celui de l’utilisateur.
+  - N’autorise l’annulation que pour les commandes en **`EN_ATTENTE`**.
+  - Transaction Prisma :
+    - Restaure le stock des variantes (`varianteProduit.stock` incrementé).
+    - Met à jour le statut à `ANNULEE`.
+    - Ajoute une entrée dans `statusHistory` avec message adapté (CEO vs client).
+  - Notifications asynchrones :
+    - client : `COMMANDE_ANNULEE` (medium priority).
+    - CEO : `COMMANDE_ANNULEE` (low priority).
+
+5.4. Service front `commande.service.ts` (mobile)
+- Utilise **axios** avec :
+  - baseURL API,
+  - interceptors pour injecter le token JWT (`SecureStore`) et gérer les erreurs (401 → reset authStore, etc.).
+- Types :
+  - `CommandeItem`, `Commande`, `CommandeStatus`, DTO de création, réponses paginées, etc.
+- Fonctions principales (exemples génériques) :
+  - `createCommande(payload)` : envoie DTO de commande à l’API, gère les erreurs métier remontées (`BadRequestException` sur stock, multi‑marque, etc.).
+  - `listMyCommandes`, `getCommandeDetails` : récupération des commandes de l’utilisateur.
+  - `cancelCommande` : appelle l’endpoint d’annulation et laisse l’API gérer les règles de droit.
+
+
+6. Notifications – Fonctionnel & Technique
+-----------------------------------------
+
+6.1. Objectif fonctionnel
+- Garantir que l’utilisateur :
+  - voit ses **notifications métier** (commande annulée, commande créée, teaser, etc.),
+  - a un **compteur “non lues”** fiable,
+  - reçoive des **push notifications** via FCM/Expo (lorsqu’un token push est disponible).
+
+6.2. Backend `NotificationsService` (API)
+- Fonctions principales :
+  - Création de notification :
+    - `create({ userId, type, title, message, data, priority })`.
+    - Persiste la notification en base (non lue par défaut).
+  - Récupération :
+    - `findForUser(userId, pagination)` → liste paginée + `unreadCount`.
+  - Marquage comme lu :
+    - `markAsRead(notificationId, userId)`.
+    - Possibilité de marquer plusieurs comme lues (selon implémentation).
+  - Intégration **Firebase Admin SDK** :
+    - Gestion de l’envoi de push via FCM (tokens FCM/Expo).
+    - Envoi multi‑device (multicast) avec logs d’erreurs si token invalide.
+
+- Flux :
+  - Lors de certains événements (ex : annulation de commande) :
+    - appel à `notificationsService.create(...)`,
+    - tentative d’envoi push immédiat en parallèle.
+
+6.3. Store notifications côté mobile
+- `useNotificationsStore` (Zustand) :
+  - État :
+    - `notifications: Notification[]`.
+    - `unreadCount: number`.
+    - `loading`, `error` éventuels.
+  - Actions :
+    - `fetchMyNotifications()` :
+      - appelle le service front `notifications.service.ts` (qui tape l’API),
+      - met à jour la liste + `unreadCount`.
+    - `markAsRead(id)` :
+      - optimistic update côté client (marque comme lue localement),
+      - appelle l’API pour marquer comme lue en base.
+    - `markAllAsReadLocal()` :
+      - reset local du compteur, utile pour UX instantanée.
+
+- Flux type (consultation notifications) :
+  1. L’écran “Notifications” monte.
+  2. Appel `fetchMyNotifications()`.
+  3. L’API renvoie la page de notifications + `unreadCount`.
+  4. Le store met à jour l’UI.
+  5. L’utilisateur ouvre une notification → `markAsRead(id)` est déclenché.
+
+
+7. Utilisateurs, rôles & Authentification
+-----------------------------------------
+
+7.1. Modèle utilisateur & système de rôles (API)
+- Utilisateur persistant dans Prisma avec indicateurs de rôle :
+  - `isClient` : rôle **client** (acheteur).
+  - `isCEO` : rôle **vendeur / créateur** (propriétaire de marque).
+  - `isAdmin` : rôle **admin** technique.
+  - `has_seen_creator_prompt` : flag d’onboarding créateur (pour savoir si l’utilisateur a déjà vu / choisi le rôle vendeur).
+
+- Endpoint d’update de rôle : `PATCH /auth/users/:id/role` :
+  - payload : `{ choice: 'client' | 'vendeur', hasSeenCreatorPrompt: boolean }`.
+  - contrôle d’accès :
+    - un utilisateur ne peut mettre à jour **que son propre profil**, sauf si `isAdmin`.
+  - logge l’opération pour le suivi (`[AUTH] Updating user role`).
+
+- Service `auth.service` – bascule de rôle :
+  - `updateUserRole(userId, role, hasSeenCreatorPrompt)` :
+    - charge l’utilisateur courant,
+    - détecte le tout premier passage **client → vendeur** (`isFirstUpgradeToSeller`),
+    - met à jour :
+      - `isClient` / `isCEO` en fonction du rôle choisi,
+      - `has_seen_creator_prompt`.
+    - lors du **premier upgrade vers vendeur** :
+      - supprime les favoris client (`favori.deleteMany`),
+      - nettoie les anciennes notifications client (`notification.deleteMany`),
+      afin de repartir sur un profil créateur propre.
+    - renvoie un **nouveau JWT** incluant les rôles mis à jour.
+
+- Au moment de la génération du token (`generateJwtToken`) :
+  - le JWT embarque :
+    - `id`, `kindeId`, `email`,
+    - `isAdmin`, `isCEO`, `isClient`,
+    - `has_seen_creator_prompt`.
+  - une méthode dédiée (`getBrandForToken`) récupère la marque attachée à l’utilisateur (id, slug, name, isVerified) pour enrichir les contextes CEO.
+
+7.2. Authentification côté mobile
+- Store d’auth (`authStore`) :
+  - garde en mémoire le **profil utilisateur** (incluant `isClient`, `isCEO`, `isAdmin`),
+  - expose des actions pour :
+    - se connecter / se déconnecter,
+    - nettoyer l’état (`_clearAuth`) en cas de 401.
+- Service `auth.service.ts` :
+  - gère l’appel aux endpoints d’auth du backend,
+  - stocke le token JWT et certaines infos user dans **expo-secure-store**.
+
+7.3. Gestion du token & persistance sécurisée
+- Utilisation de **expo-secure-store** pour stocker le JWT :
+  - clés possibles : `jwt_token`, `JWT_TOKEN`, `ACCESS_TOKEN` (les services front essaient plusieurs variantes pour maximiser la compatibilité avec l’existant).
+- Helper `getToken()` mutualisé dans les services :
+  - lève une erreur claire si aucun token n’est trouvé.
+
+7.4. Headers & configuration réseau (mobile → API)
+- `Authorization: Bearer <token>` sur toutes les routes protégées.
+- `ngrok-skip-browser-warning: true` pour supprimer la page d’avertissement ngrok.
+- Gestion d’erreurs HTTP :
+  - cas 401 → `authStore._clearAuth()` (déconnexion “propre” et sortie des écrans protégés),
+  - erreurs backend (validation, métier) renvoyées comme `Error(message)` pour être affichées proprement.
+
+- Côté API NestJS, la sécurité repose sur un ensemble de **guards** :
+  - `JwtAuthGuard` pour valider le token et attacher l’utilisateur aux requêtes,
+  - `RolesGuard` combiné avec le décorateur `@Roles('isClient' | 'isCEO' | 'isAdmin')` pour filtrer l’accès par rôle,
+  - `BrandOwnerGuard` pour s’assurer qu’un CEO ne peut manipuler **que sa propre marque** (routes de brands, stats, ventes, etc.).
+
+
+8. Choix forts, patterns et spécialités du MVP
+---------------------------------------------
+
+8.1. Soft delete et sécurité du catalogue
+- Les produits ne sont pas supprimés physiquement, mais marqués via `isDeleted`.
+- Avantages :
+  - permet de **restaurer** un produit,
+  - garde l’historique des commandes intact (références toujours valides),
+  - évite les erreurs de “gap” de données.
+- Le backend filtre systématiquement les `isDeleted = true` des routes publiques.
+
+8.2. Gestion stricte des droits CEO
+- Partout où un CEO agit sur des entités (produits, collections, commandes),
+  - on vérifie que l’objet appartient **bien à la marque liée** à ce CEO.
+- Cette logique protège contre :
+  - l’accès inter‑marques,
+  - des erreurs d’identifiant (ID deviné dans l’URL, etc.).
+
+8.3. Atomisation des effets métier
+- Utilisation intensive de **transactions Prisma** pour :
+  - la création de commandes (réserver le stock + créer la commande + items en un seul bloc),
+  - le lancement de collections (mise à jour statut + visibilité produits),
+  - certaines mises à jour sensibles.
+- Effets secondaires non critiques (emails, notifications push) sont faits **hors transaction** pour :
+  - ne pas bloquer la transaction en cas d’erreur SMTP ou FCM,
+  - logguer les erreurs sans casser le flux utilisateur.
+
+8.4. Système de recommandations & vitrine produits
+- API produit expose plusieurs **vues métier** :
+  - featured, popular, new, random, par collection, par marque, search avancée.
+- Permet de construire des **sections de home** riches :
+  - “Mise en avant”, “Populaire”, “Nouveautés”, “Recommandé pour toi”, “D’autres produits de la même marque / collection”, etc.
+
+8.5. Logique intelligente de la home client
+- L’écran d’accueil client (`app/(client)/index.tsx`) orchestre plusieurs sources de données et composants pour construire une expérience riche :
+
+  - **Composants principaux utilisés** :
+    - `DepthCarousel` : carrousel pour les collections mises en avant.
+    - `DropCountdown` : compte à rebours pour les drops/collections en approche.
+    - `TrendingGrid` : grille de produits tendances.
+    - `BrandSpotlight` : focus sur les marques vérifiées.
+    - `JustLaunchedDrop` : bloc dédié aux collections récemment lancées.
+    - `CartModal` / `CheckoutModal` : gestion du panier + passage de commande.
+
+  - **Requêtes et services appelés** :
+    - `collectionsApi.getFeatured(6)` → renvoie une liste de `CollectionDto` mises en avant.
+    - `collectionsApi.getTrending(6)` → collections qui génèrent du trafic.
+    - `collectionsApi.getNew(6)` → nouvelles collections (basées sur dates / statuts).
+    - `collectionsApi.getComingSoon(6)` → collections en mode teaser / à venir.
+    - `produitsService.getPopular(20, 30)` → produits populaires sur les 30 derniers jours.
+      - si cette requête échoue ou ne renvoie rien (peu de data en phase MVP), fallback sur `produitsService.getRandom({ limit: 20 })` pour garantir une grille de produits.
+    - `brandService.getAllBrands({ isActive: true, isVerified: true })` → met en avant uniquement les marques actives et vérifiées.
+
+  - **Normalisation des médias côté front** :
+    - Pour chaque `CollectionDto` et `brand` :
+      - si `coverImage` / `teaserVideo` / `logo` ne commencent pas par `http`, elles sont préfixées avec `API_URL` (gestion des `/` en amont) afin de produire un lien absolu valide, compatible avec Expo Image / vidéo.
+
+  - **Filtrage des new collections vides (contexte MVP)** :
+    - Problème : en phase MVP, les données `_count.products` ne sont pas toujours fiables ou cohérentes avec la réalité des produits visibles.
+    - Solution mise en place :
+      - pour chaque collection candidate de `getNew`, le front appelle `collectionsApi.getPublic(col.id, true)` avec `includeProducts = true`,
+      - lit la liste `products` renvoyée par l’API (déjà filtrée côté backend sur produits non supprimés, et potentiellement non visibles pour les teasers),
+      - ne conserve dans `newCollections` que les collections où `products.length > 0`,
+      - attache à chaque collection un champ runtime `visibleProductCount` pour que les composants comme `JustLaunchedDrop` n’aient pas à refaire la logique.
+
+  - **Pré-chargement des signaux client** :
+    - `useNotificationsStore.fetchMyNotifications()` est appelé pour récupérer la liste des notifications + `unreadCount`, afin d’afficher un badge sur l’UI.
+    - `useSuiviStore.fetchAllProductFavorites()` charge les favoris produits du client, ce qui permet aux composants de savoir rapidement quels produits sont déjà suivis / likés.
+
+- Ces choix sont **adaptés au contexte MVP** :
+  - peu de données en base → nécessité de fallbacks (`popular` → `random`) pour éviter des écrans vides,
+  - certaines métriques (comme `_count.products`) étant encore jeunes / partiellement fiables, le front effectue des vérifications supplémentaires via `getPublic(..., includeProducts = true)` pour sécuriser la qualité de l’expérience,
+  - malgré ce contexte, l’écran d’accueil reste riche, cohérent et prêt à se simplifier quand les datas et les métriques backend seront pleinement en place.
+
+8.6. Tracking des vues et métriques
+- `viewCount` sur produits et collections pour :
+  - alimenter les algos “popular”,
+  - mesurer l’intérêt.
+- `MetricsService` pour suivre les événements clés (création de commande, etc.) et ouvrir la porte à :
+  - dashboards, reporting, analytics future phase.
+
+8.7. Suivi & Favoris (marques / produits)
+- La fonctionnalité de **suivi** repose sur une table unique `favori` avec un champ `type` (`BRAND` ou `PRODUCT`) :
+  - **Suivi de marques** :
+    - endpoints `/brands/:id/follow`, `/brands/:id/followers/count`, `/brands/:id/is-following`,
+    - transactions Prisma pour créer/supprimer la relation et mettre à jour `followerCount` sur la marque,
+    - intégration avec `MetricsService` via `incrementBrandFollow('follow' | 'unfollow', brandId)`.
+  - **Favoris produits** :
+    - endpoints `/products/:id/follow`, `/products/:id/followers/count`, `/products/:id/is-following`,
+    - gestion d’un compteur `favoriteCount` (si présent dans le schéma) ou fallback sur un `count` direct dans `favori`,
+    - intégration métriques via `incrementProductFavorite('follow' | 'unfollow')`.
+
+- Côté mobile, le store `useSuiviStore` encapsule cette logique :
+  - state :
+    - `followingBrands` / `followingProducts` (maps id → bool),
+    - `brandFollowersCount` / `productFollowersCount`,
+    - `loading`, `error`.
+  - actions :
+    - `fetchBrandFollowState`, `followBrand`, `unfollowBrand`,
+    - `fetchProductFollowState`, `followProduct`, `unfollowProduct`,
+    - `fetchAllProductFavorites()` qui précharge tous les produits favoris de l’utilisateur pour marquer instantanément l’UI.
+
+- Cette couche Suivi/Favoris est directement utilisée dans :
+  - la **home client** (préchargement des favoris dans `client/index`),
+  - les écrans de produits / marques pour afficher :
+    - l’état (suivi ou non),
+    - les compteurs de followers / favoris,
+  et constitue un socle pour une personnalisation plus avancée dans les phases suivantes.
+
+
+9. Limitations assumées pour la phase 1
+--------------------------------------
+
+Cette phase 1 se concentre sur un **parcours simple mais robuste**. Certaines fonctionnalités sont volontairement limitées ou pas encore implémentées :
+
+- **Variantes avancées de produits** :
+  - Le système supporte déjà `varianteProduit` pour certaines opérations commandes, mais :
+    - pas encore d’UI complète de gestion des variantes (taille/couleur avec stock indépendant) côté CEO,
+    - pas encore de logique complète de pricing par variante dans toute l’UX mobile.
+
+- **Paiement en ligne** :
+  - La phase 1 peut fonctionner sur un mode “commande enregistrée” sans intégration d’un PSP (Stripe, Paystack, etc.).
+  - L’intégration des paiements, statuts de paiement et réconciliation viendra dans une phase ultérieure.
+
+- **Système de favoris et personnalisation avancée** :
+  - Il existe un début de logique de recommandations personnalisées basées sur les favoris,
+  - mais l’UX autour des favoris, des profils, et de la personnalisation reste à approfondir.
+
+- **Backoffice web CEO complet** :
+  - Actuellement, une partie des actions CEO peut être faite via API / mobile,
+  - un backoffice web dédié (gestion avancée des stocks, analytics détaillés) reste à construire.
+
+
+10. Résumé de l’état de la Phase 1
+---------------------------------
+
+À la fin de cette phase 1 du MVP, Kollect dispose de :
+
+- **Un backend structuré NestJS + Prisma** avec :
+  - modèles solides pour **produits**, **collections**, **commandes**, **notifications**,
+  - règles métiers claires (statuts, visibilité, permissions CEO, soft delete),
+  - transactions pour les opérations critiques,
+  - intégration d’emails et d’un socle de notifications push.
+
+- **Une app mobile Expo** connectée à l’API, qui :
+  - gère l’authentification et le stockage sécurisé du token,
+  - consomme les endpoints produits / collections (listing, détails, sections vitrines),
+  - permet de créer / gérer le catalogue côté CEO,
+  - gère un **parcours de commande** complet jusqu’à l’enregistrement en base,
+  - expose les **notifications** avec compteur de non lues.
+
+- **Une base prête à évoluer** :
+  - L’architecture actuelle est suffisamment modulaire pour accueillir :
+    - variantes avancées,
+    - paiements en ligne,
+    - analytics enrichis,
+    - backoffice web,
+    - automation marketing via notifications / emails.
+
+Cette rétrospective fige l’état du système à la fin de la phase 1 du MVP et servira de **référence** pour la conception de la phase 2 (roadmap, arbitrages techniques et produit).

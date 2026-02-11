@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing, Image, Dimensions } from 'react-native';
+import { View, StyleSheet, Animated, Easing, Image, Dimensions, Platform } from 'react-native';
 import { useTheme } from '../../../app/context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
@@ -457,9 +457,11 @@ const styles = StyleSheet.create({
     left: '50%',
   },
   text: {
-    fontSize: Math.min(width * 0.13, 52),
-    fontWeight: '700', // ✨ Bold selon règles BOOM
-    letterSpacing: 3,
+    fontSize: 65,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    fontStyle: 'italic',
+    fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive',
     textAlign: 'center',
     marginTop: -234,
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
@@ -467,7 +469,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   subtitle: {
-    fontSize: Math.min(width * 0.04, 16),
+    fontSize: Math.min(width * 0.04, 18),
     fontWeight: '500', // ✨ Medium selon règles BOOM
     letterSpacing: 1,
     textAlign: 'center',

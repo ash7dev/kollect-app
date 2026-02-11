@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../app/context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { storage, ProductDraft } from '../../utils/storage';
+import { PRODUCT_COLORS } from '../../constants/productColors';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -31,15 +32,6 @@ interface AddProductModalProps {
 }
 
 const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
-const AVAILABLE_COLORS = [
-  { name: 'Noir', value: 'black' },
-  { name: 'Blanc', value: 'white' },
-  { name: 'Rouge', value: 'red' },
-  { name: 'Bleu', value: 'blue' },
-  { name: 'Vert', value: 'green' },
-  { name: 'Jaune', value: 'yellow' },
-  { name: 'Rose', value: 'pink' },
-];
 
 export function AddProductModal({
   visible,
@@ -520,11 +512,11 @@ export function AddProductModal({
                   Couleurs disponibles *
                 </Text>
                 <View style={styles.optionsContainer}>
-                  {AVAILABLE_COLORS.map(color => {
+                  {PRODUCT_COLORS.map(color => {
                     const isSelected = selectedColors.includes(color.value);
                     return (
                       <TouchableOpacity
-                        key={color.value}
+                        key={`${color.value}-${color.name}`}
                         style={[
                           styles.colorOption,
                           {

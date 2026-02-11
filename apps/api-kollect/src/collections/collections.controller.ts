@@ -122,11 +122,11 @@ export class CollectionsController {
       } else if (error instanceof z.ZodError) {
         this.logger.error(
           'Erreurs de validation:',
-          JSON.stringify(error.errors, null, 2),
+          JSON.stringify((error as any).errors, null, 2),
         );
         throw new BadRequestException({
           message: 'Données invalides',
-          errors: error.errors,
+          errors: (error as any).errors,
         });
       }
 
@@ -398,7 +398,7 @@ export class CollectionsController {
       if (error instanceof z.ZodError) {
         throw new BadRequestException({
           message: 'Paramètres de requête invalides',
-          errors: error.errors,
+          errors: (error as any).errors,
         });
       }
 
@@ -528,7 +528,8 @@ export class CollectionsController {
   @Get('public')
   @Public()
   async findAllPublic(
-    @Query(new ZodValidationPipe(QueryCollectionsSchema)) query: QueryCollectionsDto,
+    @Query(new ZodValidationPipe(QueryCollectionsSchema))
+    query: QueryCollectionsDto,
     @Query('includeProducts') includeProducts?: string | boolean,
   ) {
     const include = includeProducts === true || includeProducts === 'true';

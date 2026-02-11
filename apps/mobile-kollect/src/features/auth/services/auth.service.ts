@@ -48,7 +48,6 @@ interface AuthResponse {
 // ============================================
 
 const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api'
-
 const STORAGE_KEYS = {
   JWT_TOKEN: 'jwt_token',
   USER_DATA: 'user_data',

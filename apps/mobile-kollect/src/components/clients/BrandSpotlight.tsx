@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../app/context/ThemeContext';
 import { useSuiviStore } from '../../features/suivi/store/suiviStore';
 import { Video, ResizeMode } from 'expo-av';
+import { useAuthStore } from '../../store/authStore';
+import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -56,6 +58,8 @@ export default function BrandSpotlight({
   scrollY,
 }: BrandSpotlightProps) {
   const { theme, isDark } = useTheme();
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
   const [following, setFollowing] = useState(brand.isFollowing || false);
   const {
     followingBrands,
@@ -74,6 +78,22 @@ export default function BrandSpotlight({
   }, [brand.id, fetchBrandFollowState]);
 
   const handleFollow = () => {
+    // Si l'utilisateur n'est pas connecté, on lui propose d'abord de se connecter
+    if (!user) {
+      Alert.alert(
+        'Connexion requise',
+        "Connecte-toi pour suivre ce créateur et voir ses nouveautés.",
+        [
+          { text: 'Plus tard', style: 'cancel' },
+          {
+            text: 'Se connecter',
+            onPress: () => router.push('/(auth)/login?redirect=/(client)'),
+          },
+        ],
+      );
+      return;
+    }
+
     const next = !isFollowing;
     setFollowing(next);
     if (next) {

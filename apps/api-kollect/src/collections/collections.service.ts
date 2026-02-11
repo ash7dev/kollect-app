@@ -901,6 +901,15 @@ async findAllForCEO(
             isVerified: true,
           },
         },
+        products: {
+          select: {
+            id: true,
+            name: true,
+            images: true,
+          },
+          take: 1,
+          orderBy: { createdAt: 'asc' },
+        },
         _count: {
           select: { products: true },
         },

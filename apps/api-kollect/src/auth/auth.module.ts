@@ -11,6 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from '../common/guards/roles.guard'; // ✅ Ajouté
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     }),
     PrismaModule,
     NotificationsModule,
+    MetricsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, RolesGuard], // ✅ Ajouté RolesGuard
