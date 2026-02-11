@@ -1,0 +1,83 @@
+services:
+  # Service API NestJS
+  - type: web
+    name: kollect-api
+    env: node
+    repo: https://github.com/ash7dev/kollect-app.git
+    rootDir: apps/api-kollect
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        value: postgresql://postgres.eslzutyspbtomjbotmxw:Boussodiop@aws-1-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=disable&connection_limit=1
+      - key: DIRECT_DATABASE_URL
+        value: postgresql://postgres.eslzutyspbtomjbotmxw:Boussodiop@aws-1-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require
+      - key: JWT_SECRET
+        value: 68d640bf89a5a24d483b09c2af39217be95418d0bd952965280d199a7e3e02f2
+      - key: FIREBASE_PROJECT_ID
+        value: kollect-d8c2b
+      - key: FIREBASE_CLIENT_EMAIL
+        value: firebase-adminsdk-fbsvc@kollect-d8c2b.iam.gserviceaccount.com
+      - key: FIREBASE_PRIVATE_KEY
+        value: |
+          -----BEGIN PRIVATE KEY-----
+          MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDG+m3o9a65B9Ir
+          ZEazSw0s0Nh7H40LMZjsHAYEs0LPbqlc4oLkXIxfyN7bysddYxpgJRzyZnrQZmvG
+          I0evCYmkUhkQRdXcd0qRNRDsVVBlBOAxOIYz+khsSghXSpLPD1FEnt0Qc5C3ke8O
+          i43X18POC9rrm1UsSV27Uq8pQpgo/hSJ8GgqivyPynAMeDqAQhk2Q0XGi4tFBVp+
+          S5EXxHCzph1QPiatCf8V5zAktHAgEC1vbvLatXfXsNuZKgj74idz9RQtb8KHnoYl
+          XEX7JlHma31hZe0tdqqctCIsFNA3YEHAZMM6zRVtGvheufhyOW4g4CAfocseOBKf
+          q0yTwmFZAgMBAAECggEAVZGJpabN+j1eSRHJA76xTkYL6rrxRVCRcmxEvE243Aq7
+          Y7n3Tyxro593E287WDJPu+wJ7EZc53U8QMuYPrJr0lIJ/EEEDNjyJMr82Z2Awsib
+          fx9PO1gVQBiASMXFp6zvJoLpD3ObVw43j3o9SAa+akQX4717nd15JR8UO7qrQ+jp
+          7HBIjMjhnXVChMpuEXjWJfQomjPzORxXYllB6ZpdmWb2Ur0/A45+6KiUPZqKX4Vu
+          XeZy/mIWroR2jfD5yu2iVAPdoIiuJLnB9GRv3qvYpAspgOoR38+fkE5WUllt0B8W
+          GL1aJ0GgDpNRnKBOywY8NXEfdL4gqa0o6NwIvu5bhwKBgQDsFrfiHOTtTwJYhnqG
+          12bP7ltIwvZ7gqt46PVIYL7Z3YMS/heWEvrTnWU4u7GlMUh0o4Iin2FLBq1hdn/I
+          DAyzfOxVgYGGOGd3Gm9v3UbIWc5bl37k7r4hZE4p5VoDTuioIPS2CQXXNz4S4ZYQ
+          wLK1icy8TZX5ZoU8qyTuAIn0/wKBgQDXwnm6eiUmXyAnrFBlz9Muzgzxf2IOBzvj
+          WSwd6mGIipqY+1mHc77lbYMuE5kKTnq24/9fIdhDpX1PpiVd8gFgrNgkpqsnUZdc
+          9Uaot5xx64SpO+puaSv7UjkeptMR0XuUxh1vYl31uBUl1evjjrpOxbTf0E5S22b3
+          awD4gGFxpwKBgET/9so9C6NX3iWlWBYkykWnMkK3yHYcoKT74QRAUkc2eGKKpLYV
+          4f0LGVRVdvwCxVxhlV0tG7BjyTSc/4emDeg/cIslCIgD4CltLniRQWi45pjaVBnw
+          tNzphfa0s3QYEeNhjmPNi0l1Oc0m5UcMKq7oEVBPlK+JiRNMKcTtn2RdAoGBAL1v
+          dbthpR6EpNHQfCJ4Dz5oEXsz0Z7pgQ6C67Y0ZIAi2cv528iOuovr1CJveI5RC3Nq
+          yXv4Vk5GjbiR8vsCEW2VNI0xfNKf05r9i5V06LopBCgmgBWC5+fYcGhWJrndSHj+
+          XTe/kSm9/2th4KPCXBfvhHiCB1K+ajBP1eFZrrS/AoGBANEyEpD1iZh+Aa97geZO
+          eVx37g9Ia3pcc4C832Vh2vgtJheUHWOqlJ0ygfEdLyiENUml64toC1rfgrarjY52
+          1Es/Uwc7gjRavCTXMPq0/pk5oEDpiK2PzeLZgu6cPGuOTWbF9i/X0g/iZBHmSoL6
+          kJc0P3LxQWdubclxf8FPDZ3y
+          -----END PRIVATE KEY-----
+      - key: WEB_PUSH_PUBLIC_KEY
+        value: BLuzBraU0KpFhbUwRXsfdYo8wQrF8CPMbcF4czSnd9N2iHZlheqDaoATg5FxKPFkvsNn5SXRwWjIWWQUPCdboR8
+      - key: WEB_PUSH_PRIVATE_KEY
+        value: VOTRE_CLE_PRIVEE_WEB_PUSH
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dk33bif1i
+      - key: CLOUDINARY_API_KEY
+        value: 961718442913821
+      - key: CLOUDINARY_API_SECRET
+        value: VexvW58HKoTwAsYksC96-Q-FSMg
+      - key: RESEND_API_KEY
+        value: re_CvC6TTQn_9vUcWvyYMk3RJL7vDVcyduh9
+      - key: SMTP_HOST
+        value: sandbox.smtp.mailtrap.io
+      - key: SMTP_PORT
+        value: 2525
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        value: 9ad0ef5c269067
+      - key: SMTP_PASS
+        value: 249e51ffb7ed20
+      - key: EMAIL_FROM
+        value: Kollect <no-reply@kollect.test>
+
+    # Configuration des branches
+    autoDeploy: true
+    healthCheckPath: /health
