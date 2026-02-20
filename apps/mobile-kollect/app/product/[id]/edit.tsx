@@ -113,6 +113,7 @@ export default function EditProductScreen() {
     if (!name.trim()) return 'Le nom du produit est requis';
     if (name.length < 3) return 'Le nom doit contenir au moins 3 caractères';
     if (!price || parseFloat(price) <= 0) return 'Le prix doit être supérieur à 0';
+    if (!Number.isInteger(Number(price))) return 'Le prix doit être un entier';
     if (images.length + newImageUris.length === 0) return 'Le produit doit avoir au moins 1 image';
     if (!stock || parseInt(stock, 10) < 0) return 'Le stock doit être positif';
     return null;
@@ -140,7 +141,7 @@ export default function EditProductScreen() {
         stock: parseInt(stock, 10),
         sizes: selectedSizes,
         colors: selectedColors,
-        images: images, // Les images existantes à conserver
+        ...(images.length > 0 ? { images } : {}),
       };
 
       // Uploader seulement les nouvelles images
@@ -612,4 +613,3 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
 });
-

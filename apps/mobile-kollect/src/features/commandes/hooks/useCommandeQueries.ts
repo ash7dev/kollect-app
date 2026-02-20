@@ -8,8 +8,7 @@ import {
   Commande, 
   CommandesResponse,
   CreateCommandeDto,
-  QueryCommandesDto,
-  CommandeStatus
+  QueryCommandesDto
 } from '../services/commande.service';
 import { useCommandeStore } from '../store/commandeStore';
 import { useAuthStore } from '../../../store/authStore';

@@ -1,11 +1,11 @@
 import * as SecureStore from 'expo-secure-store';
+import { apiUrl, ngrokSkipBrowserWarning } from '@/config/env';
 
-const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api';
+const API_URL = apiUrl;
 
 async function getAuthHeaders() {
   const token =
     (await SecureStore.getItemAsync('jwt_token')) ||
-    (await SecureStore.getItemAsync('JWT_TOKEN')) ||
     (await SecureStore.getItemAsync('ACCESS_TOKEN')) ||
     null;
 
@@ -16,7 +16,7 @@ async function getAuthHeaders() {
   return {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
-    'ngrok-skip-browser-warning': 'true',
+    'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
   } as const;
 }
 

@@ -29,6 +29,7 @@ interface AddProductModalProps {
   onSubmit: (product: ProductDraft) => Promise<void>;
   collectionName: string;
   autoCloseOnSuccess?: boolean;
+  embedded?: boolean;
 }
 
 const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
@@ -39,6 +40,7 @@ export function AddProductModal({
   onSubmit,
   collectionName,
   autoCloseOnSuccess = true,
+  embedded = false,
 }: AddProductModalProps) {
   const { theme, isDark } = useTheme();
 
@@ -120,6 +122,7 @@ export function AddProductModal({
     if (!description.trim()) return 'La description est requise';
     if (description.length < 10) return 'La description doit contenir au moins 10 caractères';
     if (!price || parseFloat(price) <= 0) return 'Le prix doit être supérieur à 0';
+    if (!Number.isInteger(Number(price))) return 'Le prix doit être un entier';
     if (images.length === 0) return 'Ajoute au moins 1 image';
     if (!stock || parseInt(stock, 10) < 0) return 'Le stock doit être positif';
     if (selectedSizes.length === 0) return 'Sélectionne au moins une taille';
@@ -241,38 +244,29 @@ export function AddProductModal({
     }
   };
 
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-      <BlurView 
-        intensity={isDark ? 60 : 80} 
-        tint={isDark ? 'dark' : 'light'} 
-        style={styles.overlay}
-      >
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose} />
-
-        <Animated.View style={[styles.modal, { transform: [{ translateY: slideAnim }] }]}>
-          <View 
-            style={[
-              styles.container, 
-              { 
-                backgroundColor: theme.colors.card,
-                borderTopWidth: 2,
-                borderLeftWidth: 2,
-                borderRightWidth: 2,
-                borderColor: theme.colors.borderLight,
-                // BOOM: Ombre forte
-                shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
-                shadowOffset: { width: 0, height: -8 },
-                shadowOpacity: 1,
-                shadowRadius: 16,
-                elevation: 12,
-              }
-            ]}
-          >
-            <LinearGradient
-              colors={[`${theme.colors.accent}08`, 'transparent']}
-              style={styles.gradient}
-            />
+  const modalBody = (
+    <View 
+      style={[
+        styles.container, 
+        { 
+          backgroundColor: theme.colors.card,
+          borderTopWidth: 2,
+          borderLeftWidth: 2,
+          borderRightWidth: 2,
+          borderColor: theme.colors.borderLight,
+          // BOOM: Ombre forte
+          shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+          shadowOffset: { width: 0, height: -8 },
+          shadowOpacity: 1,
+          shadowRadius: 16,
+          elevation: 12,
+        }
+      ]}
+    >
+      <LinearGradient
+        colors={[`${theme.colors.accent}08`, 'transparent']}
+        style={styles.gradient}
+      />
 
             {/* Header avec BOOM */}
             <View 
@@ -605,7 +599,30 @@ export function AddProductModal({
                 )}
               </TouchableOpacity>
             </View>
-          </View>
+    </View>
+  );
+
+  if (embedded) {
+    return (
+      <View style={[styles.embeddedWrapper, { backgroundColor: theme.colors.background }]}>
+        <Animated.View style={[styles.modal, { transform: [{ translateY: slideAnim }] }]}>
+          {modalBody}
+        </Animated.View>
+      </View>
+    );
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+      <BlurView 
+        intensity={isDark ? 60 : 80} 
+        tint={isDark ? 'dark' : 'light'} 
+        style={styles.overlay}
+      >
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose} />
+
+        <Animated.View style={[styles.modal, { transform: [{ translateY: slideAnim }] }]}>
+          {modalBody}
         </Animated.View>
       </BlurView>
     </Modal>
@@ -616,6 +633,7 @@ export function AddProductModal({
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject },
+  embeddedWrapper: { flex: 1, justifyContent: 'flex-end' },
   modal: { height: '92%' },
   container: {
     flex: 1,

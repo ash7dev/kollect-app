@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { MotiView } from 'moti';
 import { CheckCommandeModal } from './check-commande-modal';
-import { CommandeStatus } from '../../features/commandes/services/commande.service';
 import { useTheme } from '../../../app/context/ThemeContext';
 
 // Types

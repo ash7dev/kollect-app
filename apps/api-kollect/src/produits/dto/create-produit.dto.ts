@@ -4,7 +4,7 @@ export const CreateProduitSchema = z.object({
   collectionId: z.string().min(1),
   name: z.string().min(3).max(200),
   description: z.string().optional().nullable(),
-  price: z.number().int().min(0), // en FCFA (centimes)
+  price: z.number().int().min(0), // en FCFA
   // Les images réelles sont gérées via upload; ici on accepte un tableau optionnel
   // Le contrôleur vérifie ensuite qu'au moins une image existe après upload
   images: z.array(z.string().url()).max(10).optional().default([]),
@@ -19,5 +19,4 @@ export const CreateProduitSchema = z.object({
 });
 
 export type CreateProduitDto = z.infer<typeof CreateProduitSchema>;
-
 

@@ -21,8 +21,9 @@ import { CollectionStatus, CollectionDto } from '@/features/collections/services
 import { collectionsApi } from '@/features/collections/services/collections.service';
 import { produitsService } from '@/features/produits/services/produits.service';
 import { AddProductModal } from '@/components/collection/AddProductModal';
+import { apiBaseUrl } from '@/config/env';
 
-const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev';
+const API_URL = apiBaseUrl;
 // Import nettoyé pour le MVP
 
 const STATUS_CONFIG = {

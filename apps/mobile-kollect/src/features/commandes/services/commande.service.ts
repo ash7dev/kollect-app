@@ -3,17 +3,19 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '../../../store/authStore';
+import { apiUrl } from '@/config/env';
+import { STORAGE_KEYS } from '@/config/storage';
 
 // ============================================
 // TYPES
 // ============================================
 
-const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api';
+const API_URL = apiUrl;
 
 export interface CommandeItem {
   id: string;
   productId: string;
-  variantId: string;
+  variantId: string | null;
   productName: string;
   price: number;
   quantity: number;
@@ -45,7 +47,7 @@ export interface Commande {
   orderNumber: string;
   clientId: string;
   brandId: string;
-  status: CommandeStatus;
+  status: FrontendCommandeStatus;
   total: number;
   shippingAddress: string;
   shippingCity: string;
@@ -71,32 +73,42 @@ export interface Commande {
 
 export interface StatusHistoryItem {
   id: string;
-  status: CommandeStatus;
+  status: ApiCommandeStatus;
   details: string | null;
   createdAt: Date;
   changedById: string | null;
 }
 
-export type CommandeStatus = 
-  | 'EN_ATTENTE' 
-  | 'CONFIRMEE' 
+export type ApiCommandeStatus =
+  | 'EN_ATTENTE'
+  | 'CONFIRMEE'
   | 'ANNULEE';
+
+export type FrontendCommandeStatus =
+  | 'en attente'
+  | 'confirmée'
+  | 'annulée';
 
 export interface CreateCommandeDto {
   items: Array<{
-    variantId: string;
+    productId?: string;
+    variantId?: string;
     quantity: number;
+    size?: string | null;
+    color?: string | null;
   }>;
   adresseLivraison: {
+    nom: string;
     adresse: string;
     ville: string;
     telephone: string;
   };
   codePromo?: string;
+  notes?: string;
 }
 
 export interface QueryCommandesDto {
-  status?: CommandeStatus;
+  status?: ApiCommandeStatus;
   page?: number;
   limit?: number;
 }
@@ -130,7 +142,7 @@ const commandeApi = axios.create({
 // Intercepteur pour ajouter le token
 commandeApi.interceptors.request.use(
   async (config) => {
-    const token = await SecureStore.getItemAsync('jwt_token');
+    const token = await SecureStore.getItemAsync(STORAGE_KEYS.JWT_TOKEN);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -160,8 +172,8 @@ commandeApi.interceptors.response.use(
     return Promise.reject(new Error(message));
   }
 );
-export const mapApiStatusToFrontend = (apiStatus: CommandeStatus): 'en attente' | 'confirmée' | 'annulée' => {
-  const statusMap: Record<CommandeStatus, 'en attente' | 'confirmée' | 'annulée'> = {
+export const mapApiStatusToFrontend = (apiStatus: ApiCommandeStatus): FrontendCommandeStatus => {
+  const statusMap: Record<ApiCommandeStatus, FrontendCommandeStatus> = {
     'EN_ATTENTE': 'en attente',
     'CONFIRMEE': 'confirmée',
     'ANNULEE': 'annulée',
@@ -169,8 +181,8 @@ export const mapApiStatusToFrontend = (apiStatus: CommandeStatus): 'en attente' 
   return statusMap[apiStatus];
 };
 
-export const mapFrontendStatusToApi = (frontendStatus: 'en attente' | 'confirmée' | 'annulée'): CommandeStatus => {
-  const statusMap: Record<'en attente' | 'confirmée' | 'annulée', CommandeStatus> = {
+export const mapFrontendStatusToApi = (frontendStatus: FrontendCommandeStatus): ApiCommandeStatus => {
+  const statusMap: Record<FrontendCommandeStatus, ApiCommandeStatus> = {
     'en attente': 'EN_ATTENTE',
     'confirmée': 'CONFIRMEE',
     'annulée': 'ANNULEE',
@@ -268,27 +280,15 @@ async annulerCommande(id: string, notes?: string): Promise<Commande> {
   annulees: number;
   revenueTotal: number;
 }> {
-  // Récupérer toutes les commandes
-  const response = await this.getBoutiqueCommandes({ limit: 1000 });
-  const commandes = response.data; // Accès aux données de la réponse
-  
-  // Calculer les statistiques
-  const enAttente = commandes.filter(c => c.status === 'EN_ATTENTE').length;
-  const confirmees = commandes.filter(c => c.status === 'CONFIRMEE').length;
-  const annulees = commandes.filter(c => c.status === 'ANNULEE').length;
-  
-  // Calculer le revenu total des commandes confirmées
-  const revenueTotal = commandes
-    .filter(c => c.status === 'CONFIRMEE')
-    .reduce((sum, c) => sum + c.total, 0);
+  const { data } = await commandeApi.get<{
+    total: number;
+    enAttente: number;
+    confirmees: number;
+    annulees: number;
+    revenueTotal: number;
+  }>('/boutique/stats');
 
-  return {
-    total: response.meta.total, // Utiliser le total de la pagination
-    enAttente,
-    confirmees,
-    annulees,
-    revenueTotal,
-  };
+  return data;
 }
 }
 

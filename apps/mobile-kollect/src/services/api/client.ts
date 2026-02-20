@@ -3,12 +3,12 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
+import { apiUrl } from '@/config/env';
+import { STORAGE_KEYS } from '@/config/storage';
 
 // ============================================
 // CONFIGURATION DE BASE
 // ============================================
-
-const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api';
 
 const API_TIMEOUT = 30000; // 30 secondes
 
@@ -17,7 +17,7 @@ const API_TIMEOUT = 30000; // 30 secondes
 // ============================================
 
 export const apiClient: AxiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: apiUrl,
   timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
@@ -33,7 +33,7 @@ apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {
       // Récupérer le JWT backend
-      const token = await SecureStore.getItemAsync('JWT_TOKEN');
+      const token = await SecureStore.getItemAsync(STORAGE_KEYS.JWT_TOKEN);
       
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -101,19 +101,19 @@ apiClient.interceptors.response.use(
         // Tenter de rafraîchir le token via /auth/me
         console.log('🔄 [API] Tentative de rafraîchissement du token...');
         
-        const token = await SecureStore.getItemAsync('JWT_TOKEN');
+        const token = await SecureStore.getItemAsync(STORAGE_KEYS.JWT_TOKEN);
         
         if (!token) {
           throw new Error('No token available');
         }
 
-        const response = await axios.get(`${API_URL}/auth/me`, {
+        const response = await axios.get(`${apiUrl}/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         // Stocker le nouveau token
         const newToken = response.data.access_token;
-        await SecureStore.setItemAsync('JWT_TOKEN', newToken);
+        await SecureStore.setItemAsync(STORAGE_KEYS.JWT_TOKEN, newToken);
 
         // Réessayer la requête originale avec le nouveau token
         if (originalRequest.headers) {
@@ -127,7 +127,7 @@ apiClient.interceptors.response.use(
         console.error('❌ [API] Échec du rafraîchissement, déconnexion...');
         
         // Supprimer les tokens
-        await SecureStore.deleteItemAsync('JWT_TOKEN');
+        await SecureStore.deleteItemAsync(STORAGE_KEYS.JWT_TOKEN);
         await SecureStore.deleteItemAsync('ACCESS_TOKEN');
         
         // Rediriger vers la page de connexion
@@ -168,7 +168,7 @@ apiClient.interceptors.response.use(
 
 export const checkApiHealth = async (): Promise<boolean> => {
   try {
-    const response = await axios.get(`${API_URL}/auth/health`, {
+    const response = await axios.get(`${apiUrl}/auth/health`, {
       timeout: 5000,
     });
     
@@ -187,7 +187,7 @@ export const checkApiHealth = async (): Promise<boolean> => {
 export const logApiConfig = () => {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🔧 [API] Configuration:');
-  console.log(`   Base URL: ${API_URL}`);
+  console.log(`   Base URL: ${apiUrl}`);
   console.log(`   Timeout: ${API_TIMEOUT}ms`);
   console.log(`   Environment: ${__DEV__ ? 'Development' : 'Production'}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

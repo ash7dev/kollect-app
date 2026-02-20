@@ -16,20 +16,30 @@ export const useKinde = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  const isAuthCancelled = (e: any) => {
+    const msg = String(e?.message || '').toLowerCase();
+    const code = String(e?.code || '').toLowerCase();
+    return (
+      code.includes('cancel') ||
+      code.includes('dismiss') ||
+      code.includes('access_denied') ||
+      msg.includes('cancel') ||
+      msg.includes('dismiss') ||
+      msg.includes('access_denied') ||
+      msg.includes('user_cancel')
+    );
+  };
+
   const handleResponse = async (resp: any) => {
-    // Afficher la réponse complète de Kinde dans la console
-    console.log('🔑 Réponse complète de Kinde:', JSON.stringify(resp, null, 2));
-    
+    if (!resp) return null;
+    if (resp?.success === false) return null;
+
     // Vérifier le token en utilisant la bonne casse (camelCase)
     const accessToken = resp?.accessToken || resp?.access_token;
-    if (!accessToken) {
-      console.error('❌ Aucun token trouvé dans la réponse');
-      throw new Error('No token found in response');
-    }
+    if (!accessToken) return null;
     
     // Récupérer le profil utilisateur
     const profile = await getUserProfile();
-    console.log('👤 Profil utilisateur récupéré:', JSON.stringify(profile, null, 2));
     
     // Mettre à jour l'état
     setUser(profile);
@@ -39,8 +49,7 @@ export const useKinde = () => {
     await SecureStore.setItemAsync('ACCESS_TOKEN', accessToken);
     console.log('✅ Token stocké avec succès');
     
-    // Afficher le token (à des fins de débogage uniquement, à supprimer en production)
-    console.log('🔐 Token d\'accès:', accessToken);
+    // Ne pas logger le token pour éviter l'exposition de données sensibles
     
     return { user: profile, token: accessToken };
   };
@@ -57,6 +66,9 @@ export const useKinde = () => {
       });
       return await handleResponse(resp);
     } catch (e: any) { 
+      if (isAuthCancelled(e)) {
+        return null;
+      }
       console.error('Erreur login email:', e);
       setError(e); 
       throw e; 
@@ -77,6 +89,9 @@ export const useKinde = () => {
       });
       return await handleResponse(resp);
     } catch (e: any) { 
+      if (isAuthCancelled(e)) {
+        return null;
+      }
       console.error('Erreur register email:', e);
       setError(e); 
       throw e; 
@@ -94,6 +109,9 @@ export const useKinde = () => {
       const resp = await kinde.login({ connectionId });
       return await handleResponse(resp);
     } catch (e: any) { 
+      if (isAuthCancelled(e)) {
+        return null;
+      }
       console.error(`Erreur login ${provider}:`, e);
       setError(e); 
       throw e; 

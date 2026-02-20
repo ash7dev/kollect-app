@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { KindeAuthProvider } from '@kinde/expo';
+import { STORAGE_KEYS } from '@/config/storage';
 
 // Config local
 import { ThemeProvider, useTheme } from './context/ThemeContext';
@@ -32,10 +33,6 @@ import {
 
 // Backend auth service
 import { authService } from '../src/features/auth/services/auth.service';
-
-const STORAGE_KEYS = {
-  JWT_TOKEN: 'jwt_token',
-};
 
 // Notifications handler
 Notifications.setNotificationHandler({

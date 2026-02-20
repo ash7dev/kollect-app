@@ -2,14 +2,19 @@
 import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '../../../store/authStore';
 import * as ImagePicker from 'expo-image-picker';
+import { apiUrl } from '@/config/env';
 
 // Types
 
 export interface EnhancedBrandStats extends BrandStats {
-  ordersThisMonth: number;
+  period: '7days' | '30days' | '90days';
+  ordersThisPeriod: number;
   ordersChange: number;
   followersChange: number;
   conversionRate: number;
+  revenueThisPeriod: number;
+  revenueChange: number;
+  viewsThisPeriod: number;
 }
 
 export interface SalesDataPoint {
@@ -101,7 +106,7 @@ export interface CreateBrandResponse extends Brand {
     isVerified: boolean;
   };
 }
-const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api';
+const API_URL = apiUrl;
 
 
 // Service
@@ -113,7 +118,6 @@ class BrandService {
     // Aligner sur la clé utilisée par l'auth store et ajouter des fallbacks
     const token =
       (await SecureStore.getItemAsync('jwt_token')) ||
-      (await SecureStore.getItemAsync('JWT_TOKEN')) ||
       (await SecureStore.getItemAsync('ACCESS_TOKEN')) ||
       null;
 
@@ -391,10 +395,15 @@ class BrandService {
  * 📊 Récupérer les stats complètes de MA marque
  * GET /brands/:id/stats
  */
-async getBrandStats(brandId: string): Promise<EnhancedBrandStats> {
+async getBrandStats(
+  brandId: string,
+  period: '7days' | '30days' | '90days' = '30days',
+): Promise<EnhancedBrandStats> {
   console.log('📊 [Brand Service] Récupération des stats:', brandId);
 
-  const response = await this.authenticatedFetch(`/brands/${brandId}/stats`);
+  const response = await this.authenticatedFetch(
+    `/brands/${brandId}/stats?period=${period}`,
+  );
   const stats = await response.json();
 
   console.log('✅ [Brand Service] Stats récupérées');

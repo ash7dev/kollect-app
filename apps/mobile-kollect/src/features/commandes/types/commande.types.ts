@@ -156,7 +156,8 @@ export function validateShippingAddress(address: {
  * ✅ Valider les items d'une commande
  */
 export function validateCommandeItems(items: Array<{
-  variantId: string;
+  variantId?: string;
+  productId?: string;
   quantity: number;
 }>): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
@@ -170,8 +171,8 @@ export function validateCommandeItems(items: Array<{
   }
 
   items.forEach((item, index) => {
-    if (!item.variantId) {
-      errors.push(`Article ${index + 1}: Variante manquante`);
+    if (!item.variantId && !item.productId) {
+      errors.push(`Article ${index + 1}: Produit ou variante manquante`);
     }
     if (item.quantity < COMMANDE_VALIDATION.MIN_QUANTITY) {
       errors.push(`Article ${index + 1}: Quantité minimale est ${COMMANDE_VALIDATION.MIN_QUANTITY}`);

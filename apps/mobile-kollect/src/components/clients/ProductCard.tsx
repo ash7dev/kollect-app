@@ -4,6 +4,8 @@ import { Image } from 'expo-image';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../app/context/ThemeContext';
+import { ShareButton } from '../ui/ShareButton';
+import { ShareService, ShareType } from '../../features/share/services/share.service';
 
 type ProductCardProps = {
   id: string;
@@ -57,14 +59,28 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <Text style={[styles.price, { color: theme.colors.primary }]}>
             {`${price.toLocaleString('fr-FR')} CFA`}
           </Text>
-          {onAddToCart && (
-            <TouchableOpacity 
-              style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-              onPress={onAddToCart}
-            >
-              <Ionicons name="add" size={20} color="white" />
-            </TouchableOpacity>
-          )}
+          <View style={styles.actionsRow}>
+            <ShareButton
+              data={{
+                type: ShareType.PRODUCT,
+                id,
+                name,
+                price,
+                brandName,
+                imageUrl: imageUrl || undefined,
+              }}
+              size="small"
+              style={styles.shareButton}
+            />
+            {onAddToCart && (
+              <TouchableOpacity 
+                style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+                onPress={onAddToCart}
+              >
+                <Ionicons name="add" size={20} color="white" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
     </View>
@@ -110,6 +126,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 'auto',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shareButton: {
+    marginRight: 4,
   },
   price: {
     fontSize: 16,

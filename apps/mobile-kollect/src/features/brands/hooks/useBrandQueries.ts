@@ -160,10 +160,13 @@ export const useReactivateBrand = () => {
 /**
  * 📊 Hook pour récupérer les stats complètes de MA marque
  */
-export const useBrandStats = (brandId: string) => {
+export const useBrandStats = (
+  brandId: string,
+  period: '7days' | '30days' | '90days' = '30days',
+) => {
   return useQuery({
-    queryKey: brandKeys.stats (brandId),
-    queryFn: () => brandService.getBrandStats(brandId),
+    queryKey: [...brandKeys.stats(brandId), period],
+    queryFn: () => brandService.getBrandStats(brandId, period),
     enabled: !!brandId,
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchInterval: 5 * 60 * 1000, // Rafraîchir toutes les 5 minutes

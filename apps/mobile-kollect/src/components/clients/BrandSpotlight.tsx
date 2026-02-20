@@ -18,6 +18,8 @@ import { useSuiviStore } from '../../features/suivi/store/suiviStore';
 import { Video, ResizeMode } from 'expo-av';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'expo-router';
+import { ShareButton } from '../ui/ShareButton';
+import { ShareService, ShareType } from '../../features/share/services/share.service';
 
 const { width } = Dimensions.get('window');
 
@@ -396,6 +398,23 @@ export default function BrandSpotlight({
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
+          <ShareButton
+            data={{
+              type: ShareType.BRAND,
+              id: brand.id,
+              name: brand.name,
+              brandName: brand.name,
+              imageUrl: brand.logo,
+              description: brand.description,
+              stats: {
+                followerCount: followersCount,
+                productCount: brand.stats.products,
+              },
+            }}
+            size="medium"
+            style={styles.shareButton}
+          />
+          
           <TouchableOpacity
             style={[
               styles.followButton,
@@ -594,6 +613,9 @@ const styles = StyleSheet.create({
   actionsContainer: {
     flexDirection: 'row',
     gap: 12,
+  },
+  shareButton: {
+    marginRight: 4,
   },
   followButton: {
     flex: 1,

@@ -98,11 +98,16 @@ export class CommandesService {
 
     // Exécuter l'annulation dans une transaction : restauration du stock + update statut
     const updated = await this.prisma.$transaction(async (tx) => {
-      // Restaurer le stock pour les variantes (aligné avec autoAnnulerCommandesExpirees)
+      // Restaurer le stock (variantes + produits simples)
       for (const item of commande.items) {
         if (item.variantId) {
           await tx.varianteProduit.update({
             where: { id: item.variantId },
+            data: { stock: { increment: item.quantity } },
+          });
+        } else if (item.productId) {
+          await tx.produit.update({
+            where: { id: item.productId },
             data: { stock: { increment: item.quantity } },
           });
         }
@@ -251,8 +256,8 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
           }
         }
 
-        // ✅ Calculs en unités normales
-        const shippingFee = 0; // 2000 FCFA (au lieu de 200000 centimes)
+        // ✅ Calculs en FCFA
+        const shippingFee = 0; // MVP: gratuit
         const total = subtotal + shippingFee;
 
         const orderNumber = await this.generateOrderNumber(tx);
@@ -623,6 +628,51 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
 }
 
   /**
+   * Statistiques des commandes de la boutique (CEO)
+   */
+  async getCommandeStats(userId: string) {
+    const brand = await this.prisma.marque.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!brand) {
+      throw new ForbiddenException("Vous n'avez pas de boutique");
+    }
+
+    const [total, groupedByStatus, revenueAgg] = await Promise.all([
+      this.prisma.commande.count({ where: { brandId: brand.id } }),
+      this.prisma.commande.groupBy({
+        by: ['status'],
+        where: { brandId: brand.id },
+        _count: { _all: true },
+      }),
+      this.prisma.commande.aggregate({
+        where: { brandId: brand.id, status: CommandeStatus.CONFIRMEE },
+        _sum: { total: true },
+      }),
+    ]);
+
+    const counts = groupedByStatus.reduce(
+      (acc, row) => {
+        if (row.status === CommandeStatus.EN_ATTENTE) acc.enAttente = row._count._all;
+        if (row.status === CommandeStatus.CONFIRMEE) acc.confirmees = row._count._all;
+        if (row.status === CommandeStatus.ANNULEE) acc.annulees = row._count._all;
+        return acc;
+      },
+      { enAttente: 0, confirmees: 0, annulees: 0 },
+    );
+
+    return {
+      total,
+      enAttente: counts.enAttente,
+      confirmees: counts.confirmees,
+      annulees: counts.annulees,
+      revenueTotal: revenueAgg._sum.total ?? 0,
+    };
+  }
+
+  /**
    * Récupérer une commande par ID
    */
   async getCommandeById(commandeId: string, userId: string, isCEO: boolean) {
@@ -796,11 +846,16 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
     for (const commande of commandesExpirees) {
       try {
         await this.prisma.$transaction(async (tx) => {
-          // Restaurer le stock
+          // Restaurer le stock (variantes + produits simples)
           for (const item of commande.items) {
             if (item.variantId) {
               await tx.varianteProduit.update({
                 where: { id: item.variantId },
+                data: { stock: { increment: item.quantity } },
+              });
+            } else if (item.productId) {
+              await tx.produit.update({
+                where: { id: item.productId },
                 data: { stock: { increment: item.quantity } },
               });
             }

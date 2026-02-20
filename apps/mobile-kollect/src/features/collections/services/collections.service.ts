@@ -4,8 +4,9 @@
 
 import { storage, ProductDraft } from '@/utils/storage';
 import * as SecureStore from 'expo-secure-store';
+import { apiUrl, ngrokSkipBrowserWarning } from '@/config/env';
 
-const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api';
+const API_URL = apiUrl;
 
 // ============================================
 // TYPES & INTERFACES
@@ -111,7 +112,6 @@ export interface PaginatedResponse<T> {
 async function getToken(): Promise<string> {
   const token =
     (await SecureStore.getItemAsync('jwt_token')) ||
-    (await SecureStore.getItemAsync('JWT_TOKEN')) ||
     (await SecureStore.getItemAsync('ACCESS_TOKEN')) ||
     null;
 
@@ -230,7 +230,7 @@ export const collectionsApi = {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'ngrok-skip-browser-warning': 'true',
+          'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
         },
         body: formData,
       });
@@ -268,7 +268,7 @@ export const collectionsApi = {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     
@@ -291,7 +291,7 @@ export const collectionsApi = {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 
@@ -346,7 +346,7 @@ export const collectionsApi = {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'ngrok-skip-browser-warning': 'true',
+          'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
         },
         body: formData,
       });
@@ -364,7 +364,7 @@ export const collectionsApi = {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
       body: JSON.stringify(payload),
     });
@@ -387,7 +387,7 @@ export const collectionsApi = {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 
@@ -413,7 +413,7 @@ export const collectionsApi = {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
       body: JSON.stringify(body),
     });
@@ -436,7 +436,7 @@ export const collectionsApi = {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
         'Content-Type': 'application/json',
       },
     });
@@ -462,7 +462,7 @@ export const collectionsApi = {
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 
@@ -482,7 +482,7 @@ export const collectionsApi = {
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 
@@ -502,7 +502,7 @@ export const collectionsApi = {
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 
@@ -522,7 +522,7 @@ export const collectionsApi = {
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 
@@ -542,7 +542,7 @@ export const collectionsApi = {
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 
@@ -564,7 +564,7 @@ export const collectionsApi = {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 
@@ -594,7 +594,7 @@ export const collectionsApi = {
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 
@@ -615,7 +615,7 @@ export const collectionsApi = {
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 

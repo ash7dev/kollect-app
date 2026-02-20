@@ -75,7 +75,11 @@
       "eas": {
         "projectId": "cdfa3d3d-1030-42a9-bb1b-3fe50a96283f"
       },
-      "router": {}
+      "router": {},
+      "apiBaseUrl": "https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev",
+      "apiUrl": "https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api",
+      "publicUrl": "https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev",
+      "ngrokSkipBrowserWarning": "true"
     },
     "owner": "ash7dev"
   }

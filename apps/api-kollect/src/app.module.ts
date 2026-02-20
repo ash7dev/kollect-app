@@ -14,6 +14,8 @@ import { CollectionsModule } from './collections/collections.module';
 import { ProduitsModule } from './produits/produits.module';
 import { SuiviModule } from './suivi/suivi.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { ShareModule } from './share/share.module';
+import { ShareLinksModule } from './share-links/share-links.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { MetricsModule } from './metrics/metrics.module';
     CollectionsModule,
     SuiviModule, // Module pour la gestion des commandes
     MetricsModule,
+    ShareModule,
+    ShareLinksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

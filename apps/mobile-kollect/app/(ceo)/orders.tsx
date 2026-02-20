@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useBoutiqueCommandes } from '@/features/commandes/hooks/useCommandeQueries';
 import { useCommandeStore } from '@/features/commandes/store/commandeStore';
-import { Commande, CommandeStatus, QueryCommandesDto } from '@/features/commandes/services/commande.service';
+import { Commande, QueryCommandesDto } from '@/features/commandes/services/commande.service';
 
 type TabType = 'all' | 'en attente' | 'confirmée' | 'annulée';
 

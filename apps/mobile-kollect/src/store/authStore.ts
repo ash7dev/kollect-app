@@ -7,12 +7,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { authService, BackendUser, AuthResponse } from '../features/auth/services/auth.service';
-
-const STORAGE_KEYS = {
-  JWT_TOKEN: 'jwt_token',
-  USER_DATA: 'user_data',
-  REFRESH_TIME: 'token_refresh_time',
-};
+import { STORAGE_KEYS } from '@/config/storage';
 
 // ============================================
 // TYPES
@@ -88,6 +83,8 @@ export const useAuthStore = create<AuthState>()(
 
           await get()._setAuth(authData.user, authData.access_token);
         } catch (error: any) {
+          // Rollback Kinde session token if backend sync failed
+          await SecureStore.deleteItemAsync('ACCESS_TOKEN').catch(() => {});
           set({ error: error?.message || 'Erreur de connexion' });
           throw error;
         } finally {
@@ -116,6 +113,8 @@ export const useAuthStore = create<AuthState>()(
           const authData = await authService.refreshProfile();
           await get()._setAuth(authData.user, authData.access_token);
         } catch (error: any) {
+          // Rollback Kinde session token if refresh failed
+          await SecureStore.deleteItemAsync('ACCESS_TOKEN').catch(() => {});
           if (error?.response?.status === 401) {
             await get().logout();
           }

@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { apiUrl, ngrokSkipBrowserWarning } from '@/config/env';
 
 export interface NotificationDto {
   id: string;
@@ -17,13 +18,12 @@ export interface UserNotificationsResponse {
   unreadCount: number;
 }
 
-const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api';
+const API_URL = apiUrl;
 const NOTIFICATIONS_BASE = `${API_URL}/notifications`;
 
 async function getToken(): Promise<string> {
   const token =
     (await SecureStore.getItemAsync('jwt_token')) ||
-    (await SecureStore.getItemAsync('JWT_TOKEN')) ||
     (await SecureStore.getItemAsync('ACCESS_TOKEN')) ||
     null;
 
@@ -41,7 +41,7 @@ class NotificationsService {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 
@@ -60,7 +60,7 @@ class NotificationsService {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
 

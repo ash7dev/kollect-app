@@ -31,8 +31,9 @@ import JustLaunchedDrop from '../../src/components/clients/JustLaunchedDrop';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IsLoading } from '../../src/components/ui/IsLoading';
+import { apiBaseUrl } from '@/config/env';
 
-const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev';
+const API_URL = apiBaseUrl;
 
 export default function ClientHomeScreen() {
   const { theme, isDark, toggleTheme } = useTheme();

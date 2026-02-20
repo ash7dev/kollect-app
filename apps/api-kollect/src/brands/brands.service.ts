@@ -343,6 +343,72 @@ export class BrandsService {
   }
 
   /**
+   * 🔍 Récupérer une marque par son id (page publique)
+   * Utile pour les liens de partage quand le slug n'est pas disponible côté mobile.
+   */
+  async findPublicById(id: string) {
+    const brand = await this.prisma.marque.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+        collections: {
+          where: {
+            status: {
+              in: ['TEASER', 'DISPONIBLE'],
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 20,
+          include: {
+            _count: {
+              select: {
+                products: true,
+              },
+            },
+          },
+        },
+        products: {
+          where: {
+            isVisible: true,
+            isDeleted: false,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 22,
+        },
+        _count: {
+          select: {
+            products: true,
+            collections: true,
+            favoris: true,
+            reviews: true,
+          },
+        },
+      },
+    });
+
+    if (!brand) {
+      throw new NotFoundException('Boutique non trouvée');
+    }
+
+    if (!brand.isActive) {
+      throw new NotFoundException("Cette boutique n'est plus disponible");
+    }
+
+    return brand;
+  }
+
+  /**
    * 🏠 Récupérer la marque du CEO connecté (pour son dashboard)
    */
   async findMyBrand(userId: string) {
@@ -488,17 +554,30 @@ export class BrandsService {
  /**
  * 📊 Récupérer les statistiques de sa marque (CEO uniquement)
  */
-async getStats(userId: string, brandId: string): Promise<BrandStats & {
-  ordersThisMonth: number;
-  ordersChange: number;
-  followersChange: number;
-  conversionRate: number;
-}> {
+async getStats(
+  userId: string,
+  brandId: string,
+  period: '7days' | '30days' | '90days' = '30days',
+): Promise<
+  BrandStats & {
+    period: '7days' | '30days' | '90days';
+    ordersThisPeriod: number;
+    ordersChange: number;
+    followersChange: number;
+    conversionRate: number;
+    revenueThisPeriod: number;
+    revenueChange: number;
+    viewsThisPeriod: number;
+  }
+> {
   await this.verifyBrandOwnership(userId, brandId);
 
   const now = new Date();
-  const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const twoMonthsAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const periodDays = period === '7days' ? 7 : period === '90days' ? 90 : 30;
+  const startDate = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
+  const prevStartDate = new Date(
+    now.getTime() - periodDays * 2 * 24 * 60 * 60 * 1000,
+  );
 
   try {
     const [
@@ -509,9 +588,14 @@ async getStats(userId: string, brandId: string): Promise<BrandStats & {
       totalFollowers,
       totalReviews,
       averageRating,
-      ordersThisMonth,
-      ordersLastMonth,
+      ordersThisPeriod,
+      ordersPrevPeriod,
       totalViews,
+      revenueThisPeriod,
+      revenuePrevPeriod,
+      followersThisPeriod,
+      followersPrevPeriod,
+      uniqueSessionsThisPeriod,
     ] = await Promise.all([
       this.prisma.produit.count({
         where: { brandId, isDeleted: false },
@@ -533,6 +617,7 @@ async getStats(userId: string, brandId: string): Promise<BrandStats & {
         where: {
           brandId,
           status: { not: 'ANNULEE' }, // Exclure les annulées
+          paymentStatus: 'VALIDEE',
         },
         _sum: {
           total: true,
@@ -558,16 +643,16 @@ async getStats(userId: string, brandId: string): Promise<BrandStats & {
       this.prisma.commande.count({
         where: { 
           brandId, 
-          createdAt: { gte: lastMonth },
-          status: { not: 'ANNULEE' }
+          createdAt: { gte: startDate },
+          status: { not: 'ANNULEE' },
         }
       }).catch(() => 0),
       
       this.prisma.commande.count({
         where: { 
           brandId, 
-          createdAt: { gte: twoMonthsAgo, lt: lastMonth },
-          status: { not: 'ANNULEE' }
+          createdAt: { gte: prevStartDate, lt: startDate },
+          status: { not: 'ANNULEE' },
         }
       }).catch(() => 0),
       
@@ -581,29 +666,77 @@ async getStats(userId: string, brandId: string): Promise<BrandStats & {
           viewCount: true
         }
       }).then(result => Number(result._sum.viewCount) || 0),
+
+      // CA sur la période (commandes payées)
+      this.prisma.commande.aggregate({
+        where: {
+          brandId,
+          status: { not: 'ANNULEE' },
+          paymentStatus: 'VALIDEE',
+          createdAt: { gte: startDate },
+        },
+        _sum: {
+          total: true,
+        },
+      }).then(result => Number(result._sum.total) || 0),
+
+      // CA période précédente (même durée)
+      this.prisma.commande.aggregate({
+        where: {
+          brandId,
+          status: { not: 'ANNULEE' },
+          paymentStatus: 'VALIDEE',
+          createdAt: { gte: prevStartDate, lt: startDate },
+        },
+        _sum: {
+          total: true,
+        },
+      }).then(result => Number(result._sum.total) || 0),
+
+      // Followers sur la période
+      this.prisma.favori.count({
+        where: {
+          brandId,
+          type: 'BRAND',
+          createdAt: { gte: startDate },
+        },
+      }).catch(() => 0),
+
+      // Followers période précédente
+      this.prisma.favori.count({
+        where: {
+          brandId,
+          type: 'BRAND',
+          createdAt: { gte: prevStartDate, lt: startDate },
+        },
+      }).catch(() => 0),
+
+      // Sessions uniques de vues produit sur la période (proxy conversion)
+      this.prisma.vueProduit.count({
+        where: {
+          viewedAt: { gte: startDate },
+          product: { brandId },
+        },
+        distinct: ['sessionId'],
+      }).catch(() => 0),
     ]);
 
     // Calculs
-    const ordersChange = ordersLastMonth > 0 
-      ? ((ordersThisMonth - ordersLastMonth) / ordersLastMonth) * 100 
-      : ordersThisMonth > 0 ? 100 : 0;
+    const ordersChange = ordersPrevPeriod > 0 
+      ? ((ordersThisPeriod - ordersPrevPeriod) / ordersPrevPeriod) * 100 
+      : ordersThisPeriod > 0 ? 100 : 0;
 
-    // Pour le MVP, on calcule un taux de conversion basé sur le nombre de commandes par produit
-    // Cela évite de compter plusieurs fois les vues pour un même utilisateur
-    const activeProductsCount = await this.prisma.produit.count({
-      where: { 
-        brandId,
-        isDeleted: false,
-        isVisible: true
-      }
-    });
-
-    const conversionRate = activeProductsCount > 0 
-      ? (ordersThisMonth / activeProductsCount) * 100 
+    const conversionRate = uniqueSessionsThisPeriod > 0 
+      ? (ordersThisPeriod / uniqueSessionsThisPeriod) * 100 
       : 0;
 
-    // Note: followersChange nécessite un historique, on peut le simuler pour l'instant
-    const followersChange = 5.2;
+    const followersChange = followersPrevPeriod > 0
+      ? ((followersThisPeriod - followersPrevPeriod) / followersPrevPeriod) * 100
+      : followersThisPeriod > 0 ? 100 : 0;
+
+    const revenueChange = revenuePrevPeriod > 0
+      ? ((revenueThisPeriod - revenuePrevPeriod) / revenuePrevPeriod) * 100
+      : revenueThisPeriod > 0 ? 100 : 0;
 
     return {
       totalProducts,
@@ -613,10 +746,14 @@ async getStats(userId: string, brandId: string): Promise<BrandStats & {
       totalFollowers,
       totalReviews,
       averageRating: Number((averageRating._avg.rating || 0).toFixed(2)),
-      ordersThisMonth,
+      period,
+      ordersThisPeriod,
       ordersChange: Number(ordersChange.toFixed(1)),
-      followersChange,
+      followersChange: Number(followersChange.toFixed(1)),
       conversionRate: Number(conversionRate.toFixed(1)),
+      revenueThisPeriod,
+      revenueChange: Number(revenueChange.toFixed(1)),
+      viewsThisPeriod: Number(uniqueSessionsThisPeriod || 0),
     };
   } catch (error) {
     this.logger.error('❌ [Brands] Erreur lors du calcul des stats:', error);
@@ -657,6 +794,7 @@ async getSalesData(
     where: {
       brandId,
       status: { not: 'ANNULEE' },
+      paymentStatus: 'VALIDEE',
       createdAt: { gte: startDate }
     },
     select: {

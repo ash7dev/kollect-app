@@ -1,6 +1,8 @@
 // services/auth.service.ts
 import * as SecureStore from 'expo-secure-store';
 import { Alert } from 'react-native';
+import { apiUrl } from '@/config/env';
+import { STORAGE_KEYS } from '@/config/storage';
 
 // ============================================
 // TYPES
@@ -47,12 +49,7 @@ interface AuthResponse {
 // CONFIGURATION
 // ============================================
 
-const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api'
-const STORAGE_KEYS = {
-  JWT_TOKEN: 'jwt_token',
-  USER_DATA: 'user_data',
-  REFRESH_TIME: 'token_refresh_time',
-};
+const API_URL = apiUrl;
 
 // ============================================
 // SERVICE D'AUTHENTIFICATION
@@ -64,17 +61,8 @@ class AuthService {
    */
   async syncWithBackend(kindeUser: KindeUser, fcmToken?: string): Promise<AuthResponse> {
     try {
-      console.log('📤 [AUTH] Synchronisation avec backend...', {
-        kindeId: kindeUser.id,
-        email: kindeUser.email,
-      });
+      console.log('📤 [AUTH] Synchronisation avec backend...');
       console.log('URL de la requête:', `${API_URL}/auth/sync`);
-      console.log('Données envoyées:', {
-  kindeId: kindeUser.id,
-  email: kindeUser.email,
-
-  // ... autres champs
-});
       const response = await fetch(`${API_URL}/auth/sync`, {
         method: 'POST',
         headers: {

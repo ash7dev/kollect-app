@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { apiUrl, ngrokSkipBrowserWarning } from '@/config/env';
 
 export interface ProduitDto {
   id: string;
@@ -77,7 +78,7 @@ export interface BrandProductsParams {
   sortBy?: 'recent' | 'popular' | 'price-asc' | 'price-desc';
 }
 
-const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/api';
+const API_URL = apiUrl;
 
 // ============================================
 // HELPERS
@@ -86,7 +87,6 @@ const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev/ap
 async function getToken(): Promise<string> {
   const token =
     (await SecureStore.getItemAsync('jwt_token')) ||
-    (await SecureStore.getItemAsync('JWT_TOKEN')) ||
     (await SecureStore.getItemAsync('ACCESS_TOKEN')) ||
     null;
 
@@ -159,7 +159,7 @@ export const produitsService = {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
       body: formData,
     });
@@ -179,7 +179,7 @@ export const produitsService = {
     const res = await fetch(`${API_URL}/produits?${qs.toString()}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Erreur chargement produits');
@@ -195,7 +195,7 @@ export const produitsService = {
     const res = await fetch(`${API_URL}/produits/deleted?${qs.toString()}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Erreur chargement produits supprimés');
@@ -207,7 +207,7 @@ export const produitsService = {
     const res = await fetch(`${API_URL}/produits/ceo/${id}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Produit non disponible');
@@ -246,7 +246,7 @@ export const produitsService = {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
       body: formData,
     });
@@ -263,7 +263,7 @@ export const produitsService = {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) {
@@ -279,7 +279,7 @@ export const produitsService = {
       method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) {
@@ -300,7 +300,7 @@ export const produitsService = {
   async getFeatured(limit: number = 10) {
     const res = await fetch(`${API_URL}/produits/featured?limit=${limit}`, {
       headers: {
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Erreur chargement produits featured');
@@ -314,7 +314,7 @@ export const produitsService = {
   async getPopular(limit: number = 20, days: number = 30) {
     const res = await fetch(`${API_URL}/produits/popular?limit=${limit}&days=${days}`, {
       headers: {
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Erreur chargement produits populaires');
@@ -328,7 +328,7 @@ export const produitsService = {
   async getNew(limit: number = 20, days: number = 14) {
     const res = await fetch(`${API_URL}/produits/new?limit=${limit}&days=${days}`, {
       headers: {
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Erreur chargement nouveaux produits');
@@ -345,7 +345,7 @@ export const produitsService = {
     const res = await fetch(`${API_URL}/produits/personalized?limit=${limit}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Erreur chargement recommandations');
@@ -372,7 +372,7 @@ export const produitsService = {
 
     const res = await fetch(`${API_URL}/produits/search?${qs.toString()}`, {
       headers: {
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Erreur recherche produits');
@@ -391,7 +391,7 @@ export const produitsService = {
 
     const res = await fetch(`${API_URL}/produits/brand/${slug}?${qs.toString()}`, {
       headers: {
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Erreur chargement produits de la marque');
@@ -405,7 +405,7 @@ export const produitsService = {
   async getByCollection(id: string, limit: number = 10) {
     const res = await fetch(`${API_URL}/produits/collection/${id}?limit=${limit}`, {
       headers: {
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Erreur chargement produits de la collection');
@@ -423,7 +423,7 @@ export const produitsService = {
 
     const res = await fetch(`${API_URL}/produits/public/random?${qs.toString()}`, {
       headers: {
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Erreur chargement produits aléatoires');
@@ -437,7 +437,7 @@ export const produitsService = {
   async getPublic(id: string) {
     const res = await fetch(`${API_URL}/produits/public/${id}`, {
       headers: {
-        'ngrok-skip-browser-warning': 'true',
+        'ngrok-skip-browser-warning': ngrokSkipBrowserWarning,
       },
     });
     if (!res.ok) throw new Error('Produit non disponible');

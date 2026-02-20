@@ -80,6 +80,18 @@ export class BrandsController {
     return await this.brandsService.findBySlug(slug);
   }
 
+  /**
+   * 🔍 Récupérer une boutique par son id (page publique)
+   * GET /brands/public/:id
+   * Public - utile pour les liens de partage quand on n'a pas le slug
+   */
+  @Public()
+  @Get('public/:id')
+  @HttpCode(HttpStatus.OK)
+  async findPublicById(@Param('id') id: string) {
+    return await this.brandsService.findPublicById(id);
+  }
+
   // ========================================
   // ROUTES CEO UNIQUEMENT
   // ========================================
@@ -273,13 +285,18 @@ export class BrandsController {
 async getStats(
   @GetUser('id') userId: string,
   @Param('id') id: string,
+  @Query('period') period: '7days' | '30days' | '90days' = '30days',
 ): Promise<BrandStats & {
-  ordersThisMonth: number;
+  period: '7days' | '30days' | '90days';
+  ordersThisPeriod: number;
   ordersChange: number;
   followersChange: number;
   conversionRate: number;
+  revenueThisPeriod: number;
+  revenueChange: number;
+  viewsThisPeriod: number;
 }> {
-  return await this.brandsService.getStats(userId, id);
+  return await this.brandsService.getStats(userId, id, period);
 }
 
 /**

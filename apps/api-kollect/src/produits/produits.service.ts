@@ -463,24 +463,20 @@ export class ProduitsService {
    * Algorithme simple mais efficace
    */
   async findPopular(limit = 20, days = 30) {
-    // Date limite pour considérer un produit comme "récent"
-    const dateLimit = new Date();
-    dateLimit.setDate(dateLimit.getDate() - days);
-
-    const where: Prisma.ProduitWhereInput = {
+    const baseWhere: Prisma.ProduitWhereInput = {
       isVisible: true,
       isDeleted: false,
       collection: {
         status: CollectionStatus.DISPONIBLE,
       },
-      createdAt: {
-        gte: dateLimit, // Produits récents uniquement
-      },
     };
 
-    // Étape 1 : vérifier s'il existe au moins un produit récent avec des vues
+    // Étape 1 : vérifier s'il existe au moins un produit avec des vues
     const productWithMaxViews = await this.prisma.produit.findFirst({
-      where,
+      where: {
+        ...baseWhere,
+        viewCount: { gt: 0 },
+      },
       orderBy: {
         viewCount: 'desc',
       },
@@ -493,6 +489,15 @@ export class ProduitsService {
     const orderBy: Prisma.ProduitOrderByWithRelationInput = hasRealViews
       ? { viewCount: 'desc' }
       : { createdAt: 'desc' };
+
+    const where: Prisma.ProduitWhereInput = hasRealViews
+      ? baseWhere
+      : {
+          ...baseWhere,
+          createdAt: {
+            gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+          },
+        };
 
     const products = await this.prisma.produit.findMany({
       where,
@@ -890,5 +895,4 @@ export class ProduitsService {
     }
   }
 }
-
 

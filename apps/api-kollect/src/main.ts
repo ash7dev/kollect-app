@@ -1,7 +1,7 @@
 // backend/src/main.ts
 
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import morgan from 'morgan'; // Modification ici
@@ -10,7 +10,18 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Sécurité
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+        },
+      },
+    }),
+  );
 
   // CORS (autoriser le mobile à appeler l'API)
   app.enableCors({
@@ -32,7 +43,13 @@ async function bootstrap() {
   );
 
   // Préfixe API
-  app.setGlobalPrefix('api');
+  // On exclut les pages de partage publiques (/s/*) du préfixe /api
+  app.setGlobalPrefix('api', {
+    exclude: [
+      { path: 's', method: RequestMethod.ALL },
+      { path: 's/(.*)', method: RequestMethod.ALL },
+    ],
+  });
 
   // Port depuis .env ou 3000 par défaut
   const port = process.env.PORT || 3000;

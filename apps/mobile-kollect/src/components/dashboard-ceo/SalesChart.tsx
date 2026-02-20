@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { MotiView } from 'moti';
 import Svg, { Path, Line, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -115,7 +116,10 @@ export const ModernSalesChart = ({ refreshing=false, onRefresh }: ModernSalesCha
   console.log('Is Loading Brand:', isLoadingBrand);
 
   // 🔥 Charger les stats et les données de ventes
-  const { data: stats, isLoading: loadingStats, error: statsError } = useBrandStats(brandId || '');
+  const { data: stats, isLoading: loadingStats, error: statsError } = useBrandStats(
+    brandId || '',
+    selectedPeriod,
+  );
   const {
     data: salesData,
     isLoading: loadingSales,
@@ -161,8 +165,29 @@ export const ModernSalesChart = ({ refreshing=false, onRefresh }: ModernSalesCha
     return String(val);
   };
 
-  // 🆕 Vérifier si brandId existe AVANT de charger
-  if (!brandId) {
+  const hasCollections =
+    (myBrand?._count?.collections ?? 0) > 0 ||
+    (stats?.totalCollections ?? 0) > 0;
+
+  if (!brandId && isLoadingBrand) {
+    return (
+      <MotiView
+        from={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ type: 'timing', duration: 200 }}
+        style={[styles.container, { backgroundColor: theme.colors.card }]}
+      >
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+            Chargement des données...
+          </Text>
+        </View>
+      </MotiView>
+    );
+  }
+
+  if (!brandId && !isLoadingBrand) {
     return <EmptyState />;
   }
 
@@ -195,30 +220,44 @@ export const ModernSalesChart = ({ refreshing=false, onRefresh }: ModernSalesCha
     salesDataSample: salesData?.slice(0, 2) // Afficher les 2 premières entrées pour inspection
   });
 
-  // Afficher EmptyState uniquement si pas de données du tout
-  if (!stats || !salesData) {
-    console.log('🔄 Affiche EmptyState car:', {
-      noStats: !stats,
-      noSalesData: !salesData
-    });
+  // Afficher EmptyState seulement si la marque n'a aucune collection
+  if (!hasCollections && !loadingStats && !loadingSales) {
     return <EmptyState />;
+  }
+
+  if (!stats || !salesData) {
+    return (
+      <MotiView
+        from={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ type: 'timing', duration: 200 }}
+        style={[styles.container, { backgroundColor: theme.colors.card }]}
+      >
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+            Chargement des statistiques...
+          </Text>
+        </View>
+      </MotiView>
+    );
   }
 
   // 🔥 Préparer les données des cartes avec les vraies stats
   const statsCards = {
     orders: {
-      value: formatAbbreviated(stats.ordersThisMonth || 0),
+      value: formatAbbreviated(stats.ordersThisPeriod || 0),
       change: `${stats.ordersChange > 0 ? '+' : ''}${stats.ordersChange || 0}%`,
       icon: 'cart-outline' as const
     },
     followers: {
       value: formatAbbreviated(stats.totalFollowers),
-      change: `+${stats.followersChange}%`,
+      change: `${stats.followersChange > 0 ? '+' : ''}${stats.followersChange || 0}%`,
       icon: 'people-outline' as const
     },
     conversion: {
       value: `${stats.conversionRate}%`,
-      change: '+0.8%',
+      change: '—',
       icon: 'trending-up-outline' as const
     }
   };
@@ -678,6 +717,16 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   emptyStatText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+  },
+  loadingText: {
+    marginTop: 8,
     fontSize: 13,
     fontWeight: '500',
   },

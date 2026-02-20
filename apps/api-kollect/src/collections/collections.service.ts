@@ -82,6 +82,30 @@ export class CollectionsService {
       throw new BadRequestException('Au moins un produit est requis pour créer une collection');
     }
 
+    // Vérifier l'unicité des SKUs (dans le payload et en base)
+    const skus = dto.products
+      .map((p) => p.sku)
+      .filter((sku): sku is string => typeof sku === 'string' && sku.trim() !== '');
+
+    const duplicatesInPayload = skus.filter((sku, idx) => skus.indexOf(sku) !== idx);
+    if (duplicatesInPayload.length > 0) {
+      throw new BadRequestException(
+        `SKU dupliqué dans la collection: ${[...new Set(duplicatesInPayload)].join(', ')}`,
+      );
+    }
+
+    if (skus.length > 0) {
+      const existingSkus = await this.prisma.produit.findMany({
+        where: { sku: { in: skus } },
+        select: { sku: true },
+      });
+      if (existingSkus.length > 0) {
+        throw new BadRequestException(
+          `SKU déjà utilisé: ${existingSkus.map((p) => p.sku).join(', ')}`,
+        );
+      }
+    }
+
     // Génération du slug
     const baseSlug = slugify(dto.name, { lower: true, strict: true });
     const slug = await this.generateUniqueSlug(brandId, baseSlug);
@@ -931,17 +955,11 @@ async findAllForCEO(
   async findTrending(limit = 10) {
     this.logger.log(`🔥 Calcul des collections trending (limit: ${limit})`);
 
-    // Récupérer toutes les collections publiques des 30 derniers jours
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
+    // Récupérer toutes les collections publiques
     const collections = await this.prisma.collection.findMany({
       where: {
         status: {
           in: [CollectionStatus.TEASER, CollectionStatus.DISPONIBLE],
-        },
-        createdAt: {
-          gte: thirtyDaysAgo,
         },
       },
       include: {

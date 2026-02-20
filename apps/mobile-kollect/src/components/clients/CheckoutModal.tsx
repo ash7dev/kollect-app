@@ -78,14 +78,16 @@ export default function CheckoutModal({ visible, onClose, onSuccess }: CheckoutM
         items: items.map((it) => ({
           productId: it.productId,
           quantity: it.quantity,
+          size: it.size,
+          color: it.color,
         })),
         adresseLivraison: {
           nom: `${form.firstName} ${form.lastName}`.trim() || 'Client',
           telephone: form.phone,
           adresse: form.address,
           ville: form.city,
-          quartier: form.additionalInfo?.trim() || form.city,
         },
+        notes: form.additionalInfo?.trim() || undefined,
       };
 
       const order = await createCommande.mutateAsync(dto);

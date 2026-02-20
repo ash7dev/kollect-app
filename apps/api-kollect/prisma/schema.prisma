@@ -5,8 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ============================================
@@ -50,6 +48,7 @@ model Utilisateur {
   reviews       Review[]
   statusChanges HistoriqueStatutCommande[] @relation("StatusChangedBy")
   promoCodes    CodePromo[]
+  shareActions  ShareAction[]         // Partages effectués
   
   @@index([kindeId])
   @@index([email])
@@ -189,8 +188,8 @@ model Produit {
   name          String    @db.VarChar(200)
   slug          String    @db.VarChar(220)
   description   String?   @db.Text
-  price         Int       // En FCFA (centimes)
-  
+  price         Int       // En FCFA
+
   // Images
   images        String[]  // Array d'URLs Cloudinary
   
@@ -297,9 +296,9 @@ model Commande {
   shippingCity    String         @db.VarChar(100)
   shippingPhone   String         @db.VarChar(20)
   
-  // Montants (en FCFA centimes)
+  // Montants (en FCFA)
   subtotal        Int            // Total produits
-  shippingFee     Int            @default(200000) // 2000 FCFA par défaut
+  shippingFee     Int            @default(0) // MVP: gratuit
   discount        Int            @default(0)      // Réduction éventuelle
   total           Int            // subtotal + shippingFee - discount
   
@@ -653,4 +652,39 @@ model VueProduit {
   @@index([sessionId])
   @@index([viewedAt])
   @@map("product_views")
+}
+
+// ============================================
+// PARTAGES (ANALYTIQUES)
+// ============================================
+
+model ShareAction {
+  id        String     @id @default(cuid())
+  
+  // Utilisateur (optionnel pour les partages anonymes)
+  userId    String?
+  user      Utilisateur? @relation(fields: [userId], references: [id])
+  
+  // Type et cible du partage
+  type      ShareType
+  targetId  String     // productId, collectionId, brandId
+  
+  // Métadonnées du partage
+  platform  String     @db.VarChar(50)  // WhatsApp, Instagram, SMS, etc.
+  userAgent String?    @db.Text
+  ipAddress String?    @db.VarChar(45)
+  
+  // Timestamp
+  createdAt DateTime   @default(now())
+  
+  @@index([type, targetId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("share_actions")
+}
+
+enum ShareType {
+  PRODUCT
+  COLLECTION
+  BRAND
 }

@@ -10,7 +10,9 @@ const ProductSchema = z.object({
     .max(200),
   description: z.string().optional(),
   price: z.number().int().positive('Le prix doit être un nombre positif'),
-  images: z.array(z.string().url()).min(1, 'Au moins une image est requise'),
+  // Les images sont uploadées via multipart; on accepte un tableau vide ici
+  // et on valide la présence des fichiers côté contrôleur.
+  images: z.array(z.string()).default([]),
   stock: z.number().int().min(0).default(0),
   sizes: z.array(z.string()).default(['UNIQUE']),
   sku: z.string().optional(),

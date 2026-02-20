@@ -7,6 +7,8 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../app/context/ThemeContext';
+import { ShareButton } from '../ui/ShareButton';
+import { ShareService, ShareType } from '../../features/share/services/share.service';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.85;
@@ -19,6 +21,8 @@ interface CarouselItem {
   brandName?: string;
   brandLogo?: string;
   brandSlug?: string;
+  productCount?: number;
+  viewCount?: number;
 }
 
 interface DepthCarouselProps {
@@ -82,6 +86,9 @@ export default function DepthCarousel({ data, onBrandPress, onCollectionPress }:
       paddingHorizontal: 20,
       paddingTop: 20,
       paddingBottom: 12,
+    },
+    shareButton: {
+      opacity: 0.8,
     },
     brandSection: {
       flexDirection: 'row',
@@ -318,6 +325,23 @@ export default function DepthCarousel({ data, onBrandPress, onCollectionPress }:
                     </View>
                   )}
                 </View>
+                
+                {/* Bouton de partage */}
+                <ShareButton
+                  data={{
+                    type: ShareType.COLLECTION,
+                    id: item.id,
+                    name: item.title,
+                    brandName: item.brandName,
+                    imageUrl: item.image,
+                    stats: {
+                      viewCount: item.viewCount,
+                      productCount: item.productCount,
+                    },
+                  }}
+                  size="small"
+                  style={styles.shareButton}
+                />
               </View>
 
               {/* Footer */}

@@ -85,6 +85,8 @@ export default function CeoDashboardScreen() {
     isFetching,
   } = useBoutiqueCommandes();
 
+  const showInitialLoading = isLoadingBrand && !myBrand;
+
   // L'API getBoutiqueCommandes renvoie déjà un objet transformé pour le CEO :
   // { id, orderNumber, customer, amount, status, date, itemsCount, phone, address }
   // On mappe directement ces champs vers le type Order utilisé par OrderCard.
@@ -136,9 +138,12 @@ export default function CeoDashboardScreen() {
   // Navigation vers l'écran de détail de la commande (écran /commande/[id])
   const handleViewOrderDetails = useCallback(
     (orderId: string) => {
-      bottomSheetModalRef.current?.dismiss();
-      router.push(`/commande/${orderId}` as any);
-      setSelectedOrder(null);
+      try {
+        bottomSheetModalRef.current?.dismiss();
+        router.push(`/commande/${orderId}` as any);
+      } finally {
+        setSelectedOrder(null);
+      }
     },
     [],
   );
@@ -178,6 +183,19 @@ export default function CeoDashboardScreen() {
 
   function handleRefresh(): void {
     refetch();
+  }
+
+  if (showInitialLoading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+            Chargement de votre espace...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -372,6 +390,23 @@ export default function CeoDashboardScreen() {
                       Chargement des commandes...
                     </Text>
                   </View>
+                ) : isError ? (
+                  <View style={styles.errorContainer}>
+                    <Text style={[styles.errorTitle, { color: theme.colors.text }]}>
+                      Impossible de charger les commandes
+                    </Text>
+                    <Text style={[styles.errorText, { color: theme.colors.textSecondary }]}>
+                      Vérifie ta connexion puis réessaie.
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
+                      onPress={() => refetch()}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="refresh-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                      <Text style={styles.retryButtonText}>Réessayer</Text>
+                    </TouchableOpacity>
+                  </View>
                 ) : (
                   <View style={styles.emptyContainer}>
                     <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
@@ -483,6 +518,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
     gap: 16,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  errorTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  errorText: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 
   // Brand Section

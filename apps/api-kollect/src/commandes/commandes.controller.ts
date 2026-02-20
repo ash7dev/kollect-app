@@ -77,6 +77,17 @@ export class CommandesController {
   }
 
   /**
+   * GET /api/commandes/boutique/stats
+   * Statistiques des commandes de la boutique (CEO uniquement)
+   */
+  @Get('boutique/stats')
+  @UseGuards(RolesGuard)
+  @Roles('isCEO')
+  async getBoutiqueCommandesStats(@CurrentUser() user: UserPayload) {
+    return this.commandesService.getCommandeStats(user.id);
+  }
+
+  /**
    * GET /api/commandes/:id
    * Détails d'une commande
    */

@@ -75,6 +75,7 @@ export default function LoginScreen() {
       setLocalError(null);
       
       const kindeResponse = await kindeLogin();
+      if (!kindeResponse) return;
       
       if (!kindeResponse?.user) {
         throw new Error('Erreur lors de la connexion Kinde');
@@ -99,6 +100,7 @@ export default function LoginScreen() {
       setLocalError(null);
       
       const kindeResponse = await loginWithProvider(provider);
+      if (!kindeResponse) return;
       
       if (!kindeResponse?.user) {
         throw new Error(`Erreur lors de la connexion avec ${provider}`);

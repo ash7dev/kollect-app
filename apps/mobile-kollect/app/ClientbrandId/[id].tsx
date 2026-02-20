@@ -24,8 +24,9 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
+import { apiBaseUrl } from '@/config/env';
 
-const API_URL = 'https://maurice-unfelicitous-semisuccessfully.ngrok-free.dev';
+const API_URL = apiBaseUrl;
 
 type TabKey = 'products' | 'collections';
 
