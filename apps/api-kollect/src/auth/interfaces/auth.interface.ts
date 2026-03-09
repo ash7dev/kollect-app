@@ -1,6 +1,3 @@
-// Note: Using any to avoid Prisma client dependency in interfaces
-// In a real app, you might want to generate types from Prisma schema
-
 export interface AuthResponse {
   access_token: string;
   user: UserProfile;
@@ -8,7 +5,7 @@ export interface AuthResponse {
 
 export interface UserProfile {
   id: string;
-  kindeId: string;
+  supabaseId: string;
   email: string;
   firstName: string | null;
   lastName: string | null;

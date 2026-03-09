@@ -1,15 +1,12 @@
 /* eslint-disable prettier/prettier */
- 
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
- 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetricsService } from '../metrics/metrics.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 import { SyncUserDto } from './dto/sync-user.dto';
 import { AuthResponseWithToken } from './interfaces/auth-response.interface';
 
@@ -21,8 +18,7 @@ type UserWithRoles = {
   isAdmin: boolean;
   isCEO: boolean;
   isClient: boolean;
-  kindeId: string;
-  password?: string;
+  supabaseId: string;
   brand?: {
     id: string;
     slug: string;
@@ -33,20 +29,26 @@ type UserWithRoles = {
 
 @Injectable()
 export class AuthService {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  handleKindeWebhook(_payload: unknown) {
-    throw new Error('Method not implemented.');
-  }
-  
+  private supabase: SupabaseClient;
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private metricsService: MetricsService,
-  ) {}
+  ) {
+    this.supabase = createClient(
+      process.env.SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    );
+  }
+
+  // ============================================
+  // HELPERS PRIVÉS
+  // ============================================
 
   private toUserProfile(user: {
     id: string;
-    kindeId: string;
+    supabaseId: string;
     email: string;
     firstName: string | null;
     lastName: string | null;
@@ -73,7 +75,7 @@ export class AuthService {
   }): AuthResponseWithToken['user'] {
     return {
       id: user.id,
-      kindeId: user.kindeId,
+      supabaseId: user.supabaseId,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -94,20 +96,21 @@ export class AuthService {
     };
   }
 
-  private generateJwtToken(user: {
-    id: string;
-    kindeId: string;
-    email: string;
-    isAdmin: boolean;
-    isCEO: boolean;
-    isClient: boolean;
-    has_seen_creator_prompt?: boolean;
-  },
-   brand: { id: string; slug: string; name: string; isVerified: boolean } | null = null
-): string {
+  private generateJwtToken(
+    user: {
+      id: string;
+      supabaseId: string;
+      email: string;
+      isAdmin: boolean;
+      isCEO: boolean;
+      isClient: boolean;
+      has_seen_creator_prompt?: boolean;
+    },
+    brand: { id: string; slug: string; name: string; isVerified: boolean } | null = null,
+  ): string {
     const payload = {
       sub: user.id,
-      kindeId: user.kindeId,
+      supabaseId: user.supabaseId,
       email: user.email,
       roles: {
         isAdmin: user.isAdmin,
@@ -121,38 +124,130 @@ export class AuthService {
       brand: brand ?? null,
     };
 
-    console.log(
-      '🔑 Generating JWT with payload:',
-      JSON.stringify(payload, null, 2),
-    );
+    console.log('🔑 Generating JWT with payload:', JSON.stringify(payload, null, 2));
     return this.jwtService.sign(payload);
   }
 
   private async getBrandForToken(userId: string) {
-  try {
-    const brand = await this.prisma.marque.findUnique({
-      where: { userId },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        isVerified: true,
-      },
-    });
-    return brand || null;
-  } catch {
-    return null;
+    try {
+      const brand = await this.prisma.marque.findUnique({
+        where: { userId },
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          isVerified: true,
+        },
+      });
+      return brand || null;
+    } catch {
+      return null;
+    }
   }
-}
 
+  // ============================================
+  // VÉRIFICATION TOKEN SUPABASE
+  // ============================================
 
+  /**
+   * Vérifie un token Supabase et retourne les infos utilisateur
+   */
+  async verifySupabaseToken(accessToken: string) {
+    const { data, error } = await this.supabase.auth.getUser(accessToken);
+
+    if (error || !data.user) {
+      console.error('❌ [AUTH] Supabase token verification failed:', error?.message);
+      throw new UnauthorizedException('Invalid Supabase token');
+    }
+
+    return data.user;
+  }
+
+  // ============================================
+  // ACTIONS PUBLIQUES
+  // ============================================
+
+  /**
+   * Synchronise un utilisateur Supabase avec notre DB
+   * Appelé après login/signup Supabase côté client
+   */
+  async syncUser(syncUserDto: SyncUserDto): Promise<AuthResponseWithToken> {
+    const { supabaseAccessToken, fcmToken } = syncUserDto;
+
+    try {
+      // 1. Vérifier le token Supabase côté serveur
+      const supabaseUser = await this.verifySupabaseToken(supabaseAccessToken);
+
+      console.log('📥 [AUTH] Syncing Supabase user:', {
+        supabaseId: supabaseUser.id,
+        email: supabaseUser.email,
+      });
+
+      const updateData: any = {
+        email: supabaseUser.email,
+        firstName: supabaseUser.user_metadata?.full_name?.split(' ')[0] ??
+          supabaseUser.user_metadata?.given_name ?? null,
+        lastName: supabaseUser.user_metadata?.full_name?.split(' ').slice(1).join(' ') ??
+          supabaseUser.user_metadata?.family_name ?? null,
+        avatar: supabaseUser.user_metadata?.avatar_url ??
+          supabaseUser.user_metadata?.picture ?? null,
+        lastLoginAt: new Date(),
+      };
+
+      // Ajouter le FCM token si fourni
+      if (fcmToken) {
+        updateData.fcmToken = fcmToken;
+        console.log('📱 Updating FCM token');
+      }
+
+      // 2. Upsert dans Prisma par supabaseId
+      const user = await this.prisma.utilisateur.upsert({
+        where: { supabaseId: supabaseUser.id },
+        update: updateData,
+        create: {
+          supabaseId: supabaseUser.id,
+          email: supabaseUser.email || '',
+          firstName: updateData.firstName,
+          lastName: updateData.lastName,
+          avatar: updateData.avatar,
+          fcmToken: fcmToken ?? null,
+          isClient: true,
+          isAdmin: false,
+          isCEO: false,
+          lastLoginAt: new Date(),
+        },
+      });
+
+      // 3. Générer notre JWT interne
+      const brand = await this.getBrandForToken(user.id);
+      const token = this.generateJwtToken(user, brand);
+      const userProfileResponse = this.toUserProfile(user);
+
+      this.metricsService.incrementUserRegistered();
+
+      return {
+        access_token: token,
+        user: {
+          ...userProfileResponse,
+          brand,
+        },
+      };
+    } catch (error) {
+      console.error('❌ [AUTH] Sync error:', error);
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException('Sync failed');
+    }
+  }
+
+  /**
+   * Met à jour le rôle d'un utilisateur
+   */
   async updateUserRole(
-    userId: string, 
+    userId: string,
     role: 'client' | 'vendeur',
-    hasSeenCreatorPrompt: boolean
+    hasSeenCreatorPrompt: boolean,
   ): Promise<AuthResponseWithToken> {
     try {
-      // Récupérer l'état actuel pour savoir si on passe réellement de client -> vendeur
       const currentUser = await this.prisma.utilisateur.findUnique({
         where: { id: userId },
       });
@@ -163,8 +258,6 @@ export class AuthService {
 
       const isFirstUpgradeToSeller = !currentUser.isCEO && role === 'vendeur';
 
-      // Pour 'vendeur', nous mettons isCEO à true et isClient à false
-      // et, lors du tout premier passage client -> vendeur, on nettoie les données purement client
       const [updatedUser] = await this.prisma.$transaction([
         this.prisma.utilisateur.update({
           where: { id: userId },
@@ -176,23 +269,25 @@ export class AuthService {
         }),
         ...(isFirstUpgradeToSeller
           ? [
-              // Nettoyage des favoris client
-              this.prisma.favori.deleteMany({ where: { userId } }),
-              // Nettoyage des notifications existantes (historiques client)
-              this.prisma.notification.deleteMany({ where: { userId } }),
-            ]
+            this.prisma.favori.deleteMany({ where: { userId } }),
+            this.prisma.notification.deleteMany({ where: { userId } }),
+          ]
           : []),
       ]);
 
-      const token = this.generateJwtToken({
-        id: updatedUser.id,
-        kindeId: updatedUser.kindeId,
-        email: updatedUser.email,
-        isAdmin: updatedUser.isAdmin,
-        isCEO: updatedUser.isCEO,
-        isClient: updatedUser.isClient,
-        has_seen_creator_prompt: updatedUser.has_seen_creator_prompt,
-      });
+      const brand = await this.getBrandForToken(updatedUser.id);
+      const token = this.generateJwtToken(
+        {
+          id: updatedUser.id,
+          supabaseId: updatedUser.supabaseId,
+          email: updatedUser.email,
+          isAdmin: updatedUser.isAdmin,
+          isCEO: updatedUser.isCEO,
+          isClient: updatedUser.isClient,
+          has_seen_creator_prompt: updatedUser.has_seen_creator_prompt,
+        },
+        brand,
+      );
 
       return {
         access_token: token,
@@ -204,6 +299,61 @@ export class AuthService {
     }
   }
 
+  /**
+   * Récupérer le profil utilisateur par supabaseId
+   */
+  async getUserProfile(supabaseId: string): Promise<AuthResponseWithToken> {
+    try {
+      const user = await this.prisma.utilisateur.findUnique({
+        where: { supabaseId },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      const brand = await this.getBrandForToken(user.id);
+      const token = this.generateJwtToken(user, brand);
+      const userProfileResponse = this.toUserProfile(user);
+
+      return {
+        access_token: token,
+        user: {
+          ...userProfileResponse,
+          brand,
+        },
+      };
+    } catch (error) {
+      console.error('Get user profile error:', error);
+      throw new UnauthorizedException('Failed to fetch user profile');
+    }
+  }
+
+  /**
+   * Mettre à jour le FCM token
+   */
+  async updateFcmToken(supabaseId: string, fcmToken: string): Promise<void> {
+    try {
+      console.log('📱 [AUTH] Updating FCM token:', {
+        supabaseId,
+        fcmToken: '***',
+      });
+
+      await this.prisma.utilisateur.update({
+        where: { supabaseId },
+        data: { fcmToken },
+      });
+
+      console.log('✅ [AUTH] FCM token updated successfully');
+    } catch (error) {
+      console.error('❌ [AUTH] Error updating FCM token:', error);
+      throw new Error('Failed to update FCM token');
+    }
+  }
+
+  /**
+   * Valider un utilisateur par email
+   */
   async validateUser(email: string): Promise<UserWithRoles | null> {
     try {
       const user = await this.prisma.utilisateur.findUnique({
@@ -220,193 +370,4 @@ export class AuthService {
       return null;
     }
   }
-
-  async login(loginDto: LoginDto): Promise<AuthResponseWithToken> {
-    try {
-      const user = await this.validateUser(loginDto.email);
-      if (!user) {
-        throw new UnauthorizedException('Utilisateur non trouvé');
-      }
-
-      await this.prisma.utilisateur.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() },
-      });
-
-      const userProfile = await this.prisma.utilisateur.findUnique({
-        where: { id: user.id },
-      });
-
-      if (!userProfile) {
-        throw new UnauthorizedException('User not found');
-      }
-      const brand = await this.getBrandForToken(userProfile.id);
-      // Générer le token JWT avec les informations de l'utilisateur et de la marque
-  const token = this.generateJwtToken(
-    {
-      id: userProfile.id,
-      kindeId: userProfile.kindeId,
-      email: userProfile.email,
-      isAdmin: userProfile.isAdmin,
-      isCEO: userProfile.isCEO,
-      isClient: userProfile.isClient,
-      has_seen_creator_prompt: userProfile.has_seen_creator_prompt,
-    },
-    brand // Passez les informations de la marque ici
-  );
-     const userProfileResponse = {
-  ...this.toUserProfile(userProfile),
-  brand: brand  // Add brand to the user object
-};
-
-return {
-  access_token: token,
-  user: userProfileResponse,
-};
-    } catch (error) {
-      console.error('Login error:', error);
-      throw new UnauthorizedException('Authentication failed');
-    }
-  }
-
-  async register(registerDto: RegisterDto): Promise<AuthResponseWithToken> {
-    try {
-      await this.prisma.utilisateur.create({
-        data: {
-          email: registerDto.email,
-          firstName: registerDto.firstName,
-          lastName: registerDto.lastName || null,
-          isClient: true,
-          isAdmin: false,
-          isCEO: false,
-          kindeId: `local_${Date.now()}`,
-        },
-      });
-
-      this.metricsService.incrementUserRegistered();
-
-      // After registration, log the user in with their credentials
-      return this.login({
-        email: registerDto.email,
-        password: registerDto.password
-      });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new UnauthorizedException('Email already in use');
-        }
-      }
-      console.error('Registration error:', error);
-      throw new UnauthorizedException('Registration failed');
-    }
-  }
-
-  /**
-   * Synchronise l'utilisateur et met à jour le FCM token si fourni
-   */
-  async syncUser(syncUserDto: SyncUserDto): Promise<AuthResponseWithToken> {
-    const { kindeId, email, firstName, lastName, avatar, fcmToken } = syncUserDto;
-
-    try {
-      console.log('📥 Syncing user:', JSON.stringify(syncUserDto, null, 2));
-
-      const updateData: any = {
-        email,
-        firstName: firstName ?? null,
-        lastName: lastName ?? null,
-        avatar: avatar ?? null,
-        lastLoginAt: new Date(),
-      };
-
-      // Ajouter le FCM token si fourni
-      if (fcmToken) {
-        updateData.fcmToken = fcmToken;
-        console.log('📱 Updating FCM token:', fcmToken);
-      }
-
-
-    
-      const user = await this.prisma.utilisateur.upsert({
-        where: { kindeId },
-        update: updateData,
-        create: {
-          kindeId,
-          email,
-          firstName: firstName ?? null,
-          lastName: lastName ?? null,
-          avatar: avatar ?? null,
-          fcmToken: fcmToken ?? null,
-          isClient: true,
-          isAdmin: false,
-          isCEO: false,
-          lastLoginAt: new Date(),
-        },
-      });
-
-      const brand = await this.getBrandForToken(user.id);
-      console.log('Brand:', brand);
-
-      const token = this.generateJwtToken(user, brand);
-      const userProfileResponse = this.toUserProfile(user);
-
-      return {
-  access_token: token,
-  user: {
-    ...userProfileResponse,
-    brand,  // Now it's correctly placed inside user
-  },
-};
-    } catch (error) {
-      console.error('Sync error:', error);
-      throw new UnauthorizedException('Sync failed');
-    }
-  }
-
-  async getUserProfile(kindeId: string): Promise<AuthResponseWithToken> {
-    try {
-      const user = await this.prisma.utilisateur.findUnique({
-        where: { kindeId },
-      });
-
-      if (!user) {
-        throw new UnauthorizedException('User not found');
-      }
-
-      // 🔄 Inclure la marque dans le token et la réponse
-      const brand = await this.getBrandForToken(user.id);
-      const token = this.generateJwtToken(user, brand);
-      const userProfileResponse = this.toUserProfile(user);
-
-      return {
-        access_token: token,
-        user: {
-          ...userProfileResponse,
-          brand, // joindre la marque au profil
-        },
-      };
-    } catch (error) {
-      console.error('Get user profile error:', error);
-      throw new UnauthorizedException('Failed to fetch user profile');
-    }
-  }
-
- 
-async updateFcmToken(kindeId: string, fcmToken: string): Promise<void> {
-  try {
-    console.log('📱 [AUTH] Updating FCM token:', {
-      kindeId,
-      fcmToken: '***',
-    });
-
-    await this.prisma.utilisateur.update({
-      where: { kindeId },
-      data: { fcmToken },
-    });
-
-    console.log('✅ [AUTH] FCM token updated successfully');
-  } catch (error) {
-    console.error('❌ [AUTH] Error updating FCM token:', error);
-    throw new Error('Failed to update FCM token');
-  }
-}
 }

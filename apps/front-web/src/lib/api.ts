@@ -1,22 +1,19 @@
-import type { NextFetchRequestConfig } from 'next/server';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://kollect.sn/api';
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kollect.sn';
+import { env } from '@/config/env';
 
 export type FetchApiOptions = {
   revalidate?: number;
   tags?: string[];
   cache?: RequestCache;
-  next?: NextFetchRequestConfig;
+  next?: { revalidate?: number | false; tags?: string[] };
 };
 
 export function getSiteUrl() {
-  return SITE_URL;
+  return env.siteUrl;
 }
 
 export function buildApiUrl(path: string) {
   const normalized = path.startsWith('/') ? path : `/${path}`;
-  return `${API_BASE_URL}${normalized}`;
+  return `${env.apiUrl}${normalized}`;
 }
 
 export async function fetchAPI<T>(

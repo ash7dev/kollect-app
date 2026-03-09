@@ -13,7 +13,7 @@ datasource db {
 
 model Utilisateur {
   id            String    @id @default(cuid())
-  kindeId       String    @unique // ID venant de Kinde
+  supabaseId    String    @unique // ID venant de Supabase Auth
   email         String    @unique
   /// @zod.email()
   firstName     String?   @db.VarChar(100)
@@ -50,7 +50,7 @@ model Utilisateur {
   promoCodes    CodePromo[]
   shareActions  ShareAction[]         // Partages effectués
   
-  @@index([kindeId])
+  @@index([supabaseId])
   @@index([email])
   @@index([phone])
   @@map("users")

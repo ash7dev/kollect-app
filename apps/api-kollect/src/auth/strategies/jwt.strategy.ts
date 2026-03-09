@@ -4,11 +4,11 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
- * JWT Payload interface
+ * JWT Payload interface — notre JWT interne (pas celui de Supabase)
  */
 interface JwtPayload {
-  sub: string; // ID de l'utilisateur dans votre DB
-  kindeId: string; // ID Kinde
+  sub: string; // ID de l'utilisateur dans notre DB
+  supabaseId: string; // ID Supabase Auth
   email: string;
   fcmToken?: string | null;
   roles?: {
@@ -29,7 +29,7 @@ interface JwtPayload {
  */
 interface AuthenticatedUser {
   id: string;
-  kindeId: string;
+  supabaseId: string;
   email: string;
   isAdmin: boolean;
   isCEO: boolean;
@@ -66,20 +66,20 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     try {
       console.log('🔍 JWT Payload received:', JSON.stringify(payload, null, 2));
 
-      // Vérifier que le payload contient bien kindeId
-      if (!payload.kindeId) {
-        console.error('❌ Missing kindeId in JWT payload');
-        throw new UnauthorizedException('Invalid token: missing kindeId');
+      // Vérifier que le payload contient bien supabaseId
+      if (!payload.supabaseId) {
+        console.error('❌ Missing supabaseId in JWT payload');
+        throw new UnauthorizedException('Invalid token: missing supabaseId');
       }
 
-      // Rechercher l'utilisateur par kindeId
+      // Rechercher l'utilisateur par supabaseId
       const user = await this.prisma.utilisateur.findUnique({
-        where: { kindeId: payload.kindeId },
+        where: { supabaseId: payload.supabaseId },
         include: { brand: true },
       });
 
       if (!user) {
-        console.error(`❌ User not found for kindeId: ${payload.kindeId}`);
+        console.error(`❌ User not found for supabaseId: ${payload.supabaseId}`);
         throw new UnauthorizedException('User not found');
       }
 
@@ -96,7 +96,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       // Retourner l'utilisateur authentifié avec les rôles
       const authenticatedUser: AuthenticatedUser = {
         id: user.id,
-        kindeId: user.kindeId,
+        supabaseId: user.supabaseId,
         email: user.email,
         isAdmin: user.isAdmin,
         isCEO: user.isCEO,

@@ -5,7 +5,7 @@ import { SetMetadata, createParamDecorator, ExecutionContext } from '@nestjs/com
 
 export interface AuthenticatedUser {
   id: string;
-  kindeId: string;
+  supabaseId: string;
   email: string;
   isAdmin: boolean;
   isCEO: boolean;
@@ -34,7 +34,7 @@ export const GetUser = createParamDecorator(
   (data: keyof AuthenticatedUser | undefined, ctx: ExecutionContext): any => {
     const request = ctx.switchToHttp().getRequest();
     const user = request.user as AuthenticatedUser;
-    
+
     return data ? user?.[data] : user;
   },
 );

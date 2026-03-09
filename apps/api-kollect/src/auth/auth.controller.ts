@@ -30,10 +30,10 @@ import * as requestInterface from '../common/interfaces/request.interface';
 @Controller('auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   /**
-   * 🆕 AMÉLIORATION : Endpoint de santé pour vérifier si l'API est accessible
+   * 🆕 Endpoint de santé pour vérifier si l'API est accessible
    */
   @Public()
   @Get('health')
@@ -46,24 +46,24 @@ export class AuthController {
   }
 
   /**
-   * Endpoint appelé après le login Kinde côté mobile
-   * Synchronise l'utilisateur dans notre DB et retourne un JWT avec ses rôles
+   * 🔐 Endpoint appelé après login/signup Supabase côté client
+   * Vérifie le token Supabase, synchronise l'utilisateur dans notre DB
+   * et retourne un JWT interne avec les rôles
    */
   @Public()
   @Post('sync')
-  @HttpCode(HttpStatus.OK) // 🆕 Retourner 200 au lieu de 201
+  @HttpCode(HttpStatus.OK)
   async syncUser(
     @Body() syncUserDto: SyncUserDto,
   ): Promise<AuthResponseWithToken> {
     try {
       console.log('📥 [AUTH] Sync user request:', {
-        kindeId: syncUserDto.kindeId,
-        email: syncUserDto.email,
+        hasToken: !!syncUserDto.supabaseAccessToken,
         fcmToken: syncUserDto.fcmToken ? '***' : 'none',
       });
 
       const result = await this.authService.syncUser(syncUserDto);
-      
+
       console.log('✅ [AUTH] Sync successful:', {
         userId: result.user.id,
         roles: {
@@ -76,7 +76,7 @@ export class AuthController {
       return result;
     } catch (error) {
       console.error('❌ [AUTH] Sync error:', error);
-      
+
       if (error instanceof Error) {
         throw new UnauthorizedException(error.message);
       }
@@ -85,7 +85,7 @@ export class AuthController {
   }
 
   /**
-   * 🆕 AMÉLIORATION : Retourne les infos de l'utilisateur connecté avec un nouveau JWT
+   * 🔄 Retourne les infos de l'utilisateur connecté avec un nouveau JWT
    * Permet de rafraîchir le token et les rôles
    */
   @Get('me')
@@ -93,18 +93,18 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async getProfile(@Req() req: requestInterface.AuthRequest): Promise<AuthResponseWithToken> {
     try {
-      if (!req.user?.kindeId) {
+      if (!req.user?.supabaseId) {
         console.error('❌ [AUTH] Invalid user data in request');
         throw new UnauthorizedException('Invalid user data');
       }
 
       console.log('📥 [AUTH] Get profile request:', {
-        kindeId: req.user.kindeId,
+        supabaseId: req.user.supabaseId,
         email: req.user.email,
       });
 
-      const result = await this.authService.getUserProfile(req.user.kindeId);
-      
+      const result = await this.authService.getUserProfile(req.user.supabaseId);
+
       console.log('✅ [AUTH] Profile fetched:', {
         userId: result.user.id,
         roles: {
@@ -117,7 +117,7 @@ export class AuthController {
       return result;
     } catch (error) {
       console.error('❌ [AUTH] Get profile error:', error);
-      
+
       if (error instanceof UnauthorizedException) {
         throw error;
       }
@@ -126,8 +126,7 @@ export class AuthController {
   }
 
   /**
-   * 🆕 AMÉLIORATION : Endpoint de logout pour invalider le token côté serveur
-   * (optionnel si vous voulez implémenter une blacklist de tokens)
+   * 🚪 Endpoint de logout
    */
   @Post('logout')
   @UseGuards(JwtAuthGuard)
@@ -135,12 +134,9 @@ export class AuthController {
   async logout(@Req() req: requestInterface.AuthRequest) {
     try {
       console.log('🚪 [AUTH] Logout request:', {
-        kindeId: req.user?.kindeId,
+        supabaseId: req.user?.supabaseId,
         email: req.user?.email,
       });
-
-      // TODO: Implémenter une blacklist de tokens si nécessaire
-      // await this.authService.blacklistToken(token);
 
       return {
         message: 'Logged out successfully',
@@ -153,8 +149,7 @@ export class AuthController {
   }
 
   /**
-   * 🆕 AMÉLIORATION : Endpoint pour mettre à jour le FCM token
-   * Permet de mettre à jour le token de notification sans refaire un login complet
+   * 📱 Endpoint pour mettre à jour le FCM token
    */
   @Post('fcm-token')
   @UseGuards(JwtAuthGuard)
@@ -164,7 +159,7 @@ export class AuthController {
     @Body('fcmToken') fcmToken: string,
   ) {
     try {
-      if (!req.user?.kindeId) {
+      if (!req.user?.supabaseId) {
         throw new UnauthorizedException('Invalid user data');
       }
 
@@ -173,11 +168,11 @@ export class AuthController {
       }
 
       console.log('📱 [AUTH] Update FCM token:', {
-        kindeId: req.user.kindeId,
+        supabaseId: req.user.supabaseId,
         fcmToken: '***',
       });
 
-      await this.authService.updateFcmToken(req.user.kindeId, fcmToken);
+      await this.authService.updateFcmToken(req.user.supabaseId, fcmToken);
 
       return {
         message: 'FCM token updated successfully',
@@ -190,7 +185,7 @@ export class AuthController {
   }
 
   /**
-   * Exemple d'endpoint protégé par rôle
+   * 🔒 Endpoint protégé par rôle admin
    */
   @Get('admin/dashboard')
   @Roles('isAdmin')
@@ -209,27 +204,7 @@ export class AuthController {
   }
 
   /**
-   * Webhook Kinde (optionnel - pour sync automatique)
-   * Appelé par Kinde lors d'événements (user.created, user.updated)
-   */
-  @Public()
-  @Post('webhook/kinde')
-  @HttpCode(HttpStatus.OK)
-  handleKindeWebhook(@Body() payload: unknown): { received: boolean } {
-    try {
-      console.log('🔔 [AUTH] Kinde webhook received:', payload);
-      
-      this.authService.handleKindeWebhook(payload);
-      
-      return { received: true };
-    } catch (error) {
-      console.error('❌ [AUTH] Webhook error:', error);
-      throw new UnauthorizedException('Invalid webhook payload');
-    }
-  }
-
-  /**
-   * Met à jour le rôle de l'utilisateur et le statut has_seen_creator_prompt
+   * 🧭 Met à jour le rôle de l'utilisateur et le statut has_seen_creator_prompt
    */
   @Patch('users/:id/role')
   @HttpCode(HttpStatus.OK)

@@ -1,7 +1,7 @@
 import { Request } from 'express';
 
 export interface UserPayload {
-  kindeId: string;
+  supabaseId: string;
   email: string;
   sub: string; // Correspond à l'ID utilisateur dans le JWT
   iat?: number; // Issued At (timestamp)

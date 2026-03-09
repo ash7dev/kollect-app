@@ -1,5 +1,3 @@
- 
- 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // src/store/authStore.ts
 import { create } from 'zustand';
@@ -21,7 +19,11 @@ export interface AuthState {
   isInitialized: boolean;
   error: string | null;
 
-  login: (kindeUser: any, fcmToken?: string) => Promise<void>;
+  // Supabase auth actions
+  signUpWithEmail: (email: string, password: string, metadata?: { firstName?: string; lastName?: string }) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
   initAuth: () => Promise<void>;
@@ -50,8 +52,50 @@ export const useAuthStore = create<AuthState>()(
       error: null,
 
       // ============================================
-      // ACTIONS PUBLIQUES
+      // ACTIONS PUBLIQUES — SUPABASE AUTH
       // ============================================
+
+      signUpWithEmail: async (email, password, metadata) => {
+        try {
+          set({ isLoading: true, error: null });
+          const authData = await authService.signUpWithEmail(email, password, metadata);
+          await get()._setAuth(authData.user, authData.access_token);
+        } catch (error: any) {
+          set({ error: error?.message || "Erreur lors de l'inscription" });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      signInWithEmail: async (email, password) => {
+        try {
+          set({ isLoading: true, error: null });
+          const authData = await authService.signInWithEmail(email, password);
+          await get()._setAuth(authData.user, authData.access_token);
+        } catch (error: any) {
+          set({ error: error?.message || 'Erreur de connexion' });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      signInWithGoogle: async () => {
+        try {
+          set({ isLoading: true, error: null });
+          await authService.signInWithGoogle();
+        } catch (error: any) {
+          if (error?.message === 'OAUTH_REDIRECT') {
+            // Expected — OAuth will redirect, session handled via callback
+            return;
+          }
+          set({ error: error?.message || 'Erreur de connexion Google' });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
       updateUserRole: async (role) => {
         const { user, _setAuth } = get();
@@ -64,28 +108,6 @@ export const useAuthStore = create<AuthState>()(
           return updatedData;
         } catch (error: any) {
           set({ error: error?.message || "Erreur lors de la mise à jour du rôle" });
-          throw error;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-
-      login: async (kindeUser, fcmToken?: string) => {
-        try {
-          set({ isLoading: true, error: null });
-          const authData = await authService.syncWithBackend({
-            id: kindeUser.id,
-            email: kindeUser.email || '',
-            given_name: kindeUser.givenName || null,
-            family_name: kindeUser.familyName || null,
-            picture: kindeUser.picture || null,
-          }, fcmToken);
-
-          await get()._setAuth(authData.user, authData.access_token);
-        } catch (error: any) {
-          // Rollback Kinde session token if backend sync failed
-          await SecureStore.deleteItemAsync('ACCESS_TOKEN').catch(() => {});
-          set({ error: error?.message || 'Erreur de connexion' });
           throw error;
         } finally {
           set({ isLoading: false });
@@ -113,8 +135,6 @@ export const useAuthStore = create<AuthState>()(
           const authData = await authService.refreshProfile();
           await get()._setAuth(authData.user, authData.access_token);
         } catch (error: any) {
-          // Rollback Kinde session token if refresh failed
-          await SecureStore.deleteItemAsync('ACCESS_TOKEN').catch(() => {});
           if (error?.response?.status === 401) {
             await get().logout();
           }
@@ -125,49 +145,48 @@ export const useAuthStore = create<AuthState>()(
       },
 
       initAuth: async (options?: { silent?: boolean }) => {
-  const state = get();
-  if (state.isInitialized) return;
+        const state = get();
+        if (state.isInitialized) return;
 
-  try {
-    if (!options?.silent) {
-      set({ isLoading: true });
-    }
-    
-    const jwtToken = await SecureStore.getItemAsync(STORAGE_KEYS.JWT_TOKEN);
+        try {
+          if (!options?.silent) {
+            set({ isLoading: true });
+          }
 
-    if (!jwtToken) {
-      // ✅ Pas de token = CLEAR complet du store
-      await get()._clearAuth();
-      set({ 
-        isAuthenticated: false, 
-        user: null,
-        token: null,
-        isInitialized: true, 
-        isLoading: false 
-      });
-      return;
-    }
+          const jwtToken = await SecureStore.getItemAsync(STORAGE_KEYS.JWT_TOKEN);
 
-    // ✅ Si token existe, valider avec le backend
-    const userData = await authService.getUserData();
-    if (!userData) {
-      await get()._clearAuth();
-      return;
-    }
+          if (!jwtToken) {
+            await get()._clearAuth();
+            set({
+              isAuthenticated: false,
+              user: null,
+              token: null,
+              isInitialized: true,
+              isLoading: false,
+            });
+            return;
+          }
 
-    set({
-      user: userData,
-      token: jwtToken,
-      isAuthenticated: true,
-      isInitialized: true,
-    });
-  } catch (error) {
-    console.error('[initAuth] Erreur:', error);
-    await get()._clearAuth();
-  } finally {
-    set({ isLoading: false, isInitialized: true });
-  }
-},
+          const userData = await authService.getUserData();
+          if (!userData) {
+            await get()._clearAuth();
+            return;
+          }
+
+          set({
+            user: userData,
+            token: jwtToken,
+            isAuthenticated: true,
+            isInitialized: true,
+          });
+        } catch (error) {
+          console.error('[initAuth] Erreur:', error);
+          await get()._clearAuth();
+        } finally {
+          set({ isLoading: false, isInitialized: true });
+        }
+      },
+
       // ============================================
       // ACTIONS INTERNES
       // ============================================
@@ -184,13 +203,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       _clearAuth: async () => {
-        // ✅ 1. Supprimer le token SecureStore
-        await SecureStore.deleteItemAsync(STORAGE_KEYS.JWT_TOKEN).catch(() => {});
-        
-        // ✅ 2. Nettoyer AsyncStorage (persistence Zustand)
-        await AsyncStorage.removeItem('auth-storage').catch(() => {});
-        
-        // ✅ 3. Reset complet du state
+        await SecureStore.deleteItemAsync(STORAGE_KEYS.JWT_TOKEN).catch(() => { });
+        await AsyncStorage.removeItem('auth-storage').catch(() => { });
+
         set({
           user: null,
           token: null,
@@ -198,7 +213,7 @@ export const useAuthStore = create<AuthState>()(
           isInitialized: true,
           error: null,
         });
-        
+
         console.log('🧹 [Auth] State complètement nettoyé');
       },
 
@@ -214,11 +229,10 @@ export const useAuthStore = create<AuthState>()(
       name: 'auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-         user: state.user,
-  token: state.token,  // ⬅️ Ajout critique
-  isAuthenticated: state.isAuthenticated, 
-       
+        user: state.user,
+        token: state.token,
+        isAuthenticated: state.isAuthenticated,
       }),
-    }
-  )
+    },
+  ),
 );

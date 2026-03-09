@@ -2,7 +2,7 @@ export interface AuthResponseWithToken {
   access_token: string;
   user: {
     id: string;
-    kindeId: string;
+    supabaseId: string;
     email: string;
     firstName: string | null;
     lastName: string | null;

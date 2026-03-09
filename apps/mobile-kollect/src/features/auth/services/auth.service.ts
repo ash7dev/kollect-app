@@ -3,22 +3,15 @@ import * as SecureStore from 'expo-secure-store';
 import { Alert } from 'react-native';
 import { apiUrl } from '@/config/env';
 import { STORAGE_KEYS } from '@/config/storage';
+import { supabase } from './supabaseConfig';
 
 // ============================================
 // TYPES
 // ============================================
 
-interface KindeUser {
-  id: string;
-  email: string;
-  given_name: string | null;
-  family_name: string | null;
-  picture: string | null;
-}
-
 interface BackendUser {
   id: string;
-  kindeId: string;
+  supabaseId: string;
   email: string;
   firstName: string | null;
   lastName: string | null;
@@ -27,7 +20,7 @@ interface BackendUser {
   isCEO: boolean;
   isClient: boolean;
   has_seen_creator_prompt: boolean;
-  brand: {  // ✅ Ajouter ce champ
+  brand: {
     id: string;
     name: string;
     slug: string;
@@ -56,28 +49,118 @@ const API_URL = apiUrl;
 // ============================================
 
 class AuthService {
+  // ============================================
+  // SUPABASE AUTH METHODS
+  // ============================================
+
   /**
-   * 🔐 Étape principale : Synchroniser avec le backend après login Kinde
+   * 📧 Inscription par email + mot de passe
    */
-  async syncWithBackend(kindeUser: KindeUser, fcmToken?: string): Promise<AuthResponse> {
+  async signUpWithEmail(
+    email: string,
+    password: string,
+    metadata?: { firstName?: string; lastName?: string },
+  ): Promise<AuthResponse> {
+    console.log('📧 [AUTH] Inscription Supabase email...');
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          given_name: metadata?.firstName,
+          family_name: metadata?.lastName,
+          full_name: [metadata?.firstName, metadata?.lastName].filter(Boolean).join(' '),
+        },
+      },
+    });
+
+    if (error) {
+      console.error('❌ [AUTH] Erreur inscription Supabase:', error.message);
+      throw new Error(error.message);
+    }
+
+    if (!data.session) {
+      throw new Error("Vérifiez votre email pour confirmer votre inscription");
+    }
+
+    // Synchroniser avec notre backend
+    return this.syncWithBackend(data.session.access_token);
+  }
+
+  /**
+   * 🔐 Connexion par email + mot de passe
+   */
+  async signInWithEmail(email: string, password: string): Promise<AuthResponse> {
+    console.log('🔐 [AUTH] Connexion Supabase email...');
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.error('❌ [AUTH] Erreur connexion Supabase:', error.message);
+      throw new Error(error.message);
+    }
+
+    if (!data.session) {
+      throw new Error('Session non créée');
+    }
+
+    // Synchroniser avec notre backend
+    return this.syncWithBackend(data.session.access_token);
+  }
+
+  /**
+   * 🌐 Connexion via Google OAuth
+   */
+  async signInWithGoogle(): Promise<AuthResponse> {
+    console.log('🌐 [AUTH] Connexion Google via Supabase...');
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'kollect://auth/callback',
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+
+    if (error) {
+      console.error('❌ [AUTH] Erreur Google Supabase:', error.message);
+      throw new Error(error.message);
+    }
+
+    // Pour OAuth, on attend le callback et la session
+    // La session sera récupérée via onAuthStateChange dans le store
+    throw new Error('OAUTH_REDIRECT');
+  }
+
+  // ============================================
+  // SYNC AVEC BACKEND
+  // ============================================
+
+  /**
+   * 🔐 Synchronise avec le backend après login Supabase
+   */
+  async syncWithBackend(supabaseAccessToken: string, fcmToken?: string): Promise<AuthResponse> {
     try {
       console.log('📤 [AUTH] Synchronisation avec backend...');
-      console.log('URL de la requête:', `${API_URL}/auth/sync`);
+
       const response = await fetch(`${API_URL}/auth/sync`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          kindeId: kindeUser.id,
-          email: kindeUser.email,
-          firstName: kindeUser.given_name,
-          lastName: kindeUser.family_name,
-          avatar: kindeUser.picture,
+          supabaseAccessToken,
           fcmToken: fcmToken || undefined,
         }),
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Sync failed: ${response.status} - ${errorText}`);
@@ -101,21 +184,22 @@ class AuthService {
     } catch (error) {
       console.error('❌ [AUTH] Erreur de synchronisation:', error);
       throw new Error(
-        `Impossible de se connecter au serveur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
+        `Impossible de se connecter au serveur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
       );
     }
   }
 
-  /**
-   * 💾 Stocker les données d'authentification de manière sécurisée
-   */
+  // ============================================
+  // GESTION DES RÔLES
+  // ============================================
+
   /**
    * 🧭 Mettre à jour le rôle utilisateur et marquer le prompt comme vu
    */
   async updateUserRole(
     userId: string,
     role: 'client' | 'vendeur',
-    hasSeenCreatorPrompt = true
+    hasSeenCreatorPrompt = true,
   ): Promise<AuthResponse> {
     try {
       console.log('🧭 [AUTH] Mise à jour du rôle utilisateur...', { userId, role });
@@ -126,7 +210,7 @@ class AuthService {
       const response = await fetch(`${API_URL}/auth/users/${userId}/role`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -153,6 +237,10 @@ class AuthService {
     }
   }
 
+  // ============================================
+  // STOCKAGE SÉCURISÉ
+  // ============================================
+
   private async storeAuthData(authData: AuthResponse): Promise<void> {
     try {
       await SecureStore.setItemAsync(STORAGE_KEYS.JWT_TOKEN, authData.access_token);
@@ -166,8 +254,12 @@ class AuthService {
     }
   }
 
+  // ============================================
+  // REFRESH & PROFIL
+  // ============================================
+
   /**
-   * 🔄 Rafraîchir le profil utilisateur (récupère les rôles à jour)
+   * 🔄 Rafraîchir le profil utilisateur
    */
   async refreshProfile(): Promise<AuthResponse> {
     try {
@@ -182,14 +274,13 @@ class AuthService {
       const response = await fetch(`${API_URL}/auth/me`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
       if (!response.ok) {
         if (response.status === 401) {
-          // Token expiré ou invalide
           await this.clearAuthData();
           throw new Error('Session expirée, veuillez vous reconnecter');
         }
@@ -216,8 +307,12 @@ class AuthService {
     }
   }
 
+  // ============================================
+  // GETTERS
+  // ============================================
+
   /**
-   * 🔑 Récupérer le token JWT
+   * 🔑 Récupérer le token JWT backend
    */
   async getToken(): Promise<string | null> {
     try {
@@ -267,13 +362,23 @@ class AuthService {
     }
   }
 
+  // ============================================
+  // LOGOUT
+  // ============================================
+
   /**
-   * 🚪 Déconnexion complète
+   * 🚪 Déconnexion complète (Supabase + backend)
    */
   async logout(): Promise<void> {
     try {
       console.log('🚪 [AUTH] Déconnexion...');
+
+      // 1. Déconnecter Supabase
+      await supabase.auth.signOut().catch(() => { });
+
+      // 2. Nettoyer les données locales
       await this.clearAuthData();
+
       console.log('✅ [AUTH] Déconnexion réussie');
     } catch (error) {
       console.error('❌ [AUTH] Erreur déconnexion:', error);
@@ -289,13 +394,14 @@ class AuthService {
     await SecureStore.deleteItemAsync(STORAGE_KEYS.REFRESH_TIME);
   }
 
+  // ============================================
+  // REQUÊTES AUTHENTIFIÉES
+  // ============================================
+
   /**
    * 📡 Faire une requête API authentifiée
    */
-  async authenticatedFetch(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<Response> {
+  async authenticatedFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
     const token = await this.getToken();
 
     if (!token) {
@@ -306,7 +412,7 @@ class AuthService {
       ...options,
       headers: {
         ...options.headers,
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
@@ -332,11 +438,13 @@ class AuthService {
       isAuthenticated: isAuth,
       user: user,
       shouldRefresh,
-      roles: user ? {
-        isAdmin: user.isAdmin,
-        isCEO: user.isCEO,
-        isClient: user.isClient,
-      } : null,
+      roles: user
+        ? {
+          isAdmin: user.isAdmin,
+          isCEO: user.isCEO,
+          isClient: user.isClient,
+        }
+        : null,
     };
   }
 }
@@ -352,15 +460,13 @@ export const authService = new AuthService();
 // ============================================
 
 export const showAuthError = (error: unknown) => {
-  const message = error instanceof Error 
-    ? error.message 
-    : 'Une erreur est survenue';
-    
-  Alert.alert('Erreur d\'authentification', message);
+  const message = error instanceof Error ? error.message : 'Une erreur est survenue';
+
+  Alert.alert("Erreur d'authentification", message);
 };
 
 // ============================================
 // TYPES EXPORTS
 // ============================================
 
-export type { KindeUser, BackendUser, AuthResponse };
+export type { BackendUser, AuthResponse };
