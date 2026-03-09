@@ -1,0 +1,36 @@
+# Commentez ou supprimez l'ancienne URL Docker
+# DATABASE_URL="postgresql://admin:admin@localhost:5432/devdb?schema=public"
+
+# Utilisé par l'app NestJS (pgBouncer transaction pooling)
+# Utilisé par l'app NestJS (pgBouncer transaction pooling)
+DATABASE_URL="postgresql://postgres.eslzutyspbtomjbotmxw:Boussodiop@aws-1-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=disable&connection_limit=1"
+ 
+# Utilisé UNIQUEMENT pour prisma migrate / db push  
+DIRECT_DATABASE_URL="postgresql://postgres.eslzutyspbtomjbotmxw:Boussodiop@aws-1-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require"# Activez les URLs Supabase (retirez le "//" au début)
+#DATABASE_URL="postgresql://postgres:Boussodiop@db.eslzutyspbtomjbotmxw.supabase.co:5432/postgres?pgbouncer=true"
+#DIRECT_DATABASE_URL="postgresql://postgres:Boussodiop@db.eslzutyspbtomjbotmxw.supabase.co:5432/postgres"
+PORT=3000
+JWT_SECRET=68d640bf89a5a24d483b09c2af39217be95418d0bd952965280d199a7e3e02f2
+
+# Firebase Admin SDK
+FIREBASE_PROJECT_ID="kollect-d8c2b"
+FIREBASE_CLIENT_EMAIL="firebase-adminsdk-fbsvc@kollect-d8c2b.iam.gserviceaccount.com"
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDG+m3o9a65B9Ir\nZEazSw0s0Nh7H40LMZjsHAYEs0LPbqlc4oLkXIxfyN7bysddYxpgJRzyZnrQZmvG\nI0evCYmkUhkQRdXcd0qRNRDsVVBlBOAxOIYz+khsSghXSpLPD1FEnt0Qc5C3ke8O\ni43X18POC9rrm1UsSV27Uq8pQpgo/hSJ8GgqivyPynAMeDqAQhk2Q0XGi4tFBVp+\nS5EXxHCzph1QPiatCf8V5zAktHAgEC1vbvLatXfXsNuZKgj74idz9RQtb8KHnoYl\nXEX7JlHma31hZe0tdqqctCIsFNA3YEHAZMM6zRVtGvheufhyOW4g4CAfocseOBKf\nq0yTwmFZAgMBAAECggEAVZGJpabN+j1eSRHJA76xTkYL6rrxRVCRcmxEvE243Aq7\nY7n3Tyxro593E287WDJPu+wJ7EZc53U8QMuYPrJr0lIJ/EEEDNjyJMr82Z2Awsib\nfx9PO1gVQBiASMXFp6zvJoLpD3ObVw43j3o9SAa+akQX4717nd15JR8UO7qrQ+jp\n7HBIjMjhnXVChMpuEXjWJfQomjPzORxXYllB6ZpdmWb2Ur0/A45+6KiUPZqKX4Vu\nXeZy/mIWroR2jfD5yu2iVAPdoIiuJLnB9GRv3qvYpAspgOoR38+fkE5WUllt0B8W\nGL1aJ0GgDpNRnKBOywY8NXEfdL4gqa0o6NwIvu5bhwKBgQDsFrfiHOTtTwJYhnqG\n12bP7ltIwvZ7gqt46PVIYL7Z3YMS/heWEvrTnWU4u7GlMUh0o4Iin2FLBq1hdn/I\nDAyzfOxVgYGGOGd3Gm9v3UbIWc5bl37k7r4hZE4p5VoDTuioIPS2CQXXNz4S4ZYQ\nwLK1icy8TZX5ZoU8qyTuAIn0/wKBgQDXwnm6eiUmXyAnrFBlz9Muzgzxf2IOBzvj\nWSwd6mGIipqY+1mHc77lbYMuE5kKTnq24/9fIdhDpX1PpiVd8gFgrNgkpqsnUZdc\n9Uaot5xx64SpO+puaSv7UjkeptMR0XuUxh1vYl31uBUl1evjjrpOxbTf0E5S22b3\nawD4gGFxpwKBgET/9so9C6NX3iWlWBYkykWnMkK3yHYcoKT74QRAUkc2eGKKpLYV\n4f0LGVRVdvwCxVxhlV0tG7BjyTSc/4emDeg/cIslCIgD4CltLniRQWi45pjaVBnw\ntNzphfa0s3QYEeNhjmPNi0l1Oc0m5UcMKq7oEVBPlK+JiRNMKcTtn2RdAoGBAL1v\ndbthpR6EpNHQfCJ4Dz5oEXsz0Z7pgQ6C67Y0ZIAi2cv528iOuovr1CJveI5RC3Nq\nyXv4Vk5GjbiR8vsCEW2VNI0xfNKf05r9i5V06LopBCgmgBWC5+fYcGhWJrndSHj+\nXTe/kSm9/2th4KPCXBfvhHiCB1K+ajBP1eFZrrS/AoGBANEyEpD1iZh+Aa97geZO\neVx37g9Ia3pcc4C832Vh2vgtJheUHWOqlJ0ygfEdLyiENUml64toC1rfgrarjY52\n1Es/Uwc7gjRavCTXMPq0/pk5oEDpiK2PzeLZgu6cPGuOTWbF9i/X0g/iZBHmSoL6\nkJc0P3LxQWdubclxf8FPDZ3y\n-----END PRIVATE KEY-----\n"
+
+# Web Push Configuration
+WEB_PUSH_PUBLIC_KEY=BLuzBraU0KpFhbUwRXsfdYo8wQrF8CPMbcF4czSnd9N2iHZlheqDaoATg5FxKPFkvsNn5SXRwWjIWWQUPCdboR8
+WEB_PUSH_PRIVATE_KEY=VOTRE_CLE_PRIVEE_WEB_PUSH  # À ne pas partager
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME="dk33bif1i"
+CLOUDINARY_API_KEY="961718442913821"
+CLOUDINARY_API_SECRET="VexvW58HKoTwAsYksC96-Q-FSMg"
+
+RESEND_API_KEY=re_CvC6TTQn_9vUcWvyYMk3RJL7vDVcyduh9
+
+SMTP_HOST=sandbox.smtp.mailtrap.io
+SMTP_PORT=2525
+SMTP_SECURE=false
+SMTP_USER=9ad0ef5c269067
+SMTP_PASS=249e51ffb7ed20        # remplace par ton vrai mot de passe complet
+EMAIL_FROM="Kollect <no-reply@kollect.test>"
