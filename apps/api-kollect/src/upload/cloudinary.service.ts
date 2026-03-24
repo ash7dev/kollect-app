@@ -10,6 +10,7 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import * as streamifier from 'streamifier';
 import { UploadResult, UploadOptions, UPLOAD_CONSTANTS, ImageFolder } from './types/upload.types';
@@ -21,6 +22,37 @@ import {
 @Injectable()
 export class CloudinaryService {
   private readonly logger = new Logger(CloudinaryService.name);
+
+  constructor(private readonly configService: ConfigService) {}
+
+  /**
+   * Génère une signature d'upload sécurisée pour l'upload direct mobile → Cloudinary
+   */
+  generateUploadSignature(
+    folder: string,
+    resourceType: 'image' | 'video' = 'image',
+  ): {
+    signature: string;
+    timestamp: number;
+    apiKey: string;
+    cloudName: string;
+    folder: string;
+    resourceType: string;
+  } {
+    const timestamp = Math.round(Date.now() / 1000);
+    const apiSecret = this.configService.get<string>('CLOUDINARY_API_SECRET')!;
+    const paramsToSign = { folder, timestamp };
+    const signature = cloudinary.utils.api_sign_request(paramsToSign, apiSecret);
+
+    return {
+      signature,
+      timestamp,
+      apiKey: this.configService.get<string>('CLOUDINARY_API_KEY')!,
+      cloudName: this.configService.get<string>('CLOUDINARY_CLOUD_NAME')!,
+      folder,
+      resourceType,
+    };
+  }
 
   /**
    * Upload une image vers Cloudinary

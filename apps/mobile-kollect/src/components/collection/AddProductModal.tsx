@@ -15,6 +15,22 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+async function normalizeImage(uri: string): Promise<string> {
+  const isHeic = /\.heic?$/i.test(uri);
+  if (isHeic) {
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [],
+      { format: ImageManipulator.SaveFormat.JPEG },
+    );
+    return result.uri;
+  }
+  return uri;
+}
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../app/context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -106,8 +122,16 @@ export function AddProductModal({
     });
 
     if (!result.canceled) {
-      const newImages = result.assets.map(asset => asset.uri);
-      setImages(prev => [...prev, ...newImages].slice(0, 5));
+      const oversized = result.assets.filter(a => a.fileSize && a.fileSize > MAX_IMAGE_SIZE_BYTES);
+      if (oversized.length > 0) {
+        Alert.alert(
+          'Image trop lourde',
+          `${oversized.length} image(s) dépassent 10 MB et ont été ignorées.`,
+        );
+      }
+      const valid = result.assets.filter(a => !a.fileSize || a.fileSize <= MAX_IMAGE_SIZE_BYTES);
+      const uris = await Promise.all(valid.map(a => normalizeImage(a.uri)));
+      setImages(prev => [...prev, ...uris].slice(0, 5));
     }
   };
 

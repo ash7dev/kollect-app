@@ -8,7 +8,7 @@ interface CollectionsState {
   loading: boolean;
   error: string | null;
   fetchCollections: () => Promise<void>;
-  createCollection: (payload: CreateCollectionPayload & { brandId: string }) => Promise<CollectionDto>;
+  createCollection: (payload: CreateCollectionPayload & { brandId: string }, onProgress?: (percent: number) => void) => Promise<CollectionDto>;
   activateTeaser: (id: string, body: { coverImage?: string; teaserVideo?: string }) => Promise<void>;
   launchCollection: (id: string) => Promise<void>;
 }
@@ -30,10 +30,10 @@ export const useCollectionsStore = create<CollectionsState>((set) => ({
     }
   },
 
- createCollection: async (payload) => {
+ createCollection: async (payload, onProgress) => {
   set({ loading: true, error: null });
   try {
-    const newCollection = await collectionsApi.create(payload); // Changed from .create()
+    const newCollection = await collectionsApi.create(payload, onProgress);
     set((state) => ({ 
       collections: [newCollection, ...state.collections],
       loading: false 

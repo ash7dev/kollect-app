@@ -30,8 +30,15 @@ export class PrismaService
       /sslmode=require/i.test(connectionString) ||
       connectionString.includes('supabase.co');
 
+    // Strip sslmode from connection string to avoid conflict with the ssl object
+    const cleanedConnectionString = sslRequired
+      ? connectionString
+          .replace(/([?&])sslmode=[^&]*/i, '$1')
+          .replace(/[?&]$/, '')
+      : connectionString;
+
     const pool = new Pool({
-      connectionString,
+      connectionString: cleanedConnectionString,
       ...(sslRequired ? { ssl: { rejectUnauthorized: false } } : {}),
     });
 

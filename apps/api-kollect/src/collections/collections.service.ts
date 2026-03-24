@@ -508,6 +508,46 @@ async findAllForCEO(
   }
 }
   /**
+   * 🔍 Récupérer une collection publique par slug
+   * Retourne la première collection TEASER/DISPONIBLE correspondant au slug
+   */
+  async findPublicBySlug(slug: string) {
+    const collection = await this.prisma.collection.findFirst({
+      where: {
+        slug,
+        status: {
+          in: [CollectionStatus.TEASER, CollectionStatus.DISPONIBLE],
+        },
+      },
+      include: {
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            slug: true,
+            isVerified: true,
+          },
+        },
+        _count: {
+          select: { products: true },
+        },
+      },
+    });
+
+    if (!collection) {
+      throw new NotFoundException('Collection non trouvée');
+    }
+
+    await this.prisma.collection.update({
+      where: { id: collection.id },
+      data: { viewCount: { increment: 1 } },
+    });
+
+    return collection;
+  }
+
+  /**
    * 🌍 Lister les collections publiques (pour les clients)
    */
   async findAllPublic(query: QueryCollectionsDto, includeProducts = false) {

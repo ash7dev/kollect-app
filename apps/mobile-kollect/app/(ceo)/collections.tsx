@@ -9,6 +9,7 @@ import {
   Image,
   TouchableOpacity,
   Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -63,6 +64,16 @@ export default function CollectionScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [countdowns, setCountdowns] = useState<Record<string, ReturnType<typeof calculateTimeRemaining>>>({});
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const progressAnim = React.useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: uploadProgress,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [uploadProgress, progressAnim]);
   const { user } = useAuthStore();
 
   const { 
@@ -218,12 +229,13 @@ export default function CollectionScreen() {
         brandId: brandId
       };
 
-      const result = await createCollection(payload);
+      const result = await createCollection(payload, (percent) => setUploadProgress(percent));
 
       await storage.clearDraftCollection();
 
+      setUploadProgress(0);
       Alert.alert(
-        'Succès ✨', 
+        'Succès ✨',
         `Collection "${collectionData.name}" créée avec ${products.length} produit(s) !`,
         [
           {
@@ -685,6 +697,27 @@ export default function CollectionScreen() {
         onSubmit={handleCreateCollection}
         brandId={user?.brand?.id ?? ''}
       />
+
+      {uploadProgress > 0 && (
+        <View style={styles.uploadOverlay}>
+          <View style={styles.uploadBox}>
+            <Text style={styles.uploadLabel}>Upload en cours… {uploadProgress}%</Text>
+            <View style={styles.progressTrack}>
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: progressAnim.interpolate({
+                      inputRange: [0, 100],
+                      outputRange: ['0%', '100%'],
+                    }),
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -922,10 +955,42 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     gap: 8,
   },
-  emptyButtonText: { 
-    color: '#FFFFFF', 
-    fontSize: 16, 
+  emptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.2,
+  },
+  uploadOverlay: {
+    position: 'absolute',
+    bottom: 100,
+    left: 24,
+    right: 24,
+    alignItems: 'center',
+  },
+  uploadBox: {
+    width: '100%',
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  uploadLabel: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: '#fff',
   },
 });

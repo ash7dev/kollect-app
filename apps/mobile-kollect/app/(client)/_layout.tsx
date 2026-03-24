@@ -1,203 +1,167 @@
-/* eslint-disable import/no-duplicates */
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { Platform } from 'react-native';
+import { Platform, View, ActivityIndicator, Pressable, Text } from 'react-native';
 import { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
 import { useAuthStore } from '../../src/store/authStore';
 import { useCartStore } from '../../src/store/cartStore';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withSpring,
-  withTiming,
+  LinearTransition,
+  FadeInRight,
+  FadeOutRight,
 } from 'react-native-reanimated';
 
-const TabBarIcon = ({ 
-  name, 
-  outlineName, 
-  color, 
-  size, 
-  focused 
-}: { 
-  name: string; 
-  outlineName: string; 
-  color: string; 
-  size: number; 
-  focused: boolean;
-}) => {
-  const scale = useSharedValue(focused ? 1 : 0.9);
-  const opacity = useSharedValue(focused ? 1 : 0.7);
-
-  useEffect(() => {
-    scale.value = withSpring(focused ? 1.1 : 0.9, {
-      damping: 15,
-      stiffness: 150,
-    });
-    opacity.value = withTiming(focused ? 1 : 0.7, { duration: 200 });
-  }, [focused, opacity, scale]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View style={animatedStyle}>
-      <Ionicons 
-        name={(focused ? name : outlineName) as any} 
-        size={size} 
-        color={color} 
-      />
-    </Animated.View>
-  );
+// Mapping local des icônes pour la custom tab bar
+const TAB_CONFIG: Record<string, { label: string, activeIcon: keyof typeof Ionicons.glyphMap, inactiveIcon: keyof typeof Ionicons.glyphMap }> = {
+  index: { label: 'Home', activeIcon: 'home', inactiveIcon: 'home-outline' },
+  search: { label: 'Explorer', activeIcon: 'search', inactiveIcon: 'search-outline' },
+  panier: { label: 'Panier', activeIcon: 'cart', inactiveIcon: 'cart-outline' },
+  profile: { label: 'Profil', activeIcon: 'person', inactiveIcon: 'person-outline' },
 };
 
-export default function ClientLayout() {
+function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { theme, isDark } = useTheme();
-  const router = useRouter();
-  const { isAuthenticated, token, user, isLoading } = useAuthStore();
+  const insets = useSafeAreaInsets();
   const totalCartQty = useCartStore((s) => s.totalQuantity());
 
-  // ⚠️ GUARD: Empêcher l'accès au layout Client uniquement si l'état d'auth est incohérent
+  // Couleurs dynamiques selon le mode
+  const pillBg = isDark ? '#000000' : '#FFFFFF';
+  const inactiveIconColor = isDark ? '#636366' : '#8E8E93';
+
+  return (
+    <View style={{
+      position: 'absolute',
+      bottom: Math.max(insets.bottom + 8, 24),
+      left: 20,
+      right: 20,
+      height: 60,
+      backgroundColor: pillBg,
+      borderRadius: 30,
+      flexDirection: 'row',
+      alignItems: 'center',
+      // PAS de justifyContent: chaque item a flex:1 → distribution parfaitement égale
+      paddingHorizontal: 6,
+      borderWidth: isDark ? 0 : 1,
+      borderColor: isDark ? 'transparent' : 'rgba(0,0,0,0.08)',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: isDark ? 12 : 6 },
+      shadowOpacity: isDark ? 0.45 : 0.12,
+      shadowRadius: isDark ? 20 : 12,
+      elevation: isDark ? 16 : 8,
+    }}>
+      {state.routes.map((route, index) => {
+        const isFocused = state.index === index;
+        const config = TAB_CONFIG[route.name] || { label: route.name, activeIcon: 'ellipse', inactiveIcon: 'ellipse-outline' };
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          // flex:1 sur TOUS les items → largeur de base identique pour chacun
+          <Pressable 
+            key={route.key} 
+            onPress={onPress}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Animated.View
+              layout={LinearTransition.springify().damping(18).stiffness(180)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: isFocused ? theme.colors.accent : 'transparent',
+                paddingVertical: 9,
+                paddingHorizontal: isFocused ? 18 : 0,
+                borderRadius: 22,
+                gap: 6,
+                // L'actif prend toute la largeur disponible de sa cellule flex:1
+                alignSelf: isFocused ? 'stretch' : 'center',
+              }}
+            >
+              <View>
+                <Ionicons 
+                  name={isFocused ? config.activeIcon : config.inactiveIcon} 
+                  size={22} 
+                  color={isFocused ? '#FFFFFF' : inactiveIconColor} 
+                />
+                {!isFocused && route.name === 'panier' && totalCartQty > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -4,
+                    width: 9,
+                    height: 9,
+                    borderRadius: 5,
+                    backgroundColor: theme.colors.accent,
+                    borderWidth: 1.5,
+                    borderColor: pillBg,
+                  }} />
+                )}
+              </View>
+              {isFocused && (
+                <Animated.Text 
+                  entering={FadeInRight.duration(180).delay(40)}
+                  exiting={FadeOutRight.duration(120)}
+                  style={{
+                    color: '#FFFFFF',
+                    fontSize: 13,
+                    fontWeight: '700',
+                    letterSpacing: 0.2,
+                  }}
+                  numberOfLines={1}
+                >
+                  {config.label}
+                </Animated.Text>
+              )}
+            </Animated.View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export default function ClientLayout() {
+  const { theme } = useTheme();
+  const router = useRouter();
+  const { isAuthenticated, token, user, isLoading } = useAuthStore();
+
   useEffect(() => {
     if (!isLoading) {
-      // Autoriser le mode public (utilisateur non authentifié)
-      // Si l'application pense que l'utilisateur est authentifié mais que les données sont manquantes,
-      // on redirige vers le login pour corriger l'état.
       if (isAuthenticated && (!token || !user)) {
         console.log('🚫 [Client Layout] État d\'auth incohérent - Redirection vers (auth)/login');
         router.replace('/(auth)/login');
-        return;
       }
-      // Si l'utilisateur est CEO, le laisser dans le layout CEO (pas de redirection ici)
-      // Le guard CEO gérera sa propre redirection
     }
   }, [isAuthenticated, token, user, isLoading, router]);
 
-  // Afficher un loader pendant la vérification uniquement
   if (isLoading) {
     return (
-      <View style={{
-        flex: 1,
-        backgroundColor: theme.colors.background,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: isDark ? '#ffffff' : theme.colors.text,
-        tabBarInactiveTintColor: isDark ? '#b0b0b0' : theme.colors.textSecondary,
-        tabBarStyle: {
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: Platform.OS === 'ios' ? 72 : 64,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          borderTopWidth: 0,
-          borderTopColor: 'transparent',
-          overflow: 'hidden',
-          backgroundColor: isDark
-            ? 'rgba(15,15,15,0.98)'
-            : 'rgba(255,255,255,0.98)',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: isDark ? 0.3 : 0.12,
-          shadowRadius: 8,
-          elevation: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '700',
-          marginTop: 2,
-          letterSpacing: 0.3,
-        },
-        tabBarIconStyle: {
-          marginTop: 0,
-        },
-        headerShown: false,
-      }}
+    <Tabs 
+      tabBar={(props) => <CustomTabBar {...props} />} 
+      screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size, focused }) => (
-            <TabBarIcon
-              name="home"
-              outlineName="home-outline"
-              color={color}
-              size={size}
-              focused={focused}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="search"
-        options={{
-          title: 'Explorer',
-          tabBarIcon: ({ color, size, focused }) => (
-            <TabBarIcon
-              name="search"
-              outlineName="search-outline"
-              color={color}
-              size={size}
-              focused={focused}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="panier"
-        options={{
-          title: 'Panier',
-          tabBarIcon: ({ color, size, focused }) => (
-            <TabBarIcon
-              name="cart"
-              outlineName="cart-outline"
-              color={color}
-              size={size}
-              focused={focused}
-            />
-          ),
-          // Badge synchronisé avec le contenu du panier
-          tabBarBadge: totalCartQty > 0 ? String(totalCartQty) : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: theme.colors.accent,
-            color: '#FFFFFF',
-            fontSize: 10,
-            minWidth: 18,
-            height: 18,
-            borderRadius: 9,
-            lineHeight: 16,
-          },
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profil',
-          tabBarIcon: ({ color, size, focused }) => (
-            <TabBarIcon
-              name="person"
-              outlineName="person-outline"
-              color={color}
-              size={size}
-              focused={focused}
-            />
-          ),
-        }}
-      />
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="search" />
+      <Tabs.Screen name="panier" />
+      <Tabs.Screen name="profile" />
     </Tabs>
   );
 }

@@ -25,6 +25,9 @@ export async function fetchAPI<T>(
 
   const res = await fetch(url, {
     cache: options.cache,
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+    },
     next: {
       revalidate,
       tags: options.tags,
@@ -34,6 +37,11 @@ export async function fetchAPI<T>(
 
   if (!res.ok) {
     throw new Error(`API error ${res.status} on ${url}`);
+  }
+
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(`Expected JSON but got ${contentType} from ${url}`);
   }
 
   return (await res.json()) as T;

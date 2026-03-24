@@ -3,6 +3,7 @@
 // ============================================
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback } from 'react';
 import { collectionsApi, CreateCollectionPayload, QueryParams, UpdateCollectionPayload } from '../services/collections.service';
 
 const QUERY_KEYS = {
@@ -49,13 +50,26 @@ export function useCollection(id: string, includeProducts = false) {
 
 export function useCreateCollection() {
   const queryClient = useQueryClient();
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  return useMutation({
-    mutationFn: (data: CreateCollectionPayload) => collectionsApi.create(data),
+  const mutation = useMutation({
+    mutationFn: (data: CreateCollectionPayload) =>
+      collectionsApi.create(data, (percent) => setUploadProgress(percent)),
     onSuccess: () => {
+      setUploadProgress(0);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.collections });
     },
+    onError: () => {
+      setUploadProgress(0);
+    },
   });
+
+  const reset = useCallback(() => {
+    setUploadProgress(0);
+    mutation.reset();
+  }, [mutation]);
+
+  return { ...mutation, uploadProgress, reset };
 }
 
 export function useCreateCollectionWithFile() {

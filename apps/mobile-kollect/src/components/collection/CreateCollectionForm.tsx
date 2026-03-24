@@ -18,6 +18,23 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;  // 10 MB
+const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;  // 50 MB
+
+async function normalizeImage(uri: string): Promise<string> {
+  const isHeic = /\.heic?$/i.test(uri);
+  if (isHeic) {
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [],
+      { format: ImageManipulator.SaveFormat.JPEG },
+    );
+    return result.uri;
+  }
+  return uri;
+}
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../app/context/ThemeContext';
@@ -114,7 +131,15 @@ export function CreateCollectionModal({
     });
 
     if (!result.canceled && result.assets[0]) {
-      setTeaserUri(result.assets[0].uri);
+      const asset = result.assets[0];
+      const maxSize = teaserType === 'video' ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES;
+      if (asset.fileSize && asset.fileSize > maxSize) {
+        const maxMB = maxSize / (1024 * 1024);
+        Alert.alert('Fichier trop lourd', `Le fichier dépasse ${maxMB} MB.`);
+        return;
+      }
+      const uri = teaserType === 'photo' ? await normalizeImage(asset.uri) : asset.uri;
+      setTeaserUri(uri);
       if (teaserType === 'video') setIsLoading(true);
     }
   };

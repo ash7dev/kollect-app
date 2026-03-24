@@ -1,6 +1,7 @@
 // services/auth.service.ts
 import * as SecureStore from 'expo-secure-store';
 import { Alert } from 'react-native';
+import { openAuthSessionAsync } from 'expo-web-browser';
 import { apiUrl } from '@/config/env';
 import { STORAGE_KEYS } from '@/config/storage';
 import { supabase } from './supabaseConfig';
@@ -113,30 +114,99 @@ class AuthService {
   }
 
   /**
-   * 🌐 Connexion via Google OAuth
+   * 🌐 Connexion via Google OAuth (Mobile - expo-web-browser)
    */
   async signInWithGoogle(): Promise<AuthResponse> {
-    console.log('🌐 [AUTH] Connexion Google via Supabase...');
+    console.log('🌐 [AUTH] Connexion Google via Supabase OAuth...');
+
+    // Deep-link de retour après auth Google (doit être dans Supabase Redirect URLs)
+    const redirectUrl = 'kollect://auth/callback';
+    console.log('🔗 [AUTH] Redirect URL:', redirectUrl);
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'kollect://auth/callback',
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
+        redirectTo: redirectUrl,
+        queryParams: { access_type: 'offline', prompt: 'consent' },
+        skipBrowserRedirect: true,
       },
     });
 
-    if (error) {
-      console.error('❌ [AUTH] Erreur Google Supabase:', error.message);
-      throw new Error(error.message);
+    if (error || !data?.url) {
+      console.error('❌ [AUTH] Erreur génération URL Google:', error?.message);
+      throw new Error(error?.message || "Impossible de générer l'URL Google");
     }
 
-    // Pour OAuth, on attend le callback et la session
-    // La session sera récupérée via onAuthStateChange dans le store
-    throw new Error('OAUTH_REDIRECT');
+    const result = await openAuthSessionAsync(data.url, redirectUrl);
+    if (result.type !== 'success') {
+      throw new Error('Connexion Google annulée');
+    }
+
+    const callbackUrl: string = result.url;
+    console.log('📲 [AUTH] Callback URL reçue:', callbackUrl);
+
+    // Supabase v2 utilise PKCE par défaut : le code est dans la query string (?code=...) 
+    const codeMatch = callbackUrl.match(/[?&]code=([^&]+)/);
+    if (codeMatch) {
+      const code = decodeURIComponent(codeMatch[1]);
+      console.log('🔑 [AUTH] Code PKCE trouvé, échange en cours...');
+      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+      if (sessionError || !sessionData?.session) {
+        throw new Error(sessionError?.message || 'Échange de code PKCE échoué');
+      }
+      console.log('✅ [AUTH] Session PKCE créée, synchronisation backend...');
+      return this.syncWithBackend(sessionData.session.access_token);
+    }
+
+    // Fallback : flux implicite (tokens dans le hash #access_token=...)
+    const hashStr = callbackUrl.split('#')[1] || callbackUrl.split('?')[1] || '';
+    const parsedParams: Record<string, string> = {};
+    hashStr.split('&').forEach(pair => {
+      const [key, value] = pair.split('=');
+      if (key && value) parsedParams[key] = decodeURIComponent(value);
+    });
+
+    const accessToken = parsedParams['access_token'];
+    const refreshToken = parsedParams['refresh_token'];
+
+    if (!accessToken || !refreshToken) {
+      console.error('❌ [AUTH] URL callback:', callbackUrl);
+      throw new Error('Tokens Google introuvables - format de callback inconnu');
+    }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (sessionError || !sessionData?.session) {
+      throw new Error(sessionError?.message || 'Session Google invalide');
+    }
+
+    console.log('✅ [AUTH] Session créée, synchronisation backend...');
+    return this.syncWithBackend(sessionData.session.access_token);
+  }
+
+  /**
+   * 🔗 Traitement du callback OAuth (utilisé par le deep link)
+   */
+  async handleOAuthCallback(callbackUrl: string): Promise<AuthResponse> {
+    console.log('📲 [AUTH] Callback URL reçue:', callbackUrl);
+
+    // Supabase v2 utilise PKCE par défaut : le code est dans la query string (?code=...) 
+    const codeMatch = callbackUrl.match(/[?&]code=([^&]+)/);
+    if (codeMatch) {
+      const code = decodeURIComponent(codeMatch[1]);
+      console.log('🔑 [AUTH] Code PKCE trouvé, échange en cours...');
+      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+      if (sessionError || !sessionData?.session) {
+        throw new Error(sessionError?.message || 'Échange de code PKCE échoué');
+      }
+      console.log('✅ [AUTH] Session PKCE créée, synchronisation backend...');
+      return this.syncWithBackend(sessionData.session.access_token);
+    }
+
+    throw new Error('Aucun code trouvé dans le callback OAuth');
   }
 
   // ============================================

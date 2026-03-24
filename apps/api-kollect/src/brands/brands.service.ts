@@ -712,13 +712,14 @@ async getStats(
       }).catch(() => 0),
 
       // Sessions uniques de vues produit sur la période (proxy conversion)
-      this.prisma.vueProduit.count({
+      this.prisma.vueProduit.findMany({
         where: {
           viewedAt: { gte: startDate },
           product: { brandId },
         },
         distinct: ['sessionId'],
-      }).catch(() => 0),
+        select: { sessionId: true },
+      }).then(r => r.length).catch(() => 0),
     ]);
 
     // Calculs

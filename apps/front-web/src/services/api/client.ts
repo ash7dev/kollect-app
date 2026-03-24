@@ -25,6 +25,8 @@ export const apiClient: AxiosInstance = axios.create({
     headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        // Required to bypass the ngrok browser warning page
+        'ngrok-skip-browser-warning': 'true',
     },
 });
 

@@ -244,6 +244,34 @@ export class ProduitsService {
     return product;
   }
 
+  async findPublicBySlug(slug: string) {
+    const product = await this.prisma.produit.findFirst({
+      where: {
+        slug,
+        isDeleted: false,
+        isVisible: true,
+        collection: {
+          status: CollectionStatus.DISPONIBLE,
+        },
+      },
+      include: {
+        collection: { select: { id: true, name: true, status: true } },
+        brand: { select: { id: true, name: true, logo: true } },
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Produit non trouvé');
+    }
+
+    await this.prisma.produit.update({
+      where: { id: product.id },
+      data: { viewCount: { increment: 1 } },
+    });
+
+    return product;
+  }
+
   async findOnePublic(id: string) {
     // 1. Récupérer le produit et incrémenter le compteur de vues de manière atomique
     const [product] = await this.prisma.$transaction([

@@ -449,10 +449,19 @@ export class ProduitsController {
   /**
    * GET /api/produits/public/random
    */
-   @Get('public/random')
+  @Get('public/random')
   @Public()
   findRandom(@Query() query: any) {
     return this.produitsService.findRandom(query);
+  }
+
+  /**
+   * GET /api/produits/public/slug/:slug
+   */
+  @Get('public/slug/:slug')
+  @Public()
+  async findPublicBySlug(@Param('slug') slug: string) {
+    return this.produitsService.findPublicBySlug(slug);
   }
   /**
    * GET /api/produits/:id (public)

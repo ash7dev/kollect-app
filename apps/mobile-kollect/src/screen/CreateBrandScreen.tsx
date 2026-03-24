@@ -26,6 +26,29 @@ import { useAuthStore } from '../../src/store/authStore';
 export const CreateBrandScreen = () => {
   const { theme, isDark } = useTheme();
   const { mutate: createBrand, isPending } = useCreateBrand();
+  const { updateUserRole } = useAuthStore();
+
+  const handleCancel = () => {
+    Alert.alert(
+      'Annuler la création',
+      'Veux-tu continuer en tant que client ? Tu pourras créer ta boutique plus tard.',
+      [
+        { text: 'Rester', style: 'cancel' },
+        {
+          text: 'Continuer en client',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await updateUserRole('client');
+              router.replace('/(client)' as any);
+            } catch {
+              Alert.alert('Erreur', 'Impossible d\'annuler. Réessaie.');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   // États du formulaire
   const [formData, setFormData] = useState<CreateBrandFormData>({
@@ -342,7 +365,7 @@ export const CreateBrandScreen = () => {
           {/* Header avec style streetwear */}
           <View style={styles.header}>
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={handleCancel}
               activeOpacity={0.8}
               style={styles.backRow}
             >

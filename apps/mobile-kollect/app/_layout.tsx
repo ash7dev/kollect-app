@@ -9,15 +9,18 @@ import { View, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { KindeAuthProvider } from '@kinde/expo';
 import { STORAGE_KEYS } from '@/config/storage';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+
+// Résout la promesse de connexion WebBrowser au retour du deep-link
+WebBrowser.maybeCompleteAuthSession();
 
 // Config local
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { queryClient } from '../src/config/queryClient';
 import { useAuthStore } from '../src/store/authStore';
 import { CreatorPromptScreen } from '../src/screen/CreatorPromptScreen';
-import { kindeConfig } from '../src/features/auth/services/kindeConfig';
 
 // Composants/écrans
 import OnboardingScreen from './(auth)/onboarding';
@@ -240,8 +243,8 @@ function RootLayoutContent() {
     return <SplashScreen onAnimationComplete={handleSplashComplete} />;
   }
 
-  // 2. Loader si pas prêt
-  if (!isReady || hasSeenOnboarding === null || isLoading) {
+  // 2. Loader si pas prêt (uniquement pendant l'init, pas pendant les opérations auth)
+  if (!isReady || hasSeenOnboarding === null) {
     return (
       <View style={{
         flex: 1,
@@ -271,7 +274,7 @@ function RootLayoutContent() {
     );
   }
 
-  // 4. Non authentifié → Mode client public (stack Client, actions protégées dans les écrans)
+  // 4. Non authentifié → Mode client public + auth accessible
   if (!isAuthenticated || !token) {
     return (
       <>
@@ -283,6 +286,7 @@ function RootLayoutContent() {
           initialRouteName="(client)"
         >
           <Stack.Screen name="(client)" />
+          <Stack.Screen name="(auth)" options={{ animation: 'slide_from_bottom' }} />
         </Stack>
         <StatusBar style={isDark ? 'light' : 'dark'} />
       </>
@@ -303,8 +307,8 @@ function RootLayoutContent() {
     );
   }
 
-  // 6. CreatorPrompt (sélection de rôle)
-  if (isAuthenticated && token && user && user.has_seen_creator_prompt === false) {
+  // 6. CreatorPrompt (sélection de rôle — aussi pour les comptes sans historique, null ou false)
+  if (isAuthenticated && token && user && user.has_seen_creator_prompt != true) {
     return (
       <View style={{ flex: 1, backgroundColor: 'white' }}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -369,26 +373,11 @@ function ThemedApp() {
 
 export default function RootLayout() {
   return (
-    <KindeAuthProvider
-      config={{
-        domain: kindeConfig.domain,
-        clientId: kindeConfig.clientId,
-        scopes: kindeConfig.scopes,
-      }}
-      // @ts-expect-error: tokenStorage prop is supported at runtime by @kinde/expo
-      tokenStorage={{
-        getItem: SecureStore.getItemAsync,
-        setItem: SecureStore.setItemAsync,
-        removeItem: SecureStore.deleteItemAsync,
-      }}
-      callbacks={{}}
-    >
-      <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <ThemedApp />
-        </GestureHandlerRootView>
-      </QueryClientProvider>
-    </KindeAuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemedApp />
+      </GestureHandlerRootView>
+    </QueryClientProvider>
   );
 }
 

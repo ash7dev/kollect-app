@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Platform } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
 import Animated, { interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { Image } from 'expo-image';
@@ -11,8 +11,8 @@ import { ShareButton } from '../ui/ShareButton';
 import { ShareService, ShareType } from '../../features/share/services/share.service';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = SCREEN_WIDTH * 0.85;
-const SPACING = 16;
+const CARD_WIDTH = SCREEN_WIDTH - 40;
+const CARD_HEIGHT = 480;
 
 interface CarouselItem {
   id: string;
@@ -23,6 +23,7 @@ interface CarouselItem {
   brandSlug?: string;
   productCount?: number;
   viewCount?: number;
+  description?: string;
 }
 
 interface DepthCarouselProps {
@@ -33,300 +34,134 @@ interface DepthCarouselProps {
 
 export default function DepthCarousel({ data, onBrandPress, onCollectionPress }: DepthCarouselProps) {
   const { theme, isDark } = useTheme();
-  
-  const styles = StyleSheet.create({
-    container: {
-      alignItems: 'center',
-    },
-    card: {
-      width: CARD_WIDTH,
-      borderRadius: 24,
-      backgroundColor: isDark ? theme.colors.cardDark : theme.colors.card,
-      marginHorizontal: SPACING,
-      borderWidth: 1,
-      borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
-      shadowColor: isDark ? '#000' : theme.colors.shadowLight,
-      shadowOffset: { width: 0, height: isDark ? 12 : 8 },
-      shadowOpacity: isDark ? 0.6 : 0.2,
-      shadowRadius: 20,
-      elevation: isDark ? 12 : 6,
-      overflow: 'hidden',
-    },
-    imageWrapper: {
-      position: 'relative',
-      width: '100%',
-      height: 480,
-    },
-    imageContainer: {
-      width: '100%',
-      height: '100%',
-      overflow: 'hidden',
-    },
-    image: {
-      width: '100%',
-      height: '100%',
-    },
-    imageGradient: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: '50%',
-    },
-    // Barre décorative
-    accentBar: {
-      height: 3,
-      width: '100%',
-    },
-    // Brand header redesign
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 12,
-    },
-    shareButton: {
-      opacity: 0.8,
-    },
-    brandSection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-    },
-    brandLogoWrapper: {
-      position: 'relative',
-      marginRight: 12,
-    },
-    brandLogo: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      borderWidth: 2,
-      borderColor: isDark ? '#FFFFFF' : '#000000',
-    },
-    logoRing: {
-      position: 'absolute',
-      top: -3,
-      left: -3,
-      right: -3,
-      bottom: -3,
-      borderRadius: 26,
-      borderWidth: 1,
-      borderColor: theme.colors.accent + '30',
-    },
-    brandInfo: {
-      flex: 1,
-      gap: 2,
-    },
-    brandLabel: {
-      fontSize: 9,
-      fontWeight: '700',
-      color: theme.colors.textSecondary,
-      letterSpacing: 1.5,
-      textTransform: 'uppercase',
-    },
-    brandName: {
-      color: isDark ? theme.colors.textDark : theme.colors.text,
-      fontSize: 16,
-      fontWeight: '800',
-      letterSpacing: 0.3,
-    },
-    // Footer content
-    footer: {
-      paddingHorizontal: 20,
-      paddingBottom: 24,
-      paddingTop: 16,
-      gap: 16,
-    },
-    titleSection: {
-      gap: 8,
-    },
-    titleLabel: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: theme.colors.textSecondary,
-      letterSpacing: 1.2,
-      textTransform: 'uppercase',
-    },
-    title: {
-      color: isDark ? theme.colors.textDark : theme.colors.text,
-      fontSize: 24,
-      fontWeight: '800',
-      letterSpacing: -0.2,
-      lineHeight: 28,
-    },
-    // Stats row
-    statsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    statItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      flex: 1,
-    },
-    statIconContainer: {
-      position: 'relative',
-      width: 28,
-      height: 28,
-    },
-    statGlow: {
-      position: 'absolute',
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      top: -4,
-      left: -4,
-      opacity: 0.5,
-    },
-    statIcon: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    statText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: isDark ? theme.colors.textDark : theme.colors.text,
-      flex: 1,
-    },
-    statDivider: {
-      width: 1,
-      height: 20,
-      backgroundColor: isDark 
-        ? theme.colors.borderDarkSubtle 
-        : theme.colors.borderLight,
-    },
-    // CTA Button premium
-    ctaWrapper: {
-      marginTop: 4,
-    },
-    button: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 16,
-      paddingHorizontal: 24,
-      borderRadius: 14,
-      gap: 8,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.3,
-      shadowRadius: 12,
-      elevation: 6,
-    },
-    buttonText: {
-      color: '#FFFFFF',
-      fontWeight: '800',
-      fontSize: 15,
-      letterSpacing: 0.8,
-    },
-    buttonIcon: {
-      width: 22,
-      height: 22,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-  });
-  
+
   return (
     <View style={styles.container}>
       <Carousel
-        width={CARD_WIDTH + SPACING * 2}
-        height={740}
+        width={CARD_WIDTH + 24}
+        height={CARD_HEIGHT}
         data={data}
         loop
         autoPlay={false}
-        scrollAnimationDuration={1200}
+        scrollAnimationDuration={900}
         mode="parallax"
         modeConfig={{
-          parallaxScrollingScale: 0.88,
-          parallaxScrollingOffset: 50,
+          parallaxScrollingScale: 0.92,
+          parallaxScrollingOffset: 44,
         }}
         style={{ overflow: 'visible' }}
-        pagingEnabled={false}
+        pagingEnabled
         renderItem={({ item, animationValue }) => {
+          // eslint-disable-next-line react-hooks/rules-of-hooks
           const animatedStyle = useAnimatedStyle(() => {
-            const scale = interpolate(
-              animationValue.value,
-              [-1, 0, 1],
-              [0.88, 1, 0.88]
-            );
-            const opacity = interpolate(
-              animationValue.value,
-              [-1, 0, 1],
-              [0.4, 1, 0.4]
-            );
-            const translateY = interpolate(
-              animationValue.value,
-              [-1, 0, 1],
-              [40, 0, 40]
-            );
-            const rotateZ = interpolate(
-              animationValue.value,
-              [-1, 0, 1],
-              [-2, 0, 2]
-            );
-            return {
-              transform: [
-                { scale }, 
-                { translateY },
-                { rotateZ: `${rotateZ}deg` }
-              ],
-              opacity,
-            };
+            const scale = interpolate(animationValue.value, [-1, 0, 1], [0.9, 1, 0.9]);
+            const opacity = interpolate(animationValue.value, [-1, 0, 1], [0.55, 1, 0.55]);
+            return { transform: [{ scale }], opacity };
           });
 
           return (
-            <Animated.View style={[styles.card, animatedStyle]}>
-              {/* Image avec dégradé */}
-              <View style={styles.imageWrapper}>
-                <View style={styles.imageContainer}>
-                  <Image
-                    source={{ uri: item.image }}
-                    style={styles.image}
-                    contentFit="cover"
-                  />
-                </View>
-                {/* Dégradé bottom pour lisibilité */}
-                <LinearGradient
-                  colors={[
-                    'transparent',
-                    isDark ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.2)',
-                  ]}
-                  style={styles.imageGradient}
-                  pointerEvents="none"
-                />
-              </View>
+            <Animated.View style={[{
+              width: CARD_WIDTH,
+              height: CARD_HEIGHT,
+              borderRadius: 24,
+              overflow: 'hidden',
+              marginHorizontal: 12,
+              // Shadow premium
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 16 },
+              shadowOpacity: isDark ? 0.6 : 0.22,
+              shadowRadius: 24,
+              elevation: isDark ? 14 : 8,
+            }, animatedStyle]}>
 
-              {/* Header avec brand */}
-              <View style={styles.header}>
-                <View style={styles.brandSection}>
-                  {item.brandLogo && (
-                    <View style={styles.brandLogoWrapper}>
-                      <Image
-                        source={{ uri: item.brandLogo }}
-                        style={styles.brandLogo}
-                        contentFit="cover"
-                      />
-                      <View style={styles.logoRing} />
+              {/* ════ IMAGE FULL-BLEED ════ */}
+              <Image
+                source={{ uri: item.image }}
+                style={StyleSheet.absoluteFillObject}
+                contentFit="cover"
+              />
+
+              {/* ════ GRADIENT TOP → pour lire le brand ════ */}
+              <LinearGradient
+                colors={['rgba(0,0,0,0.55)', 'transparent']}
+                style={{
+                  position: 'absolute',
+                  top: 0, left: 0, right: 0,
+                  height: 140,
+                }}
+                pointerEvents="none"
+              />
+
+              {/* ════ GRADIENT BOTTOM → pour lire le titre/CTA ════ */}
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.82)']}
+                style={{
+                  position: 'absolute',
+                  bottom: 0, left: 0, right: 0,
+                  height: 220,
+                }}
+                pointerEvents="none"
+              />
+
+              {/* ════ OVERLAY TOP: Brand + Share ════ */}
+              <View style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 18,
+                paddingTop: 18,
+                paddingBottom: 8,
+              }}>
+                {/* Brand pill */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => onBrandPress?.(item.brandSlug)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    backgroundColor: 'rgba(255,255,255,0.15)',
+                    borderRadius: 40,
+                    paddingVertical: 6,
+                    paddingHorizontal: 10,
+                    // Glassmorphism
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.25)',
+                  }}
+                >
+                  {item.brandLogo ? (
+                    <Image
+                      source={{ uri: item.brandLogo }}
+                      style={{ width: 28, height: 28, borderRadius: 14 }}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View style={{
+                      width: 28, height: 28, borderRadius: 14,
+                      backgroundColor: theme.colors.accent,
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>
+                        {item.brandName?.charAt(0)?.toUpperCase() ?? 'K'}
+                      </Text>
                     </View>
                   )}
                   {item.brandName && (
-                    <View style={styles.brandInfo}>
-                      <Text style={styles.brandLabel}>BRAND</Text>
-                      <Text style={styles.brandName}>{item.brandName}</Text>
-                    </View>
+                    <Text style={{
+                      color: '#FFFFFF',
+                      fontSize: 13,
+                      fontWeight: '700',
+                      letterSpacing: 0.2,
+                    }}>
+                      {item.brandName}
+                    </Text>
                   )}
-                </View>
-                
-                {/* Bouton de partage */}
+                  <Ionicons name="checkmark-circle" size={14} color={theme.colors.accent} />
+                </TouchableOpacity>
+
+                {/* Share button */}
                 <ShareButton
                   data={{
                     type: ShareType.COLLECTION,
@@ -340,91 +175,120 @@ export default function DepthCarousel({ data, onBrandPress, onCollectionPress }:
                     },
                   }}
                   size="small"
-                  style={styles.shareButton}
+                  style={{ opacity: 0.9 }}
                 />
               </View>
 
-              {/* Footer */}
-              <View style={styles.footer}>
-                {/* Titre */}
-                <View style={styles.titleSection}>
-                  <Text style={styles.titleLabel}>COLLECTION</Text>
-                  <Text style={styles.title}>{item.title}</Text>
+              {/* ════ OVERLAY BOTTOM: Titre + Stats + CTA ════ */}
+              <View style={{
+                position: 'absolute',
+                bottom: 0, left: 0, right: 0,
+                paddingHorizontal: 18,
+                paddingBottom: 20,
+                gap: 14,
+              }}>
+
+                {/* Titre de la collection */}
+                <View style={{ gap: 4 }}>
+                  <Text style={{
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: 10,
+                    fontWeight: '700',
+                    letterSpacing: 2,
+                    textTransform: 'uppercase',
+                  }}>
+                    Collection
+                  </Text>
+                  <Text
+                    style={{
+                      color: '#FFFFFF',
+                      fontSize: 26,
+                      fontWeight: '800',
+                      letterSpacing: -0.5,
+                      lineHeight: 30,
+                    }}
+                    numberOfLines={2}
+                  >
+                    {item.title}
+                  </Text>
                 </View>
 
-                {/* Stats */}
-                <View style={styles.statsRow}>
-                  <View style={styles.statItem}>
-                    <View style={styles.statIconContainer}>
-                      <View style={[styles.statGlow, {
-                        backgroundColor: theme.colors.accent + '40',
-                      }]} />
-                      <View style={[styles.statIcon, {
-                        backgroundColor: isDark 
-                          ? 'rgba(255, 59, 48, 0.15)' 
-                          : 'rgba(255, 59, 48, 0.1)',
-                      }]}>
-                        <Ionicons 
-                          name="flame" 
-                          size={18} 
-                          color={theme.colors.accent} 
-                        />
-                      </View>
+                {/* Stats inline + CTA */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+
+                  {/* Stats pills */}
+                  {(item.productCount ?? 0) > 0 && (
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: 'rgba(255,255,255,0.15)',
+                      borderRadius: 20,
+                      paddingVertical: 5,
+                      paddingHorizontal: 10,
+                    }}>
+                      <Ionicons name="cube-outline" size={13} color="rgba(255,255,255,0.8)" />
+                      <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '600' }}>
+                        {item.productCount} pièces
+                      </Text>
                     </View>
-                    <Text style={styles.statText}>Trending</Text>
-                  </View>
+                  )}
 
-                  <View style={styles.statDivider} />
-
-                  <View style={styles.statItem}>
-                    <View style={styles.statIconContainer}>
-                      <View style={[styles.statGlow, {
-                        backgroundColor: isDark 
-                          ? 'rgba(255, 255, 255, 0.2)'
-                          : 'rgba(0, 0, 0, 0.15)',
-                      }]} />
-                      <View style={[styles.statIcon, {
-                        backgroundColor: isDark 
-                          ? 'rgba(255, 255, 255, 0.1)' 
-                          : 'rgba(0, 0, 0, 0.05)',
-                      }]}>
-                        <Ionicons 
-                          name="eye-outline" 
-                          size={18} 
-                          color={isDark ? theme.colors.textDark : theme.colors.text} 
-                        />
-                      </View>
+                  {(item.viewCount ?? 0) > 0 && (
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: 'rgba(255,255,255,0.15)',
+                      borderRadius: 20,
+                      paddingVertical: 5,
+                      paddingHorizontal: 10,
+                    }}>
+                      <Ionicons name="eye-outline" size={13} color="rgba(255,255,255,0.8)" />
+                      <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '600' }}>
+                        {item.viewCount}
+                      </Text>
                     </View>
-                    <Text style={styles.statText}>Popular</Text>
-                  </View>
-                </View>
+                  )}
 
-                {/* CTA Button avec dégradé Noir → Rouge */}
-                <View style={styles.ctaWrapper}>
-                  <TouchableOpacity 
+                  {/* Spacer */}
+                  <View style={{ flex: 1 }} />
+
+                  {/* CTA — flèche dans un cercle accent */}
+                  <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => {
-                      if (onCollectionPress) {
-                        onCollectionPress(item.id);
-                      } else {
-                        onBrandPress?.(item.brandSlug);
-                      }
+                      if (onCollectionPress) onCollectionPress(item.id);
+                      else onBrandPress?.(item.brandSlug);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      backgroundColor: theme.colors.accent,
+                      borderRadius: 22,
+                      paddingVertical: 10,
+                      paddingHorizontal: 16,
+                      shadowColor: theme.colors.accent,
+                      shadowOffset: { width: 0, height: 6 },
+                      shadowOpacity: 0.5,
+                      shadowRadius: 10,
+                      elevation: 6,
                     }}
                   >
-                    <LinearGradient
-                      colors={[theme.colors.accent, theme.colors.accent]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.button}
-                    >
-                      <Text style={styles.buttonText}>DÉCOUVRIR LA COLLECTION</Text>
-                      <View style={styles.buttonIcon}>
-                        <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-                      </View>
-                    </LinearGradient>
+                    <Text style={{
+                      color: '#FFFFFF',
+                      fontSize: 13,
+                      fontWeight: '800',
+                      letterSpacing: 0.3,
+                    }}>
+                      Explorer
+                    </Text>
+                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
               </View>
+
             </Animated.View>
           );
         }}
@@ -432,3 +296,9 @@ export default function DepthCarousel({ data, onBrandPress, onCollectionPress }:
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+  },
+});

@@ -200,23 +200,40 @@ export class AuthService {
         console.log('📱 Updating FCM token');
       }
 
-      // 2. Upsert dans Prisma par supabaseId
-      const user = await this.prisma.utilisateur.upsert({
-        where: { supabaseId: supabaseUser.id },
-        update: updateData,
-        create: {
-          supabaseId: supabaseUser.id,
-          email: supabaseUser.email || '',
-          firstName: updateData.firstName,
-          lastName: updateData.lastName,
-          avatar: updateData.avatar,
-          fcmToken: fcmToken ?? null,
-          isClient: true,
-          isAdmin: false,
-          isCEO: false,
-          lastLoginAt: new Date(),
-        },
+      // 2. Vérifier si l'utilisateur existe déjà par email (transition Kinde -> Supabase)
+      let user;
+      const existingUser = await this.prisma.utilisateur.findUnique({
+        where: { email: supabaseUser.email || '' },
       });
+
+      if (existingUser && !existingUser.supabaseId) {
+        // Utilisateur existant de l'époque Kinde, on met à jour avec supabaseId
+        user = await this.prisma.utilisateur.update({
+          where: { id: existingUser.id },
+          data: {
+            supabaseId: supabaseUser.id,
+            ...updateData,
+          },
+        });
+      } else {
+        // Upsert normal par supabaseId
+        user = await this.prisma.utilisateur.upsert({
+          where: { supabaseId: supabaseUser.id },
+          update: updateData,
+          create: {
+            supabaseId: supabaseUser.id,
+            email: supabaseUser.email || '',
+            firstName: updateData.firstName,
+            lastName: updateData.lastName,
+            avatar: updateData.avatar,
+            fcmToken: fcmToken ?? null,
+            isClient: true,
+            isAdmin: false,
+            isCEO: false,
+            lastLoginAt: new Date(),
+          },
+        });
+      }
 
       // 3. Générer notre JWT interne
       const brand = await this.getBrandForToken(user.id);
@@ -232,10 +249,10 @@ export class AuthService {
           brand,
         },
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [AUTH] Sync error:', error);
       if (error instanceof UnauthorizedException) throw error;
-      throw new UnauthorizedException('Sync failed');
+      throw new UnauthorizedException(`Sync failed: ${error?.message || error}`);
     }
   }
 

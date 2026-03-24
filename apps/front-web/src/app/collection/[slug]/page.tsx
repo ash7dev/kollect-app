@@ -12,33 +12,12 @@ type Collection = {
   updatedAt?: string | Date;
 };
 
-type CollectionPage = {
-  data: Collection[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-};
-
 async function findCollectionBySlug(slug: string): Promise<Collection | null> {
-  const limit = 100;
-  let page = 1;
-
-  while (page <= 20) {
-    const res = await fetchAPI<CollectionPage>(`/collections/public?page=${page}&limit=${limit}`, {
-      revalidate: 300,
-    });
-
-    const found = res.data.find((c) => c.slug === slug);
-    if (found) return found;
-
-    if (page >= res.meta.totalPages) break;
-    page += 1;
+  try {
+    return await fetchAPI<Collection>(`/collections/public/slug/${slug}`, { revalidate: 300 });
+  } catch {
+    return null;
   }
-
-  return null;
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {

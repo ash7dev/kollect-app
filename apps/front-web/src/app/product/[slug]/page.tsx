@@ -11,34 +11,12 @@ type Product = {
   updatedAt?: string | Date;
 };
 
-type ProductPage = {
-  data: Product[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-};
-
 async function findProductBySlug(slug: string): Promise<Product | null> {
-  const limit = 100;
-  let page = 1;
-
-  while (page <= 20) {
-    const res = await fetchAPI<ProductPage>(
-      `/produits/search?page=${page}&limit=${limit}&inStock=false`,
-      { revalidate: 300 },
-    );
-
-    const found = res.data.find((p) => p.slug === slug);
-    if (found) return found;
-
-    if (page >= res.meta.totalPages) break;
-    page += 1;
+  try {
+    return await fetchAPI<Product>(`/produits/public/slug/${slug}`, { revalidate: 300 });
+  } catch {
+    return null;
   }
-
-  return null;
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {

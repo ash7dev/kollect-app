@@ -5,6 +5,10 @@
 import { storage, ProductDraft } from '@/utils/storage';
 import * as SecureStore from 'expo-secure-store';
 import { apiUrl, ngrokSkipBrowserWarning } from '@/config/env';
+import {
+  uploadToCloudinary,
+  uploadMultipleToCloudinary,
+} from '@/utils/cloudinaryUpload';
 
 const API_URL = apiUrl;
 
@@ -145,88 +149,96 @@ function getMimeType(uri: string, isVideo: boolean = false): string {
 
 export const collectionsApi = {
   /**
-   * 📦 Créer une collection avec uploads
+   * 📦 Créer une collection — upload direct mobile → Cloudinary puis JSON vers backend
    */
-  async create(payload: CreateCollectionPayload): Promise<CollectionDto> {
+  async create(
+    payload: CreateCollectionPayload,
+    onProgress?: (percent: number) => void,
+  ): Promise<CollectionDto> {
     const token = await getToken();
-    const url = `${API_URL}/collections`;
 
     console.log('📦 [API] Début de la création de collection:', payload.name);
 
     try {
+      // Compter le total d'uploads pour le progress global
+      const allProductImages = payload.products.flatMap(p => p.images);
+      const hasMedia = !!(payload.coverImage || payload.teaserVideo);
+      const totalUploads = allProductImages.length + (hasMedia ? 1 : 0);
+      let completedUploads = 0;
+
+      const reportProgress = (singlePercent: number) => {
+        if (!onProgress || totalUploads === 0) return;
+        const base = (completedUploads / totalUploads) * 100;
+        const slice = singlePercent / totalUploads;
+        onProgress(Math.min(Math.round(base + slice), 99));
+      };
+
+      // 1. Upload média de la collection directement vers Cloudinary
+      let coverImageUrl: string | undefined;
+      let teaserVideoUrl: string | undefined;
+
+      if (payload.coverImage) {
+        const result = await uploadToCloudinary(payload.coverImage, {
+          folder: 'kollect/collections',
+          onProgress: reportProgress,
+        });
+        coverImageUrl = result.secureUrl;
+        completedUploads++;
+        console.log('✅ Cover uploadée:', coverImageUrl);
+      } else if (payload.teaserVideo) {
+        const result = await uploadToCloudinary(payload.teaserVideo, {
+          folder: 'kollect/teasers',
+          isVideo: true,
+          onProgress: reportProgress,
+        });
+        teaserVideoUrl = result.secureUrl;
+        completedUploads++;
+        console.log('✅ Teaser uploadé:', teaserVideoUrl);
+      }
+
+      // 2. Upload toutes les images produits en parallèle par produit
+      const productsWithUrls = await Promise.all(
+        payload.products.map(async (product, i) => {
+          if (!product.images || product.images.length === 0) {
+            throw new Error(`Le produit "${product.name}" doit avoir au moins une image`);
+          }
+          const results = await uploadMultipleToCloudinary(
+            product.images,
+            'kollect/products',
+            (p) => {
+              const base = ((completedUploads + i) / totalUploads) * 100;
+              onProgress?.(Math.min(Math.round(base + p / totalUploads), 99));
+            },
+          );
+          completedUploads += product.images.length;
+          return {
+            name: product.name,
+            description: product.description || '',
+            price: product.price,
+            stock: product.stock,
+            sku: product.sku,
+            images: results.map(r => r.secureUrl),
+            sizes: product.sizes,
+            colors: product.colors,
+          };
+        }),
+      );
+
+      // 3. Envoyer JSON au backend (aucun fichier joint — le backend détecte les URLs dans le DTO)
       const collectionData = {
         name: payload.name,
         description: payload.description || '',
         launchDate: payload.launchDate,
         isFeatured: payload.isFeatured || false,
-        products: payload.products.map(p => ({
-          name: p.name,
-          description: p.description || '',
-          price: p.price,
-          stock: p.stock,
-          sku: p.sku,
-          images: [],
-          sizes: p.sizes,
-          colors: p.colors,
-        })),
+        coverImage: coverImageUrl,
+        teaserVideo: teaserVideoUrl,
+        products: productsWithUrls,
       };
 
       const formData = new FormData();
       formData.append('data', JSON.stringify(collectionData));
 
-      // Média de la collection
-      if (payload.coverImage) {
-        const uriParts = payload.coverImage.split('.');
-        const fileType = uriParts[uriParts.length - 1] || 'jpg';
-        const fileName = `cover-${Date.now()}.${fileType}`;
-        
-        formData.append('collectionMedia', {
-          uri: payload.coverImage,
-          name: fileName,
-          type: getMimeType(payload.coverImage, false),
-        } as any);
-        
-      } else if (payload.teaserVideo) {
-        const uriParts = payload.teaserVideo.split('.');
-        const fileType = uriParts[uriParts.length - 1] || 'mp4';
-        const fileName = `teaser-${Date.now()}.${fileType}`;
-        
-        formData.append('collectionMedia', {
-          uri: payload.teaserVideo,
-          name: fileName,
-          type: getMimeType(payload.teaserVideo, true),
-        } as any);
-      }
-
-      // Images des produits
-      for (let productIndex = 0; productIndex < payload.products.length; productIndex++) {
-        const product = payload.products[productIndex];
-        
-        if (!product.images || product.images.length === 0) {
-          throw new Error(`Le produit "${product.name}" doit avoir au moins une image`);
-        }
-        
-        for (let imageIndex = 0; imageIndex < product.images.length; imageIndex++) {
-          const imageUri = product.images[imageIndex];
-          
-          if (!imageUri || imageUri.trim() === '') {
-            continue;
-          }
-          
-          const fieldName = `product-${productIndex}-image-${imageIndex}`;
-          const uriParts = imageUri.split('.');
-          const fileType = uriParts[uriParts.length - 1] || 'jpg';
-          const fileName = `product-${productIndex}-${imageIndex}-${Date.now()}.${fileType}`;
-          
-          formData.append(fieldName, {
-            uri: imageUri,
-            name: fileName,
-            type: getMimeType(imageUri, false),
-          } as any);
-        }
-      }
-
-      const response = await fetch(url, {
+      const response = await fetch(`${API_URL}/collections`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -240,9 +252,10 @@ export const collectionsApi = {
         throw new Error(errorData.message || `Erreur lors de la création (${response.status})`);
       }
 
+      onProgress?.(100);
       return response.json();
     } catch (error: any) {
-      console.error('❌ Erreur:', error);
+      console.error('❌ Erreur création collection:', error);
       throw new Error(error.message || 'Erreur lors de la création');
     }
   },

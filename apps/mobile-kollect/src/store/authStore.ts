@@ -23,6 +23,7 @@ export interface AuthState {
   signUpWithEmail: (email: string, password: string, metadata?: { firstName?: string; lastName?: string }) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  handleOAuthCallback: (callbackUrl: string) => Promise<void>;
 
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
@@ -84,13 +85,23 @@ export const useAuthStore = create<AuthState>()(
       signInWithGoogle: async () => {
         try {
           set({ isLoading: true, error: null });
-          await authService.signInWithGoogle();
+          const authData = await authService.signInWithGoogle();
+          await get()._setAuth(authData.user, authData.access_token);
         } catch (error: any) {
-          if (error?.message === 'OAUTH_REDIRECT') {
-            // Expected — OAuth will redirect, session handled via callback
-            return;
-          }
           set({ error: error?.message || 'Erreur de connexion Google' });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      handleOAuthCallback: async (callbackUrl) => {
+        try {
+          set({ isLoading: true, error: null });
+          const authData = await authService.handleOAuthCallback(callbackUrl);
+          await get()._setAuth(authData.user, authData.access_token);
+        } catch (error: any) {
+          set({ error: error?.message || 'Erreur lors du callback OAuth' });
           throw error;
         } finally {
           set({ isLoading: false });

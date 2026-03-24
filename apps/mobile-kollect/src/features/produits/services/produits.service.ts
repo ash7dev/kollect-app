@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { apiUrl, ngrokSkipBrowserWarning } from '@/config/env';
+import { uploadMultipleToCloudinary } from '@/utils/cloudinaryUpload';
 
 export interface ProduitDto {
   id: string;
@@ -122,38 +123,17 @@ export const produitsService = {
 
   async create(payload: CreateProduitPayload, imageUris?: string[]) {
     const token = await getToken();
-    const formData = new FormData();
-    
-    // Construire un tableau d'images conforme au schéma backend (URLs non vides)
-    const hasLocalImages = imageUris && imageUris.length > 0;
-    const jsonImages = hasLocalImages
-      ? imageUris!.map((_, index) => `https://temp.kollect.local/product-image-${index}-${Date.now()}.jpg`)
-      : payload.images || [];
 
-    const produitData = {
-      ...payload,
-      images: jsonImages,
-    };
-    
-    formData.append('data', JSON.stringify(produitData));
-    
+    // Upload direct vers Cloudinary si des images locales sont fournies
+    let finalImages: string[] = payload.images || [];
     if (imageUris && imageUris.length > 0) {
-      imageUris.forEach((imageUri, index) => {
-        if (!imageUri || imageUri.trim() === '') {
-          return;
-        }
-        
-        const uriParts = imageUri.split('.');
-        const fileType = uriParts[uriParts.length - 1] || 'jpg';
-        const fileName = `product-image-${index}-${Date.now()}.${fileType}`;
-        
-        formData.append(`image-${index}`, {
-          uri: imageUri,
-          name: fileName,
-          type: getMimeType(imageUri),
-        } as any);
-      });
+      const results = await uploadMultipleToCloudinary(imageUris, 'kollect/products');
+      finalImages = results.map(r => r.secureUrl);
     }
+
+    // Le backend lit @Body('data') depuis un FormData — on garde ce format sans fichiers joints
+    const formData = new FormData();
+    formData.append('data', JSON.stringify({ ...payload, images: finalImages }));
 
     const res = await fetch(`${API_URL}/produits`, {
       method: 'POST',

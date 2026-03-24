@@ -525,6 +525,16 @@ export class CollectionsController {
     return this.collectionsService.findPersonalized(req.user.id, limit);
   }
 
+  /**
+   * 🔍 Collection publique par slug
+   * GET /api/collections/public/slug/:slug
+   */
+  @Get('public/slug/:slug')
+  @Public()
+  async findPublicBySlug(@Param('slug') slug: string) {
+    return this.collectionsService.findPublicBySlug(slug);
+  }
+
   @Get('public')
   @Public()
   async findAllPublic(

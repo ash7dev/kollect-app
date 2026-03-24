@@ -6,8 +6,10 @@
 import {
   Controller,
   Post,
+  Get,
   Delete,
   Body,
+  Query,
   UseInterceptors,
   UploadedFile,
   UploadedFiles,
@@ -32,6 +34,25 @@ import { ImageFolder, UPLOAD_CONSTANTS } from './types/upload.types';
 @UseGuards(JwtAuthGuard)
 export class UploadController {
   constructor(private readonly cloudinaryService: CloudinaryService) {}
+
+  /**
+   * Génère une signature pour upload direct mobile → Cloudinary
+   * GET /upload/signature?folder=kollect/products&resourceType=image
+   */
+  @Get('signature')
+  getUploadSignature(
+    @Query('folder') folder: string,
+    @Query('resourceType') resourceType: 'image' | 'video' = 'image',
+  ) {
+    if (!folder) {
+      throw new BadRequestException('folder is required');
+    }
+    const validFolders = Object.values(ImageFolder) as string[];
+    if (!validFolders.includes(folder)) {
+      throw new BadRequestException(`Invalid folder. Allowed: ${validFolders.join(', ')}`);
+    }
+    return this.cloudinaryService.generateUploadSignature(folder, resourceType);
+  }
 
   /**
    * Upload une seule image
