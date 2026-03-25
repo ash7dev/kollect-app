@@ -52,7 +52,12 @@ interface AuthenticatedUser {
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(private readonly prisma: PrismaService) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // Priorité : cookie httpOnly (web) → puis Bearer header (mobile)
+      // Cela garantit la compatibilité avec l'app mobile existante.
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req: any) => req?.cookies?.['kollect_jwt'] ?? null,
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_SECRET || 'default-secret',
       passReqToCallback: false,

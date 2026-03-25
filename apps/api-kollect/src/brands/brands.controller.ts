@@ -50,7 +50,7 @@ interface BrandFilters {
 @Controller('brands')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BrandsController {
-  constructor(private readonly brandsService: BrandsService) {}
+  constructor(private readonly brandsService: BrandsService) { }
 
   // ========================================
   // ROUTES PUBLIQUES (sans authentification)
@@ -138,7 +138,7 @@ export class BrandsController {
     if (logo) {
       createBrandDto.logo = logo;
     }
-    
+
     return await this.brandsService.create(userId, createBrandDto);
   }
 
@@ -208,7 +208,7 @@ export class BrandsController {
       updateBrandDto.logo = null;
     }
     // Si ni logo file ni suppression demandée → pas de modification (undefined)
-    
+
     return await this.brandsService.update(userId, brandId, updateBrandDto);
   }
 
@@ -245,7 +245,7 @@ export class BrandsController {
     return await this.brandsService.reactivate(userId, id);
   }
 
-  
+
   // ========================================
   // ROUTES ADMIN (à implémenter)
   // ========================================
@@ -267,7 +267,7 @@ export class BrandsController {
     // 1. Vérifier que l'utilisateur est admin
     // 2. Mettre à jour isVerified = true
     // 3. Potentiellement notifier le CEO
-    
+
     return {
       message: 'Fonctionnalité de vérification à implémenter',
       brandId: id,
@@ -278,42 +278,42 @@ export class BrandsController {
  * 📊 Récupérer les statistiques de MA boutique
  * GET /brands/:id/stats
  */
-@Get(':id/stats')
-@Roles('isCEO')
-@UseGuards(BrandOwnerGuard)
-@HttpCode(HttpStatus.OK)
-async getStats(
-  @GetUser('id') userId: string,
-  @Param('id') id: string,
-  @Query('period') period: '7days' | '30days' | '90days' = '30days',
-): Promise<BrandStats & {
-  period: '7days' | '30days' | '90days';
-  ordersThisPeriod: number;
-  ordersChange: number;
-  followersChange: number;
-  conversionRate: number;
-  revenueThisPeriod: number;
-  revenueChange: number;
-  viewsThisPeriod: number;
-}> {
-  return await this.brandsService.getStats(userId, id, period);
-}
+  @Get(':id/stats')
+  @Roles('isCEO')
+  @UseGuards(BrandOwnerGuard)
+  @HttpCode(HttpStatus.OK)
+  async getStats(
+    @GetUser('id') userId: string,
+    @Param('id') id: string,
+    @Query('period') period: '7days' | '30days' | '90days' = '30days',
+  ): Promise<BrandStats & {
+    period: '7days' | '30days' | '90days';
+    ordersThisPeriod: number;
+    ordersChange: number;
+    followersChange: number;
+    conversionRate: number;
+    revenueThisPeriod: number;
+    revenueChange: number;
+    viewsThisPeriod: number;
+  }> {
+    return await this.brandsService.getStats(userId, id, period);
+  }
 
-/**
- * 📈 Récupérer les données de ventes par période
- * GET /brands/:id/sales-data?period=7days
- */
-@Get(':id/sales-data')
-@Roles('isCEO')
-@UseGuards(BrandOwnerGuard)
-@HttpCode(HttpStatus.OK)
-async getSalesData(
-  @GetUser('id') userId: string,
-  @Param('id') id: string,
-  @Query('period') period: '7days' | '30days' | '90days' = '7days',
-) {
-  return await this.brandsService.getSalesData(userId, id, period);
-}
+  /**
+   * 📈 Récupérer les données de ventes par période
+   * GET /brands/:id/sales-data?period=7days
+   */
+  @Get(':id/sales-data')
+  @Roles('isCEO')
+  @UseGuards(BrandOwnerGuard)
+  @HttpCode(HttpStatus.OK)
+  async getSalesData(
+    @GetUser('id') userId: string,
+    @Param('id') id: string,
+    @Query('period') period: '7days' | '30days' | '90days' = '7days',
+  ) {
+    return await this.brandsService.getSalesData(userId, id, period);
+  }
   /**
    * 🗑️ Supprimer définitivement une marque (Admin uniquement)
    * DELETE /brands/:id/force-delete
@@ -328,7 +328,7 @@ async getSalesData(
   async forceDelete(@Param('id') id: string) {
     // TODO: Implémenter la suppression définitive
     // Attention : gérer les contraintes de clés étrangères
-    
+
     return {
       message: 'Fonctionnalité de suppression définitive à implémenter',
       brandId: id,

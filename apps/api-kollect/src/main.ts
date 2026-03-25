@@ -8,10 +8,34 @@ import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
-import morgan from 'morgan'; // Modification ici
+import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // CORS — doit être EN PREMIER, avant helmet, pour que les réponses OPTIONS
+  // reçoivent les bons headers avant que helmet ne les modifie.
+  // - L'app web envoie des cookies (withCredentials: true) → origin ne peut pas être '*'
+  // - Le mobile utilise Bearer token → pas d'origin header → passe via !origin
+  // ALLOWED_ORIGINS = liste séparée par des virgules, ex: "http://localhost:3001,https://kollect.sn"
+  const allowedOrigins = (
+    process.env.ALLOWED_ORIGINS ?? 'http://localhost:3000'
+  ).split(',').map((o) => o.trim());
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Pas d'origin = requête serveur-à-serveur ou mobile natif → ok
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin non autorisée : ${origin}`));
+      }
+    },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+    credentials: true, // Obligatoire pour que le browser envoie les cookies
+  });
 
   // Sécurité
   app.use(
@@ -27,12 +51,8 @@ async function bootstrap() {
     }),
   );
 
-  // CORS (autoriser le mobile à appeler l'API)
-  app.enableCors({
-    origin: '*', // En prod: mettre les domaines autorisés
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-  });
+  // Cookie parser — doit être avant les guards pour que req.cookies soit disponible
+  app.use(cookieParser());
 
   // Logger HTTP
   app.use(morgan('dev'));

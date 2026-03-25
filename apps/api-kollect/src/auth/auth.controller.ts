@@ -7,12 +7,14 @@ import {
   Get,
   UseGuards,
   Req,
+  Res,
   UnauthorizedException,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
 import { SyncUserDto } from './dto/sync-user.dto';
@@ -27,9 +29,38 @@ import { AuthResponseWithToken } from './interfaces/auth-response.interface';
 import type { AuthenticatedUser } from '../common/decorators/roles.decorator';
 import * as requestInterface from '../common/interfaces/request.interface';
 
+// ─── Cookie config ────────────────────────────────────────────────────────────
+// COOKIE_SAME_SITE=none  → pour ngrok / domaines cross-origin en dev
+// COOKIE_SAME_SITE=lax   → pour localhost ↔ localhost (même site)
+// En prod, on force toujours 'lax' (frontend et API sur kollect.sn)
+//
+// Règle : SameSite=None exige Secure=true (HTTPS obligatoire).
+// ngrok est toujours HTTPS → ok. localhost est HTTP → ne pas utiliser 'none'.
+const JWT_COOKIE_NAME = 'kollect_jwt';
+const JWT_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
+
+function jwtCookieOptions(isProd: boolean) {
+  const sameSite = isProd
+    ? ('lax' as const)
+    : ((process.env.COOKIE_SAME_SITE ?? 'lax') as 'lax' | 'none' | 'strict');
+
+  // SameSite=None exige Secure=true
+  const secure = isProd || sameSite === 'none';
+
+  return {
+    httpOnly: true,
+    secure,
+    sameSite,
+    path: '/',
+    maxAge: JWT_COOKIE_MAX_AGE,
+  };
+}
+
 @Controller('auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AuthController {
+  private readonly isProd = process.env.NODE_ENV === 'production';
+
   constructor(private readonly authService: AuthService) { }
 
   /**
@@ -55,6 +86,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async syncUser(
     @Body() syncUserDto: SyncUserDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseWithToken> {
     try {
       console.log('📥 [AUTH] Sync user request:', {
@@ -63,6 +95,10 @@ export class AuthController {
       });
 
       const result = await this.authService.syncUser(syncUserDto);
+
+      // Set du JWT backend en cookie httpOnly (web)
+      // Le token est aussi retourné dans le body pour la compat mobile
+      res.cookie(JWT_COOKIE_NAME, result.access_token, jwtCookieOptions(this.isProd));
 
       console.log('✅ [AUTH] Sync successful:', {
         userId: result.user.id,
@@ -91,7 +127,10 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async getProfile(@Req() req: requestInterface.AuthRequest): Promise<AuthResponseWithToken> {
+  async getProfile(
+    @Req() req: requestInterface.AuthRequest,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseWithToken> {
     try {
       if (!req.user?.supabaseId) {
         console.error('❌ [AUTH] Invalid user data in request');
@@ -104,6 +143,9 @@ export class AuthController {
       });
 
       const result = await this.authService.getUserProfile(req.user.supabaseId);
+
+      // Renouvelle le cookie à chaque /me (sliding session)
+      res.cookie(JWT_COOKIE_NAME, result.access_token, jwtCookieOptions(this.isProd));
 
       console.log('✅ [AUTH] Profile fetched:', {
         userId: result.user.id,
@@ -131,11 +173,22 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async logout(@Req() req: requestInterface.AuthRequest) {
+  async logout(
+    @Req() req: requestInterface.AuthRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     try {
       console.log('🚪 [AUTH] Logout request:', {
         supabaseId: req.user?.supabaseId,
         email: req.user?.email,
+      });
+
+      // Efface le cookie JWT — le browser ne l'enverra plus
+      res.clearCookie(JWT_COOKIE_NAME, {
+        httpOnly: true,
+        secure: this.isProd,
+        sameSite: 'lax',
+        path: '/',
       });
 
       return {
@@ -211,7 +264,8 @@ export class AuthController {
   async updateUserRole(
     @Param('id') userId: string,
     @Body() body: { choice: 'client' | 'vendeur', hasSeenCreatorPrompt: boolean },
-    @GetUser() user: AuthenticatedUser
+    @GetUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseWithToken> {
     // Vérifier que l'utilisateur met à jour son propre profil ou est admin
     if (user.id !== userId && !user.isAdmin) {
@@ -225,11 +279,16 @@ export class AuthController {
         hasSeenCreatorPrompt: body.hasSeenCreatorPrompt
       });
 
-      return this.authService.updateUserRole(
+      const result = await this.authService.updateUserRole(
         userId,
         body.choice,
-        body.hasSeenCreatorPrompt
+        body.hasSeenCreatorPrompt,
       );
+
+      // Renouvelle le cookie avec le nouveau token (rôle mis à jour)
+      res.cookie(JWT_COOKIE_NAME, result.access_token, jwtCookieOptions(this.isProd));
+
+      return result;
     } catch (error) {
       console.error('❌ [AUTH] Update role error:', error);
       throw new UnauthorizedException('Failed to update user role');

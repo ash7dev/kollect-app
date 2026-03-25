@@ -49,7 +49,7 @@ export class UpdateBrandDto {
   @IsOptional()
   @IsBoolean()
   isVerified?: boolean;
-  
+
   @IsOptional()
   @IsString()
   @MaxLength(1000)

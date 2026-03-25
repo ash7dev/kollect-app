@@ -49,9 +49,18 @@ export function HowItWorks() {
     <section
       id="how-it-works"
       aria-label="Comment ça marche"
-      style={{ padding: '120px 24px', backgroundColor: '#F7F7F7', position: 'relative', overflow: 'hidden' }}
+      style={{
+        padding: '120px 24px',
+        margin: '0 12px',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 'var(--radius-xxxl)',
+        position: 'relative',
+        overflow: 'hidden',
+        border: '1px solid rgba(0,0,0,0.06)',
+        boxShadow: '0 1px 0 rgba(0,0,0,0.03)',
+      }}
     >
-      {/* Big background number */}
+      {/* Big background number — discret sur fond clair */}
       <div aria-hidden style={{
         position: 'absolute',
         right: '-40px',
@@ -59,7 +68,7 @@ export function HowItWorks() {
         transform: 'translateY(-50%)',
         fontSize: '320px',
         fontWeight: 900,
-        color: 'rgba(0,0,0,0.03)',
+        color: 'rgba(0,0,0,0.035)',
         letterSpacing: '-20px',
         lineHeight: 1,
         pointerEvents: 'none',
@@ -81,12 +90,12 @@ export function HowItWorks() {
           </p>
           <h2 style={{
             fontSize: 'clamp(2rem, 3.5vw, 2.8rem)',
-            fontWeight: 900, color: '#000',
+            fontWeight: 900, color: '#000000',
             letterSpacing: '-1.5px', lineHeight: 1.1, margin: 0,
           }}>
             Simple comme bonjour.
             <br />
-            <span style={{ color: 'rgba(0,0,0,0.35)' }}>3 étapes, c&apos;est tout.</span>
+            <span style={{ color: 'rgba(0,0,0,0.38)' }}>3 étapes, c&apos;est tout.</span>
           </h2>
         </div>
 
@@ -99,7 +108,7 @@ export function HowItWorks() {
             left: 'calc(33.3% - 20px)',
             right: 'calc(33.3% - 20px)',
             height: '1px',
-            background: 'linear-gradient(to right, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.06) 50%, rgba(0,0,0,0.12) 100%)',
+            background: 'linear-gradient(to right, rgba(0,0,0,0.07) 0%, rgba(0,0,0,0.03) 50%, rgba(0,0,0,0.07) 100%)',
             zIndex: 0,
           }} />
 
@@ -112,8 +121,8 @@ export function HowItWorks() {
                 flexDirection: 'column',
                 gap: '20px',
                 padding: '36px 32px',
-                borderRadius: '20px',
-                backgroundColor: '#fff',
+                borderRadius: 'var(--radius-xl)',
+                backgroundColor: '#FAFAFA',
                 border: '1px solid rgba(0,0,0,0.05)',
                 position: 'relative',
                 zIndex: 1,

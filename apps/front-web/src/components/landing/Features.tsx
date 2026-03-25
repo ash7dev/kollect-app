@@ -22,11 +22,12 @@ const IconPackage = () => (
   </svg>
 );
 
-const IconStore = () => (
+const IconBoutique = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-    <line x1="3" y1="6" x2="21" y2="6"/>
-    <path d="M16 10a4 4 0 0 1-8 0"/>
+    <rect x="3" y="3" width="7" height="9" rx="1" />
+    <rect x="14" y="3" width="7" height="5" rx="1" />
+    <rect x="14" y="12" width="7" height="9" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
   </svg>
 );
 
@@ -87,10 +88,10 @@ const FEATURES = [
     large: false,
   },
   {
-    icon: <IconStore />,
-    label: 'Devenir Créateur',
-    title: 'Lance ta marque sur Kollect',
-    description: 'Tu es créateur ? Rejoins l\'écosystème et vends directement à ta communauté sans intermédiaire. Setup en 48h.',
+    icon: <IconBoutique />,
+    label: 'Espace marque',
+    title: 'Boutique dédiée pour chaque marque',
+    description: 'Chaque maison dispose de sa vitrine : lookbook, collections et calendrier des sorties. Bientôt, ton propre nom de domaine pour prolonger l’expérience premium.',
     dark: false,
     large: true,
   },
@@ -101,7 +102,14 @@ export function Features() {
     <section
       id="features"
       aria-label="Fonctionnalités"
-      style={{ padding: '120px 24px', backgroundColor: '#fff' }}
+      style={{
+        padding: '120px 24px',
+        backgroundColor: '#fff',
+        margin: '0 12px',
+        borderRadius: 'var(--radius-xxxl)',
+        overflow: 'hidden',
+        border: '1px solid rgba(0,0,0,0.06)',
+      }}
     >
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
         {/* Header */}
@@ -118,9 +126,9 @@ export function Features() {
             fontWeight: 900, color: '#000',
             letterSpacing: '-1.5px', lineHeight: 1.1, margin: 0,
           }}>
-            Tout ce qu&apos;il te faut,
+            Tout pour découvrir
             <br />
-            <span style={{ color: 'rgba(0,0,0,0.3)' }}>au même endroit.</span>
+            <span style={{ color: 'rgba(0,0,0,0.3)' }}>les maisons &amp; pièces d’exception.</span>
           </h2>
         </div>
 
@@ -142,7 +150,7 @@ export function Features() {
                 style={{
                   gridColumn: `span ${colSpan}`,
                   padding: isLargeItem ? '44px 40px' : '36px 28px',
-                  borderRadius: '20px',
+                  borderRadius: 'var(--radius-xl)',
                   backgroundColor: f.dark ? '#000' : '#F7F7F7',
                   border: f.dark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.05)',
                   display: 'flex',
@@ -211,7 +219,7 @@ export function Features() {
         </div>
       </div>
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .bento-card:hover {
           transform: translateY(-4px) !important;
           box-shadow: 0 24px 56px rgba(0,0,0,0.08) !important;
@@ -224,7 +232,7 @@ export function Features() {
           .bento-grid { grid-template-columns: 1fr !important; }
           .bento-card[style*="span 2"] { grid-column: span 1 !important; }
         }
-      `}</style>
+      ` }} />
     </section>
   );
 }

@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/providers/AuthProvider';
 
 const NAV_LINKS = [
   { label: 'Marques', href: '/brands' },
   { label: 'Collections', href: '/collections' },
+  { label: 'Drops', href: '/drops' },
   { label: 'Explorer', href: '/explorer' },
-  { label: 'À propos', href: '/about' },
 ];
 
 export function Navbar() {
@@ -16,6 +17,14 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+
+  const postLoginHref = useMemo(() => {
+    if (!user) return null;
+    if (user.isCEO || user.isAdmin) return '/dashboard';
+    if (!user.has_seen_creator_prompt) return '/onboarding';
+    return '/';
+  }, [user]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -144,10 +153,10 @@ export function Navbar() {
           {/* ══ CTA actions — desktop (droite) ══ */}
           <div
             className="nav-cta-desktop"
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, zIndex: 1, transform: 'translateX(76px)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, zIndex: 1 }}
           >
             <Link
-              href="/auth/login"
+              href={postLoginHref ?? "/auth/login"}
               className="nav-btn-ghost"
               style={{
                 padding: '8px 18px',
@@ -161,11 +170,11 @@ export function Navbar() {
                 backgroundColor: 'transparent',
               }}
             >
-              Connexion
+              {user ? 'Continuer' : 'Connexion'}
             </Link>
 
             <Link
-              href="#download"
+              href={postLoginHref ?? "/auth/register"}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -183,7 +192,7 @@ export function Navbar() {
               }}
               className="nav-btn-cta"
             >
-              Commencer
+              {user ? 'Mon espace' : 'Commencer'}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
@@ -327,7 +336,7 @@ export function Navbar() {
 
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <Link
-            href="/auth/login"
+            href={postLoginHref ?? "/auth/login"}
             style={{
               padding: '14px',
               borderRadius: '12px',
@@ -339,10 +348,10 @@ export function Navbar() {
               textAlign: 'center',
             }}
           >
-            Connexion
+            {user ? 'Continuer' : 'Connexion'}
           </Link>
           <Link
-            href="#download"
+            href={postLoginHref ?? "/auth/register"}
             style={{
               padding: '14px',
               borderRadius: '12px',
@@ -355,7 +364,7 @@ export function Navbar() {
               boxShadow: '0 4px 16px rgba(255,59,48,0.3)',
             }}
           >
-            Commencer gratuitement
+            {user ? 'Mon espace' : 'Commencer gratuitement'}
           </Link>
         </div>
       </div>

@@ -7,8 +7,8 @@ const CREATOR_FEATURES = [
         <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
       </svg>
     ),
-    title: 'Commission minimale',
-    desc: 'Garde l\'essentiel de tes revenus. Notre commission est parmi les plus basses du marché.',
+    title: 'Commission mesurée',
+    desc: 'Une structure claire pour que la majeure partie du prix reste pour ta marque.',
   },
   {
     icon: (
@@ -16,8 +16,8 @@ const CREATOR_FEATURES = [
         <path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>
       </svg>
     ),
-    title: 'Analytics avancés',
-    desc: 'Tableau de bord complet : ventes, visiteurs, produits tendances et revenus en temps réel.',
+    title: 'Pilotage de la vitrine',
+    desc: 'Ventes, passages sur ta boutique, pièces les plus vues — pour décider le prochain drop avec lucidité.',
   },
   {
     icon: (
@@ -26,8 +26,8 @@ const CREATOR_FEATURES = [
         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
       </svg>
     ),
-    title: 'Communauté intégrée',
-    desc: 'Accès direct à +50 000 clients passionnés par le streetwear sénégalais dès le lancement.',
+    title: 'Audience déjà là',
+    desc: 'Une scène qui attend les bonnes marques : visibilité sur le portail et fidèles sur ton espace dédié.',
   },
   {
     icon: (
@@ -35,8 +35,8 @@ const CREATOR_FEATURES = [
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
       </svg>
     ),
-    title: 'Drops & lancements',
-    desc: 'Organise des drops exclusifs avec compteur, teasing vidéo et notifications push automatiques.',
+    title: 'Calendrier & éditions',
+    desc: 'Fenêtres de vente limitées, teasing et notifications — le rituel d’une marque, pas un simple upload.',
   },
 ];
 
@@ -44,14 +44,15 @@ export function CreatorCTA() {
   return (
     <section
       id="creators"
-      aria-label="Rejoindre en tant que créateur"
+      aria-label="Rejoindre en tant que marque"
       style={{
         padding: '120px 24px',
         backgroundColor: '#000',
         position: 'relative',
         overflow: 'hidden',
-        borderRadius: '0 0 32px 32px',
+        borderRadius: 'var(--radius-xxxl)',
         margin: '0 12px',
+        border: '1px solid rgba(255,255,255,0.06)',
       }}
     >
       {/* BG glow */}
@@ -85,26 +86,26 @@ export function CreatorCTA() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
             <div>
               <p style={{
-                fontSize: '11px', fontWeight: 700, color: '#FF3B30',
+                fontSize: '11px', fontWeight: 700, color: '#C2923B',
                 letterSpacing: '2.5px', textTransform: 'uppercase',
                 marginBottom: '16px',
               }}>
-                Pour les créateurs
+                Pour les marques & créateurs
               </p>
               <h2 style={{
                 fontSize: 'clamp(2rem, 3.8vw, 3rem)',
                 fontWeight: 900, color: '#fff',
                 letterSpacing: '-2px', lineHeight: 1.08, margin: 0,
               }}>
-                Lance ta marque
+                Ouvre ta boutique
                 <br />
                 <span style={{
-                  background: 'linear-gradient(135deg, #FF3B30, #FF9500)',
+                  background: 'linear-gradient(135deg, #FF3B30, #C9A962)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
                 }}>
-                  sans intermédiaire.
+                  dans l’écosystème.
                 </span>
               </h2>
             </div>
@@ -116,15 +117,15 @@ export function CreatorCTA() {
               maxWidth: '440px',
               margin: 0,
             }}>
-              Tu es artiste, designer, créateur ? Rejoins l&apos;écosystème Kollect et vends directement à ta communauté. Pas d&apos;intermédiaire, pas de complexité.
+              Un espace à toi — charte, collections, calendrier des lancements — tout en profitant du trafic et de la confiance du portail Kollect. Les acheteurs d’abord ; sans eux, une vitrine reste muette.
             </p>
 
             {/* Stats créateurs */}
             <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
               {[
-                { value: '500+', label: 'Créateurs actifs' },
-                { value: '0 FCFA', label: 'Pour démarrer' },
-                { value: '48h', label: 'Validation' },
+                { value: '500+', label: 'Marques actives' },
+                { value: '0 FCFA', label: 'Pour ouvrir' },
+                { value: '48h', label: 'Mise en ligne' },
               ].map(s => (
                 <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   <span style={{ fontSize: '1.8rem', fontWeight: 900, color: '#fff', letterSpacing: '-1px', lineHeight: 1 }}>
@@ -154,7 +155,7 @@ export function CreatorCTA() {
                   letterSpacing: '0.1px',
                 }}
               >
-                Devenir créateur
+                Rejoindre en tant que marque
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>

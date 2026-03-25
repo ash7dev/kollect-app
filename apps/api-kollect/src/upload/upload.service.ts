@@ -13,7 +13,7 @@ import { ImageFolder, UploadResult } from './types/upload.types';
 export class UploadService {
   private readonly logger = new Logger(UploadService.name);
 
-  constructor(private readonly cloudinaryService: CloudinaryService) {}
+  constructor(private readonly cloudinaryService: CloudinaryService) { }
 
   // ========================================
   // UPLOADS POUR LES MARQUES (BRANDS)

@@ -10,6 +10,15 @@ import axios, {
 import { env } from '@/config/env';
 
 // ============================================
+// POURQUOI PLUS DE TOKEN CÔTÉ JS ?
+// ============================================
+//
+// Le JWT backend est désormais dans un cookie httpOnly "kollect_jwt".
+// httpOnly = inaccessible à JavaScript → protégé contre le vol via XSS.
+// Le browser l'envoie automatiquement grâce à withCredentials: true.
+// On n'a plus besoin de lire, stocker, ou injecter quoi que ce soit.
+
+// ============================================
 // CONFIGURATION
 // ============================================
 
@@ -22,47 +31,35 @@ const API_TIMEOUT = 30_000; // 30s
 export const apiClient: AxiosInstance = axios.create({
     baseURL: env.apiUrl,
     timeout: API_TIMEOUT,
+    // withCredentials: true → le browser joint automatiquement le cookie kollect_jwt
+    // à chaque requête vers le backend. Obligatoire pour les cookies cross-origin.
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        // Required to bypass the ngrok browser warning page
         'ngrok-skip-browser-warning': 'true',
     },
 });
 
 // ============================================
-// INTERCEPTEUR REQUEST — Inject Bearer token
+// INTERCEPTEUR REQUEST — logging dev uniquement
 // ============================================
 
 apiClient.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        try {
-            const token =
-                typeof window !== 'undefined'
-                    ? localStorage.getItem('auth-token')
-                    : null;
-
-            if (token && config.headers) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-
-            if (env.isDev) {
-                console.log('📤 [API Request]', {
-                    method: config.method?.toUpperCase(),
-                    url: config.url,
-                });
-            }
-
-            return config;
-        } catch {
-            return config;
+        if (env.isDev) {
+            console.log('📤 [API Request]', {
+                method: config.method?.toUpperCase(),
+                url: config.url,
+            });
         }
+        return config;
     },
     (error) => Promise.reject(error),
 );
 
 // ============================================
-// INTERCEPTEUR RESPONSE — Gestion des erreurs
+// INTERCEPTEUR RESPONSE — gestion des erreurs
 // ============================================
 
 apiClient.interceptors.response.use(
@@ -75,7 +72,7 @@ apiClient.interceptors.response.use(
         }
         return response;
     },
-    async (error: AxiosError) => {
+    (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & {
             _retry?: boolean;
         };
@@ -88,37 +85,12 @@ apiClient.interceptors.response.use(
             });
         }
 
-        // 401 — Token expiré ou invalide
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
-
-            try {
-                const token = localStorage.getItem('auth-token');
-                if (!token) throw new Error('No token available');
-
-                // Tenter de rafraîchir via /auth/me
-                const response = await axios.get(`${env.apiUrl}/auth/me`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-
-                const newToken = response.data.access_token;
-                localStorage.setItem('auth-token', newToken);
-
-                if (originalRequest.headers) {
-                    originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                }
-
-                return apiClient(originalRequest);
-            } catch {
-                // Échec du refresh — déconnexion
-                localStorage.removeItem('auth-token');
-                localStorage.removeItem('auth-storage');
-
-                if (typeof window !== 'undefined') {
-                    window.location.href = '/login';
-                }
-
-                return Promise.reject(error);
+        // 401 — Le cookie est expiré ou absent.
+        // Le AuthProvider réagira via onAuthStateChange (TOKEN_REFRESHED de Supabase)
+        // si la session Supabase est encore valide. Sinon → login.
+        if (error.response?.status === 401) {
+            if (typeof window !== 'undefined') {
+                window.location.href = '/auth/login';
             }
         }
 

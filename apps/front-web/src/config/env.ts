@@ -2,7 +2,7 @@
 // Configuration centralisée des variables d'environnement
 
 const apiBaseUrl =
-    process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://kollect.sn';
+    process.env.NEXT_PUBLIC_API_BASE_URL ?? (process.env.NODE_ENV === 'development' ? 'http://localhost:3002' : 'https://kollect.sn');
 
 const apiUrl =
     process.env.NEXT_PUBLIC_API_URL ?? `${apiBaseUrl}/api`;

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Logo } from '@/components/ui/Logo';
 
 const FOOTER_LINKS = {
   Plateforme: [
@@ -62,8 +63,9 @@ export function Footer() {
         color: '#fff',
         paddingTop: '80px',
         paddingBottom: '32px',
-        borderRadius: '0 0 32px 32px',
+        borderRadius: '0 0 var(--radius-xxxl) var(--radius-xxxl)',
         margin: '0 12px',
+        marginTop: '28px',
       }}
     >
       <div style={{
@@ -86,27 +88,7 @@ export function Footer() {
           {/* ── Brand column ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Logo */}
-            <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-              <span style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '40px',
-                height: '40px',
-                backgroundColor: '#FF3B30',
-                borderRadius: '12px',
-                color: '#fff',
-                fontSize: '20px',
-                fontWeight: 900,
-                fontStyle: 'italic',
-                letterSpacing: '-1px',
-              }}>
-                K
-              </span>
-              <span style={{ fontSize: '22px', fontWeight: 800, color: '#fff', fontStyle: 'italic', letterSpacing: '-0.5px' }}>
-                Kollect
-              </span>
-            </Link>
+            <Logo />
 
             {/* Tagline */}
             <p style={{

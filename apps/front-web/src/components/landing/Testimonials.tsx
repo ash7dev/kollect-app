@@ -63,7 +63,14 @@ export function Testimonials() {
     <section
       id="testimonials"
       aria-label="Avis clients"
-      style={{ padding: '120px 24px', backgroundColor: '#fff', overflow: 'hidden' }}
+      style={{
+        padding: '120px 24px',
+        backgroundColor: '#fff',
+        overflow: 'hidden',
+        margin: '0 12px',
+        borderRadius: 'var(--radius-xxxl)',
+        border: '1px solid rgba(0,0,0,0.06)',
+      }}
     >
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
         {/* Header */}
@@ -97,7 +104,7 @@ export function Testimonials() {
               className="testimonial-card"
               style={{
                 padding: '28px 24px',
-                borderRadius: '20px',
+                borderRadius: 'var(--radius-xl)',
                 backgroundColor: i === 1 ? '#000' : '#F7F7F7',
                 border: i === 1 ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.05)',
                 display: 'flex',
@@ -116,7 +123,7 @@ export function Testimonials() {
                 marginTop: '-8px',
                 marginBottom: '-12px',
               }}>
-                "
+                &ldquo;
               </div>
 
               <StarRating rating={t.rating} />
