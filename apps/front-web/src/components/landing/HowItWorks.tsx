@@ -1,5 +1,7 @@
 'use client';
 
+import { FONT_FAMILY_INTER } from '@/styles/typography';
+
 const IconSearch = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -58,6 +60,7 @@ export function HowItWorks() {
         overflow: 'hidden',
         border: '1px solid rgba(0,0,0,0.06)',
         boxShadow: '0 1px 0 rgba(0,0,0,0.03)',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       {/* Big background number — discret sur fond clair */}

@@ -66,6 +66,7 @@ export interface CreateCollectionPayload {
   brandId: string;
   name: string;
   description?: string;
+  mode?: 'disponible' | 'teaser';
   launchDate?: string | null;
   coverImage?: string;
   teaserVideo?: string;
@@ -157,7 +158,16 @@ export const collectionsApi = {
   ): Promise<CollectionDto> {
     const token = await getToken();
 
-    console.log('📦 [API] Début de la création de collection:', payload.name);
+    console.log('📦 [API] Début de la création de collection:', {
+      name: payload.name,
+      productsCount: payload.products?.length || 0,
+      hasToken: !!token,
+      tokenPreview: token ? `${token.substring(0, 20)}...` : 'none'
+    });
+
+    if (!token) {
+      throw new Error('Aucun token d\'authentification trouvé. Veuillez vous reconnecter.');
+    }
 
     try {
       // Compter le total d'uploads pour le progress global
@@ -228,6 +238,7 @@ export const collectionsApi = {
       const collectionData = {
         name: payload.name,
         description: payload.description || '',
+        mode: payload.mode || 'disponible',
         launchDate: payload.launchDate,
         isFeatured: payload.isFeatured || false,
         coverImage: coverImageUrl,
@@ -247,13 +258,31 @@ export const collectionsApi = {
         body: formData,
       });
 
+      console.log('📤 [API] Réponse du serveur:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('❌ [API] Erreur serveur:', {
+          status: response.status,
+          errorData,
+          headers: Object.fromEntries(response.headers.entries())
+        });
         throw new Error(errorData.message || `Erreur lors de la création (${response.status})`);
       }
 
+      const result = await response.json();
+      console.log('✅ [API] Collection créée avec succès:', {
+        id: result.id,
+        name: result.name,
+        productsCount: result.products?.length || 0
+      });
+
       onProgress?.(100);
-      return response.json();
+      return result;
     } catch (error: any) {
       console.error('❌ Erreur création collection:', error);
       throw new Error(error.message || 'Erreur lors de la création');

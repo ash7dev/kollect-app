@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 export function BrandsEmpty({ hasFilters }: { hasFilters: boolean }) {
   return (
@@ -10,6 +11,7 @@ export function BrandsEmpty({ hasFilters }: { hasFilters: boolean }) {
         borderRadius: 'var(--radius-xxxl)',
         border: '1px dashed rgba(0,0,0,0.1)',
         backgroundColor: '#FAFAFA',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       <div style={{ maxWidth: 440, margin: '0 auto' }}>

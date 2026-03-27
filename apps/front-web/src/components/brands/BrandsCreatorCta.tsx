@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 export function BrandsCreatorCta() {
   return (
@@ -12,6 +13,7 @@ export function BrandsCreatorCta() {
         border: '1px solid rgba(255,255,255,0.08)',
         position: 'relative',
         overflow: 'hidden',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       <div

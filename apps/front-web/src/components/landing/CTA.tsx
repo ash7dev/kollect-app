@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 const IconApple = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
@@ -66,6 +67,7 @@ export function CTA() {
         borderRadius: 'var(--radius-xxxl)',
         margin: '0 12px',
         border: '1px solid rgba(255,255,255,0.06)',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       {/* Background effects */}

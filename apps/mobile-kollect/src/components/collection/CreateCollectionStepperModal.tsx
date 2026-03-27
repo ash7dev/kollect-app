@@ -47,8 +47,8 @@ export function CreateCollectionStepperModal({
     description: '',
     teaserType: 'photo',
     teaserUri: null,
-    launchDate: new Date(Date.now() + 86400000), // +24h
-    launchTime: new Date(Date.now() + 86400000),
+    launchDate: new Date(Date.now() + 2 * 86400000), // +48h pour plus de sécurité
+    launchTime: new Date(Date.now() + 2 * 86400000),
   });
   const slideAnim = useState(new Animated.Value(SCREEN_HEIGHT))[0];
 
@@ -59,8 +59,8 @@ export function CreateCollectionStepperModal({
       description: '',
       teaserType: 'photo',
       teaserUri: null,
-      launchDate: new Date(Date.now() + 86400000),
-      launchTime: new Date(Date.now() + 86400000),
+      launchDate: new Date(Date.now() + 2 * 86400000),
+      launchTime: new Date(Date.now() + 2 * 86400000),
     });
   }, []);
 

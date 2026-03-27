@@ -1,5 +1,7 @@
 'use client';
 
+import { FONT_FAMILY_INTER } from '@/styles/typography';
+
 const CREATOR_FEATURES = [
   {
     icon: (
@@ -53,6 +55,7 @@ export function CreatorCTA() {
         borderRadius: 'var(--radius-xxxl)',
         margin: '0 12px',
         border: '1px solid rgba(255,255,255,0.06)',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       {/* BG glow */}

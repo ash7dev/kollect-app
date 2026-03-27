@@ -7,6 +7,8 @@ import { env } from '@/config/env';
 import { BrandFollowButton } from '@/components/brands/BrandFollowButton';
 import { brandMediaUrl } from '@/components/brands/brand-media';
 import type { BrandListItem } from '@/components/brands/types';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
+import { BrandProductCard, type BrandProductCardItem } from '@/components/brands/brand-shop/BrandProductCard';
 
 type BrandFeaturedProps = {
   brands: BrandListItem[];
@@ -108,6 +110,7 @@ export function BrandFeatured({ brands }: BrandFeaturedProps) {
         overflow: 'hidden',
         boxShadow: '0 24px 80px rgba(0,0,0,0.12)',
         border: '1px solid rgba(255,255,255,0.06)',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       {/* Accent top */}
@@ -421,57 +424,28 @@ export function BrandFeatured({ brands }: BrandFeaturedProps) {
               }}
             >
               {products.map((p) => {
-                const img = mediaUrl(p.images?.[0]);
+                const productItem: BrandProductCardItem = {
+                  id: p.id,
+                  slug: p.slug,
+                  name: p.name,
+                  price: p.price,
+                  images: p.images,
+                };
                 return (
-                  <Link
+                  <div
                     key={p.id}
-                    href={`/product/${p.slug}`}
                     style={{
                       flex: '0 0 min(242px, 78vw)',
                       scrollSnapAlign: 'start',
-                      textDecoration: 'none',
-                      color: 'inherit',
                     }}
-                    className="brand-featured-prod-card"
                   >
-                    <div
-                      className="brand-featured-card-face"
-                      style={{
-                        borderRadius: 'var(--radius-xl)',
-                        overflow: 'hidden',
-                        backgroundColor: '#141414',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        transition: `transform var(--duration-fast) var(--easing-ease-in-out), box-shadow var(--duration-fast) var(--easing-ease-in-out)`,
-                      }}
-                    >
-                      <div
-                        style={{
-                          aspectRatio: '3/4',
-                          backgroundColor: '#1e1e1e',
-                          position: 'relative',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {img ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', background: 'linear-gradient(145deg, #1a1a1a, #242424)' }} />
-                        )}
-                      </div>
-                      <div style={{ padding: 'var(--spacing-md) var(--spacing-md) 18px' }}>
-                        <p style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '1.6px', textTransform: 'uppercase', margin: '0 0 6px' }}>
-                          {featured.name}
-                        </p>
-                        <p style={{ fontSize: '18px', fontWeight: 700, color: '#fff', margin: '0 0 8px', letterSpacing: '-0.3px', lineHeight: 1.3 }}>
-                          {p.name}
-                        </p>
-                        <p style={{ fontSize: '18px', fontWeight: 800, color: 'var(--color-accent)', margin: 0, letterSpacing: '-0.4px' }}>
-                          {formatPrice(p.price)}
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
+                    <BrandProductCard
+                      brandSlug={featured.slug}
+                      brandName={featured.name}
+                      product={productItem}
+                      accent="#FF3B30"
+                    />
+                  </div>
                 );
               })}
             </div>

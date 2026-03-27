@@ -13,7 +13,7 @@ type Action = {
 
 function ArrowIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 12h14" />
       <path d="m12 5 7 7-7 7" />
     </svg>
@@ -34,31 +34,41 @@ function ActionCard({ action }: { action: Action }) {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        gap: 16,
-        padding: '20px 18px',
-        borderRadius: 16,
-        border: `1px solid ${hovered ? action.accent + '40' : 'rgba(0,0,0,0.06)'}`,
+        gap: 18,
+        padding: '22px 20px',
+        borderRadius: 18,
+        border: `1px solid ${hovered ? action.accent + '50' : 'rgba(0,0,0,0.08)'}`,
         background: hovered
-          ? `linear-gradient(135deg, rgba(255,255,255,0.9), ${action.accent}0A)`
-          : 'rgba(255,255,255,0.7)',
+          ? `linear-gradient(135deg, rgba(255,255,255,0.95) 0%, ${action.accent}08 100%)`
+          : 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.6) 100%)',
         cursor: 'pointer',
         textAlign: 'left',
-        transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
+        transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        transform: hovered ? 'translateY(-4px) scale(1.02)' : 'translateY(0) scale(1)',
         boxShadow: hovered
-          ? `0 12px 24px ${action.accent}15, 0 1px 3px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.5)`
-          : '0 1px 3px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.5)',
+          ? `0 16px 32px ${action.accent}20, 0 4px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)`
+          : '0 4px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.4)',
         position: 'relative',
         overflow: 'hidden',
-        minHeight: '120px',
+        minHeight: '130px',
+        backdropFilter: 'blur(8px)',
       }}
     >
-      {/* Glow top-left */}
+      {/* Animated gradient overlay */}
       {hovered && (
         <div style={{
-          position: 'absolute', top: -30, left: -30,
-          width: 100, height: 100, borderRadius: '50%',
-          background: `radial-gradient(circle, ${action.accent}25 0%, transparent 70%)`,
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          background: `linear-gradient(135deg, ${action.accent}10 0%, transparent 50%)`,
+          pointerEvents: 'none',
+        }} />
+      )}
+
+      {/* Glow effect */}
+      {hovered && (
+        <div style={{
+          position: 'absolute', top: -40, left: -40,
+          width: 120, height: 120, borderRadius: '50%',
+          background: `radial-gradient(circle, ${action.accent}30 0%, transparent 70%)`,
           pointerEvents: 'none',
         }} />
       )}
@@ -66,27 +76,32 @@ function ActionCard({ action }: { action: Action }) {
       {/* Icon + arrow */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', zIndex: 1, position: 'relative' }}>
         <div style={{
-          width: 42,
-          height: 42,
-          borderRadius: 12,
-          background: hovered ? action.accent : '#0A0A0A',
+          width: 48,
+          height: 48,
+          borderRadius: 14,
+          background: hovered 
+            ? `linear-gradient(135deg, ${action.accent} 0%, ${action.accent}CC 100%)`
+            : `linear-gradient(135deg, #0A0A0A 0%, #333 100%)`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#fff',
           flexShrink: 0,
-          transition: 'background 0.2s, box-shadow 0.2s',
-          boxShadow: hovered ? `0 6px 16px ${action.accent}50` : '0 2px 8px rgba(0,0,0,0.1)',
+          transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          boxShadow: hovered 
+            ? `0 8px 20px ${action.accent}60, inset 0 1px 0 rgba(255,255,255,0.2)` 
+            : '0 4px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.1)',
+          transform: hovered ? 'scale(1.05) rotate(2deg)' : 'scale(1) rotate(0deg)',
         }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             {paths.map((p, i) => <path key={i} d={p} />)}
           </svg>
         </div>
 
         <span style={{
-          color: hovered ? action.accent : 'rgba(0,0,0,0.2)',
-          transition: 'color 0.2s, transform 0.2s ease-out',
-          transform: hovered ? 'translate(4px, 0)' : 'none',
+          color: hovered ? action.accent : 'rgba(0,0,0,0.25)',
+          transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          transform: hovered ? 'translateX(6px) scale(1.1)' : 'translateX(0) scale(1)',
         }}>
           <ArrowIcon />
         </span>
@@ -96,18 +111,19 @@ function ActionCard({ action }: { action: Action }) {
       <div style={{ zIndex: 1, position: 'relative' }}>
         <p style={{
           margin: 0,
-          fontSize: 14,
+          fontSize: 15,
           fontWeight: 800,
           color: '#0A0A0A',
-          letterSpacing: '-0.2px',
+          letterSpacing: '-0.3px',
+          lineHeight: 1.2,
         }}>
           {action.label}
         </p>
         <p style={{
-          margin: '4px 0 0',
-          fontSize: 11.5,
-          color: 'rgba(0,0,0,0.45)',
-          lineHeight: 1.5,
+          margin: '6px 0 0',
+          fontSize: 12,
+          color: 'rgba(0,0,0,0.5)',
+          lineHeight: 1.4,
           fontWeight: 500,
         }}>
           {action.description}
@@ -167,17 +183,17 @@ export function DashboardQuickActions({
       id: 'promo',
       label: 'Créer code promo',
       description: 'Générer des réductions pour les clients',
-      icon: ['M3 6h18', 'M3 12h18', 'M3 18h18', 'M7 12l2-2 4 4 4-4 2 2'],
+      icon: ['M15 6v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3z', 'M10 9h4', 'M10 12h2', 'M10 15h3'],
       accent: '#8B5CF6',
-      onClick: () => onCreatePromo?.(),
+      onClick: () => window.location.href = '/dashboard/promos',
     },
     {
       id: 'brand',
       label: 'Ma Boutique',
       description: 'Modifier le profil et la marque',
-      icon: ['M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M9 22V12h6v10'],
+      icon: ['M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M9 22V12h6v10', 'M12 6h.01'],
       accent: '#10B981',
-      onClick: () => onManageBrand?.(),
+      onClick: () => window.location.href = '/dashboard/boutique',
     },
     {
       id: 'share',
@@ -185,7 +201,7 @@ export function DashboardQuickActions({
       description: 'Copier le lien de ta boutique',
       icon: ['M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8', 'M16 6l-4-4-4 4', 'M12 2v13'],
       accent: '#EC4899',
-      onClick: () => onShareProfile?.(),
+      onClick: () => window.location.href = '/dashboard/partager',
     },
   ];
 
@@ -199,12 +215,13 @@ export function DashboardQuickActions({
       padding: '24px 24px',
       boxShadow: '0 4px 16px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.05)',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.3px' }}>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 3, height: 16, borderRadius: 2, background: 'linear-gradient(180deg, #FF3B30 0%, #E0321F 100%)' }} />
             Actions rapides
           </h3>
-          <p style={{ margin: '2px 0 0', fontSize: 13, color: 'rgba(0,0,0,0.4)' }}>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(0,0,0,0.5)', fontWeight: 500 }}>
             Gérer la boutique
           </p>
         </div>
@@ -213,7 +230,7 @@ export function DashboardQuickActions({
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(2, 1fr)',
-        gap: 12,
+        gap: 16,
       }}>
         {actions.map((action) => (
           <ActionCard key={action.id} action={action} />

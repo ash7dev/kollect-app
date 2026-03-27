@@ -144,6 +144,7 @@ const CSS = `
     padding: 3px 8px; border-radius: 20px;
     font-size: 11px; font-weight: 700;
     letter-spacing: 0.1px;
+    opacity: 0.6;
   }
   .badge-hero-up   { background: rgba(16,185,129,0.2);  color: #34D399; border: 1px solid rgba(16,185,129,0.15); }
   .badge-hero-down { background: rgba(255,59,48,0.25);  color: #FF6B6B; border: 1px solid rgba(255,59,48,0.2); }
@@ -223,17 +224,23 @@ export const KpiIcons = {
   ),
   products: (color: string) => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <path d="M16 10a4 4 0 0 1-8 0" />
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <line x1="9" y1="9" x2="15" y2="9" />
+      <line x1="9" y1="15" x2="15" y2="15" />
+      <circle cx="7" cy="9" r="1" fill={color} />
+      <circle cx="7" cy="15" r="1" fill={color} />
+      <circle cx="17" cy="9" r="1" fill={color} />
+      <circle cx="17" cy="15" r="1" fill={color} />
     </svg>
   ),
-  clients: (color: string) => (
+  followers: (color: string) => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      <path d="M20 8h-4" />
+      <path d="M18 6v4" />
     </svg>
   ),
   conversion: (color: string) => (

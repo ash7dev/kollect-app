@@ -354,7 +354,7 @@ export function DashboardSidebar({
             padding: '0 2px',
           }}
         >
-          <Logo />
+          <Logo href="/dashboard" />
           {!collapsed && (
             <span className="kollect-label-reveal" style={{
               fontSize: 28,

@@ -1,5 +1,6 @@
 import type { BrandListItem } from '@/components/brands/types';
 import { BrandCard } from '@/components/brands/BrandCard';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 export function BrandsGrid({ brands }: { brands: BrandListItem[] }) {
   return (
@@ -11,6 +12,7 @@ export function BrandsGrid({ brands }: { brands: BrandListItem[] }) {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
         gap: 18,
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       {brands.map((b, i) => (

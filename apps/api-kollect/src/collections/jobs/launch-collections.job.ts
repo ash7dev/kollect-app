@@ -11,7 +11,7 @@ export class LaunchCollectionsJob {
   constructor(
     private readonly prisma: PrismaService,
     private readonly collectionsService: CollectionsService,
-  ) {}
+  ) { }
 
   // Vérifier toutes les minutes les collections à lancer
   @Cron(CronExpression.EVERY_MINUTE)

@@ -3,11 +3,12 @@ import React from 'react';
 
 interface LogoProps {
   className?: string;
+  href?: string;
 }
 
-export function Logo({ className = '' }: LogoProps) {
+export function Logo({ className = '', href = '/' }: LogoProps) {
   return (
-    <Link href="/" style={{ display: 'inline-flex', textDecoration: 'none' }} className={className}>
+    <Link href={href} style={{ display: 'inline-flex', textDecoration: 'none' }} className={className}>
       <span style={{
         display: 'flex',
         alignItems: 'center',

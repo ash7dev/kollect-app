@@ -7,6 +7,7 @@ import { resolveBrandBanner } from '@/components/brands/resolveBrandBanner';
 import { brandAccentCss, brandAccentSoft } from '@/components/brands/brandAccent';
 import { BrandFollowButton } from '@/components/brands/BrandFollowButton';
 import { env } from '@/config/env';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 function toAbsoluteUrl(path: string | null): string | null {
   if (!path) return null;
@@ -25,6 +26,7 @@ export function BrandSpotlight({ brands }: { brands: BrandListItem[] }) {
         margin: '0 auto',
         padding: '0 var(--layout-container-padding)',
         marginBottom: 8,
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       <div

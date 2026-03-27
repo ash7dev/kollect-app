@@ -2,6 +2,7 @@
 
 import { useRef } from 'react';
 import type { BrandSortId } from '@/components/brands/types';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 type BrandsToolbarProps = {
   query: string;
@@ -48,6 +49,7 @@ export function BrandsToolbar({
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(0,0,0,0.07)',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       <div

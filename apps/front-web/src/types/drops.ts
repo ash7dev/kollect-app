@@ -19,6 +19,44 @@ export type Paginated<T> = {
   meta: { total: number; page: number; limit: number; totalPages: number };
 };
 
+export type CollectionProduct = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  stock: number;
+  sku: string;
+  sizes: string[];
+  colors: string[];
+  images: string[];
+};
+
+export type CeoCollectionDetail = CeoCollection & {
+  products: CollectionProduct[];
+};
+
+export type PublicCollection = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  status: CollectionStatus;
+  launchDate: string | null;
+  launchedAt: string | null;
+  isFeatured: boolean;
+  coverImage: string | null;
+  teaserVideo: string | null;
+  brand: {
+    id: string;
+    slug: string;
+    name: string;
+    logo: string | null;
+    isVerified?: boolean;
+  };
+  products?: Array<{ id: string; images: string[] }>;
+  _count?: { products: number };
+};
+
 export type WizardProductDraft = {
   name: string;
   description: string;

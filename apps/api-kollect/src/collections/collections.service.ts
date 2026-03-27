@@ -110,21 +110,19 @@ export class CollectionsService {
     const baseSlug = slugify(dto.name, { lower: true, strict: true });
     const slug = await this.generateUniqueSlug(brandId, baseSlug);
 
-    // Détermination du statut selon la logique produit/teaser
+    // Détermination du statut selon le choix utilisateur
     let status: CollectionStatus = CollectionStatus.DISPONIBLE;
     let launchedAt: Date | null = new Date();
 
-    const hasMedia = Boolean(dto.teaserVideo || dto.coverImage);
     const now = new Date();
     const minLaunchDate = new Date(now.getTime() + 60 * 60 * 1000); // +1h
 
-    if (hasMedia) {
-      // Forcer TEASER si média présent
+    if (dto.mode === 'teaser') {
       status = CollectionStatus.TEASER;
       launchedAt = null;
 
       if (!dto.launchDate) {
-        throw new BadRequestException('Une date de lancement est requise quand un média teaser est fourni');
+        throw new BadRequestException('Une date de lancement est requise en mode Teaser');
       }
 
       const launchDate = new Date(dto.launchDate);
@@ -132,7 +130,7 @@ export class CollectionsService {
         throw new BadRequestException('La date de lancement doit être au minimum dans 1 heure');
       }
     } else {
-      // Pas de média: collection disponible immédiatement, ignorer launchDate éventuelle
+      // Mode disponible : ignorer launchDate éventuelle
       dto.launchDate = undefined;
     }
 
@@ -529,6 +527,12 @@ async findAllForCEO(
             isVerified: true,
           },
         },
+        products: {
+          where: { isDeleted: false, isVisible: true },
+          select: { id: true, images: true },
+          take: 1,
+          orderBy: { createdAt: 'asc' },
+        },
         _count: {
           select: { products: true },
         },
@@ -573,20 +577,20 @@ async findAllForCEO(
             isVerified: true,
           },
         },
-        // Inclure les produits uniquement si demandé
-        ...(includeProducts && {
-          products: {
-            where: { isDeleted: false, isVisible: true },
-            select: {
-              id: true,
+        // Toujours inclure le 1er produit pour le fallback cover (si video)
+        products: {
+          where: { isDeleted: false, isVisible: true },
+          select: {
+            id: true,
+            images: true,
+            ...(includeProducts && {
               name: true,
               price: true,
-              images: true,
               stock: true,
-            },
-            take: 10, // Limiter le nombre de produits par collection
+            }),
           },
-        }),
+          take: includeProducts ? 10 : 1,
+        },
         _count: {
           select: { products: true },
         },
@@ -685,7 +689,7 @@ async findAllForCEO(
             images: true, // Toujours inclure les images
             // On renvoie toujours isVisible au client, quelle que soit la requête,
             // pour qu'il décide de l'affichage (bientôt disponible, etc.).
-            stock: isPublic ? true : undefined,
+            stock: true,
             isVisible: true,
             isDeleted: !isPublic ? true : undefined,
           },

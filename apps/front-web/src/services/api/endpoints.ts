@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
     /** CEO */
     LIST_CEO: '/collections',
     CREATE: '/collections',
+    DETAIL: (id: string) => `/collections/${id}`,
     UPDATE: (id: string) => `/collections/${id}`,
     DELETE: (id: string) => `/collections/${id}`,
     LAUNCH: (id: string) => `/collections/${id}/launch`,
@@ -45,9 +46,21 @@ export const API_ENDPOINTS = {
     },
     PUBLIC_ONE: (id: string, includeProducts = false) =>
       `/collections/public/${id}?includeProducts=${includeProducts}`,
+    PUBLIC_BY_SLUG: (slug: string) => `/collections/public/slug/${slug}`,
   },
 
   PRODUITS: {
+    CREATE: '/produits',
+    CEO_LIST: (params?: { page?: number; limit?: number; collectionId?: string }) => {
+      const s = new URLSearchParams();
+      s.set('page', String(params?.page ?? 1));
+      s.set('limit', String(params?.limit ?? 50));
+      if (params?.collectionId) s.set('collectionId', params.collectionId);
+      return `/produits?${s.toString()}`;
+    },
+    CEO_ONE: (id: string) => `/produits/ceo/${id}`,
+    UPDATE: (id: string) => `/produits/${id}`,
+    DELETE: (id: string) => `/produits/${id}`,
     FEATURED: (limit = 10) => `/produits/featured?limit=${limit}`,
     POPULAR: (limit = 20, days = 30) =>
       `/produits/popular?limit=${limit}&days=${days}`,
@@ -117,11 +130,25 @@ export const API_ENDPOINTS = {
       `/brands/${id}/sales-data?period=${period}`,
     VERIFY: (id: string) => `/brands/${id}/verify`,
     FORCE_DELETE: (id: string) => `/brands/${id}/force-delete`,
+    FOLLOW: (id: string) => `/brands/${id}/follow`,
+    IS_FOLLOWING: (id: string) => `/brands/${id}/is-following`,
+    FOLLOWERS_COUNT: (id: string) => `/brands/${id}/followers/count`,
   },
 
   COMMANDES: {
     BOUTIQUE_STATS: '/commandes/boutique/stats',
-    BOUTIQUE_LIST: (page = 1, limit = 5) =>
-      `/commandes/boutique/me?page=${page}&limit=${limit}`,
+    BOUTIQUE_LIST: (page = 1, limit = 20, status?: string) => {
+      const s = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (status) s.set('status', status);
+      return `/commandes/boutique/me?${s.toString()}`;
+    },
+    MY_ORDERS: (page = 1, limit = 10, status?: string) => {
+      const s = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (status) s.set('status', status);
+      return `/commandes/me?${s.toString()}`;
+    },
+    DETAIL: (id: string) => `/commandes/${id}`,
+    CONFIRMER: (id: string) => `/commandes/${id}/confirmer`,
+    ANNULER: (id: string) => `/commandes/${id}/annuler`,
   },
 } as const;

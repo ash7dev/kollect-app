@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 import type { BrandListItem } from '@/components/brands/types';
 import { brandMediaUrl } from '@/components/brands/brand-media';
 import { resolveBrandBanner } from '@/components/brands/resolveBrandBanner';
@@ -28,6 +29,7 @@ export function BrandCard({ brand, priorityImage }: BrandCardProps) {
         aspectRatio: '3 / 4',
         backgroundColor: '#111',
         cursor: 'pointer',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       <Link

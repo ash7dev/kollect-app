@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { UploadModule } from './upload/upload.module';
@@ -16,6 +17,11 @@ import { SuiviModule } from './suivi/suivi.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { ShareModule } from './share/share.module';
 import { ShareLinksModule } from './share-links/share-links.module';
+import { AppLogger } from './common/logger/logger.service';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { CacheService } from './common/cache/cache.service';
 
 @Module({
   imports: [
@@ -42,6 +48,24 @@ import { ShareLinksModule } from './share-links/share-links.module';
     ShareLinksModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    AppLogger,
+    CacheService,
+    // Interceptors globaux
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: MetricsInterceptor,
+    },
+    // Filtre d'exceptions global
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+  ],
 })
 export class AppModule {}

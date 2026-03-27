@@ -1,14 +1,16 @@
 'use client';
 
-import { useMemo, useState, useRef, useCallback } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import type { SalesPoint } from '@/hooks/dashboard/useCeoDashboardData';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmt(v: number) {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000)     return `${(v / 1_000).toFixed(0)}k`;
-  return String(Math.round(v));
+function fmt(v: any) {
+  const num = Number(v);
+  if (isNaN(num) || !isFinite(num)) return '0';
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000)     return `${(num / 1_000).toFixed(0)}k`;
+  return String(Math.round(num));
 }
 
 /** Smooth cubic-bezier path through points */
@@ -46,15 +48,15 @@ export function DashboardRevenueChart({ data, change }: Props) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const total = useMemo(() => data.reduce((a, b) => a + b.value, 0), [data]);
-  const max   = useMemo(() => Math.max(...data.map((d) => d.value), 1), [data]);
+  const total = useMemo(() => data.reduce((a, b) => a + Number(b.value ?? 0), 0), [data]);
+  const max   = useMemo(() => Math.max(...data.map((d) => Number(d.value ?? 0)), 1), [data]);
 
   // Map to SVG coords (viewBox 0 0 600 160)
   const W = 600, H = 160, PAD_X = 0, PAD_Y = 16;
   const pts = useMemo(() =>
     data.map((d, i) => ({
       x: data.length < 2 ? W / 2 : PAD_X + (i / (data.length - 1)) * (W - PAD_X * 2),
-      y: PAD_Y + (1 - d.value / max) * (H - PAD_Y * 2),
+      y: PAD_Y + (1 - Number(d.value ?? 0) / max) * (H - PAD_Y * 2),
     })),
   [data, max]);
 
@@ -67,7 +69,7 @@ export function DashboardRevenueChart({ data, change }: Props) {
   // Peak point for glow and reference line
   const peakIdx = useMemo(() => {
     let mi = 0;
-    data.forEach((d, i) => { if (d.value > data[mi].value) mi = i; });
+    data.forEach((d, i) => { if (Number(d.value ?? 0) > Number(data[mi].value ?? 0)) mi = i; });
     return mi;
   }, [data]);
 
@@ -92,7 +94,7 @@ export function DashboardRevenueChart({ data, change }: Props) {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [tooltipPos, setTooltipPos] = useState({ left: 0, top: 0 });
 
-  useMemo(() => {
+  useEffect(() => {
     if (hoverIndex !== null && svgRef.current && pts[hoverIndex]) {
       const rect = svgRef.current.getBoundingClientRect();
       const pt = pts[hoverIndex];
@@ -137,10 +139,15 @@ export function DashboardRevenueChart({ data, change }: Props) {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="rc-header">
         <div>
-          <h3 className="rc-title">Chiffre d&apos;affaires</h3>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-            <span className="rc-total">{fmt(total)}</span>
-            <span className="rc-currency">CFA</span>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 3, height: 16, borderRadius: 2, background: 'linear-gradient(180deg, #FF3B30 0%, #E0321F 100%)' }} />
+            Chiffre d&apos;affaires
+          </h3>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
+            <span style={{ fontSize: 36, fontWeight: 900, color: '#fff', letterSpacing: '-1.5px', lineHeight: 1 }}>
+              {fmt(total)}
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>CFA</span>
           </div>
         </div>
 

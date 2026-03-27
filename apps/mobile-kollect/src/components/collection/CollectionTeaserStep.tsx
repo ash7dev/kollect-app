@@ -48,8 +48,8 @@ export function CollectionTeaserStep({
   const [description, setDescription] = useState(data?.description || '');
   const [teaserType, setTeaserType] = useState<TeaserType>(data?.teaserType || 'photo');
   const [teaserUri, setTeaserUri] = useState<string | null>(data?.teaserUri || null);
-  const [launchDate, setLaunchDate] = useState(data?.launchDate || new Date(Date.now() + 86400000));
-  const [launchTime, setLaunchTime] = useState(data?.launchTime || new Date(Date.now() + 86400000));
+  const [launchDate, setLaunchDate] = useState(data?.launchDate || new Date(Date.now() + 2 * 86400000));
+  const [launchTime, setLaunchTime] = useState(data?.launchTime || new Date(Date.now() + 2 * 86400000));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);

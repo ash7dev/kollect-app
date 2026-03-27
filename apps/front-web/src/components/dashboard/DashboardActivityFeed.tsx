@@ -21,8 +21,10 @@ type Props = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmtCfa(v: number) {
-  return new Intl.NumberFormat('fr-FR').format(Math.round(v)) + ' CFA';
+function fmtCfa(v: any) {
+  const num = Number(v);
+  if (isNaN(num) || !isFinite(num)) return '0 CFA';
+  return new Intl.NumberFormat('fr-FR').format(Math.round(num)) + ' CFA';
 }
 
 function timeAgo(iso: string) {
@@ -32,6 +34,7 @@ function timeAgo(iso: string) {
   const hours = Math.floor(mins / 60);
   const days = Math.floor(hours / 24);
 
+  if (isNaN(d.getTime())) return 'Date invalide';
   if (mins < 1) return 'À l\'instant';
   if (mins < 60) return `Il y a ${mins} min`;
   if (hours < 24) return `Il y a ${hours}h`;
@@ -81,10 +84,11 @@ export function DashboardActivityFeed({ events, isLoading }: Props) {
       {/* Header */}
       <div className="daf-header">
         <div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.3px' }}>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 3, height: 16, borderRadius: 2, background: 'linear-gradient(180deg, #FF3B30 0%, #E0321F 100%)' }} />
             Fil d&apos;activité
           </h3>
-          <p style={{ margin: '2px 0 0', fontSize: 13, color: 'rgba(0,0,0,0.4)' }}>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(0,0,0,0.5)', fontWeight: 500 }}>
             Actions et événements récents
           </p>
         </div>

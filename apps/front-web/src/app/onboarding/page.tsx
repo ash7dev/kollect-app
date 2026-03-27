@@ -530,7 +530,17 @@ export default function OnboardingPage() {
             {error && <div className="ob-error" style={{ marginBottom: 20 }}>{error}</div>}
 
             {/* CTA */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <button
+                type="button"
+                className="ob-btn-ghost"
+                onClick={() => router.back()}
+                disabled={loading}
+              >
+                <IconArrowLeft />
+                Annuler
+              </button>
+
               <button
                 className="ob-btn-primary"
                 disabled={!role || loading}

@@ -12,11 +12,42 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Kollect — Marketplace streetwear premium',
+    default: 'Kollect — Plateforme streetwear sénégalaise',
     template: '%s | Kollect',
   },
   description:
-    'Marketplace de collections et produits authentiques. Découvrez les dernières drops, collections exclusives et marques streetwear.',
+    'Découvrez, collectionnez et portez les créations des meilleurs créateurs streetwear du Sénégal. Drops exclusifs, marques vérifiées, livraison partout.',
+  keywords: ['streetwear sénégalais', 'made in Sénégal', 'fashion Dakar', 'créateurs locaux', 'drops exclusifs'],
+  authors: [{ name: 'Kollect' }],
+  creator: 'Kollect',
+  publisher: 'Kollect',
+  icons: {
+    icon: '/kollect.png',
+    shortcut: '/kollect.png',
+    apple: '/kollect.png',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'fr_SN',
+    url: 'https://kollect.sn',
+    siteName: 'Kollect',
+    title: 'Kollect — Plateforme streetwear sénégalaise',
+    description: 'Découvrez les créations des meilleurs créateurs streetwear du Sénégal. Drops exclusifs et marques vérifiées.',
+    images: [
+      {
+        url: '/kollect.png',
+        width: 1200,
+        height: 630,
+        alt: 'Kollect - Streetwear sénégalais',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Kollect — Streetwear sénégalais',
+    description: 'Les créations des meilleurs créateurs streetwear du Sénégal',
+    images: ['/kollect.png'],
+  },
 };
 
 export default function RootLayout({

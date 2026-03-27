@@ -256,7 +256,7 @@ export class ProduitsService {
       },
       include: {
         collection: { select: { id: true, name: true, status: true } },
-        brand: { select: { id: true, name: true, logo: true } },
+        brand: { select: { id: true, name: true, slug: true, logo: true } },
       },
     });
 
@@ -280,7 +280,7 @@ export class ProduitsService {
         data: { viewCount: { increment: 1 } },
         include: {
           collection: { select: { id: true, name: true, status: true } },
-          brand: { select: { id: true, name: true, logo: true } },
+          brand: { select: { id: true, name: true, slug: true, logo: true } },
         },
       })
     ]);

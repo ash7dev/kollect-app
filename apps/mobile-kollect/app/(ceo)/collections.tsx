@@ -206,9 +206,29 @@ export default function CollectionScreen() {
       const payload: CreateCollectionPayload = {
         name: collectionData.name.trim(),
         description: collectionData.description?.trim() || '',
-        launchDate: collectionData.launchDate
-          ? collectionData.launchDate.toISOString()
-          : undefined,
+        mode: collectionData.teaserType ? 'teaser' : 'disponible',
+        launchDate: (() => {
+        // Pour les teasers, on doit toujours avoir une date de lancement
+        if (collectionData.teaserType || collectionData.launchDate) {
+          const launchDate = collectionData.launchDate 
+            ? new Date(collectionData.launchDate)
+            : new Date(Date.now() + 2 * 86400000); // +48h par défaut
+          
+          const now = new Date();
+          const minLaunchDate = new Date(now.getTime() + 60 * 60 * 1000); // +1h
+          
+          // S'assurer que la date est dans le futur avec au moins 1h de marge
+          if (launchDate <= minLaunchDate) {
+            console.warn('⚠️ Date de lancement trop proche, ajustement à +2h');
+            return new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
+          }
+          
+          return launchDate.toISOString();
+        }
+        
+        // Pour les collections non-teaser (disponible immédiatement)
+        return undefined;
+      })(),
         isFeatured: Boolean(collectionData.isFeatured),
         coverImage: collectionData.teaserType === 'photo'
           ? collectionData.teaserUri

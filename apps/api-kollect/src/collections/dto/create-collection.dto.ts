@@ -23,6 +23,7 @@ const ProductSchema = z.object({
 export const CreateCollectionSchema = z.object({
   name: z.string().min(3),
   description: z.string().optional().nullable(),
+  mode: z.enum(['disponible', 'teaser']).default('disponible'),
   launchDate: z.string().optional().nullable(),
   isFeatured: z.boolean().optional().default(false),
   coverImage: z.union([z.string(), z.null(), z.undefined()]).optional(),

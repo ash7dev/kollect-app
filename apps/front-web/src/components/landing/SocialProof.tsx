@@ -4,6 +4,7 @@ import { useState, useEffect, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/services/api/client';
 import { env } from '@/config/env';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 interface Brand {
   id: string;
@@ -56,6 +57,7 @@ function EmptyBrands() {
         position: 'relative',
         borderRadius: 'var(--radius-xxxl)',
         border: '1px solid rgba(0,0,0,0.06)',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       <div aria-hidden style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.035) 1px, transparent 1px)', backgroundSize: '28px 28px', pointerEvents: 'none' }} />
@@ -193,6 +195,7 @@ function BrandMarquee({ brands }: { brands: Brand[] }) {
         position: 'relative',
         borderRadius: 'var(--radius-xxxl)',
         border: '1px solid rgba(0,0,0,0.06)',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       <div aria-hidden style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 'min(120px, 12vw)', background: 'linear-gradient(to right, #fff, transparent)', zIndex: 1, pointerEvents: 'none' }} />

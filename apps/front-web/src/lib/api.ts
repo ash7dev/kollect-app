@@ -1,4 +1,5 @@
 import { env } from '@/config/env';
+import { PublicProduct } from '@/types/product';
 
 export type FetchApiOptions = {
   revalidate?: number;
@@ -34,7 +35,6 @@ export async function fetchAPI<T>(
       ...options.next,
     },
   });
-
   if (!res.ok) {
     throw new Error(`API error ${res.status} on ${url}`);
   }
@@ -45,4 +45,14 @@ export async function fetchAPI<T>(
   }
 
   return (await res.json()) as T;
+}
+
+// Fonction pour récupérer les produits depuis la base de données
+export async function fetchProducts(limit: number = 10): Promise<PublicProduct[]> {
+  try {
+    return await fetchAPI<PublicProduct[]>('/produits', { revalidate: 60 });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des produits:', error);
+    return [];
+  }
 }

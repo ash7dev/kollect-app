@@ -217,13 +217,13 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
             });
             if (!updatedVariant) throw new BadRequestException(`Impossible de réserver le stock pour "${variant.product.name}". Veuillez réessayer.`);
 
-            const itemPrice = variant.price || variant.product.price;
+            const itemPrice = (variant.price && variant.price > 0) ? variant.price : variant.product.price;
             subtotal += itemPrice * item.quantity;
             items.push({
               productId: variant.productId,
               variantId: variant.id,
               productName: variant.product.name,
-              price: itemPrice,
+              price: (variant.price && variant.price > 0) ? variant.price : variant.product.price,
               size: variant.attributes?.['size'] ?? null,
               color: variant.attributes?.['color'] ?? null,
               quantity: item.quantity,
@@ -648,7 +648,7 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
         _count: { _all: true },
       }),
       this.prisma.commande.aggregate({
-        where: { brandId: brand.id, status: CommandeStatus.CONFIRMEE },
+        where: { brandId: brand.id, status: { not: CommandeStatus.ANNULEE } },
         _sum: { total: true },
       }),
     ]);

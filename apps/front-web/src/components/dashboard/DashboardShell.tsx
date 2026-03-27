@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/providers/AuthProvider';
 import { useOnboardingGuard } from '@/hooks/useOnboardingGuard';
 import { useCeoDashboardData } from '@/hooks/dashboard/useCeoDashboardData';
+import { apiClient } from '@/services/api/client';
 import { DashboardSidebar, type SidebarSection } from '@/components/dashboard/DashboardSidebar';
 import { DashboardKpiCards, KpiIcons } from '@/components/dashboard/DashboardKpiCards';
 import { DashboardRevenueChart } from '@/components/dashboard/DashboardRevenueChart';
@@ -19,8 +20,10 @@ import { DashboardActivityFeed, type ActivityEvent } from '@/components/dashboar
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
-function formatCfa(v: number) {
-  return `${new Intl.NumberFormat('fr-FR').format(Math.round(v))} CFA`;
+function formatCfa(v: any) {
+  const num = Number(v);
+  if (isNaN(num) || !isFinite(num)) return '0 CFA';
+  return `${new Intl.NumberFormat('fr-FR').format(Math.round(num))} CFA`;
 }
 
 function getGreeting() {
@@ -66,6 +69,10 @@ export function DashboardShell() {
   const [activeSection, setActiveSection] = useState<SidebarSection>('overview');
   const { user, signOut, isLoading } = useAuth();
   const { checking } = useOnboardingGuard();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const {
     period, setPeriod, isLoading: dashboardLoading, hasError,
     brand, stats, salesData, orderStats, recentOrders, topProducts,
@@ -74,43 +81,50 @@ export function DashboardShell() {
 
   const kpis = useMemo(() => {
     if (!stats || !orderStats) return [];
+    
+    // Calcul sécurisé pour éviter division par zéro
+    const previousOrders = stats.ordersChange !== 0 && stats.ordersChange !== 100 
+      ? Math.round(stats.totalOrders / (1 + stats.ordersChange / 100))
+      : 0;
+    
     return [
       {
         label: 'Chiffre d\'affaires',
         value: formatCfa(stats.totalRevenue),
         hint: 'vs mois dernier',
-        trend: stats.revenueChange,
+        trend: stats.revenueChange ?? 0,
         variant: 'hero' as const,
         icon: KpiIcons.revenue('#FF3B30'),
       },
       {
         label: 'Commandes',
-        value: String(stats.totalOrders),
-        hint: `vs ${Math.round(stats.totalOrders / (1 + stats.ordersChange / 100))} mois dernier`,
-        trend: stats.ordersChange,
+        value: String(stats.totalOrders ?? 0),
+        hint: `vs ${previousOrders} mois dernier`,
+        trend: stats.ordersChange ?? 0,
         variant: 'standard' as const,
-        icon: KpiIcons.orders('rgba(0,0,0,0.45)'),
+        icon: KpiIcons.orders('#FF3B30'),
       },
       {
         label: 'Produits actifs',
-        value: String(stats.totalProducts),
-        hint: `${stats.viewsThisPeriod} vues ce mois`,
+        value: String(stats.totalProducts ?? 0),
+        hint: `${stats.viewsThisPeriod ?? 0} vues ce mois`,
+        trend: 100.0,
         variant: 'standard' as const,
-        icon: KpiIcons.products('rgba(0,0,0,0.45)'),
+        icon: KpiIcons.products('#FF3B30'),
       },
       {
         label: 'Followers',
-        value: String(stats.totalFollowers),
-        hint: `${stats.followersChange >= 0 ? '+' : ''}${stats.followersChange}% ce mois`,
-        trend: stats.followersChange,
+        value: String(stats.totalFollowers ?? 0),
+        hint: `${(stats.followersChange ?? 0) >= 0 ? '+' : ''}${stats.followersChange ?? 0}% en opacité faible`,
+        trend: stats.followersChange ?? 0,
         variant: 'standard' as const,
-        icon: KpiIcons.clients('rgba(0,0,0,0.45)'),
+        icon: KpiIcons.followers('#FF3B30'),
       },
       {
         label: 'Conversion',
-        value: `${stats.conversionRate.toFixed(1)}%`,
+        value: `${(stats.conversionRate ?? 0).toFixed(1)}%`,
         hint: `objectif 5.0%`,
-        trend: stats.conversionRate - 5,
+        trend: (stats.conversionRate ?? 0) - 5,
         variant: 'accent' as const,
         icon: KpiIcons.conversion('rgba(255,255,255,0.9)'),
       },
@@ -141,23 +155,74 @@ export function DashboardShell() {
   // Feed d'activité construit depuis les données existantes
   const activityEvents = useMemo((): ActivityEvent[] => {
     const events: ActivityEvent[] = [];
-    recentOrders.forEach((o) => events.push({
-      type: 'order',
-      id: o.id,
-      amount: o.total,
-      client: o.client ? `${o.client.firstName ?? ''} ${o.client.lastName ?? ''}`.trim() || undefined : undefined,
-      createdAt: o.createdAt,
-    }));
+    recentOrders
+      .filter(order => order.date && !isNaN(new Date(order.date).getTime())) // Filtrer les dates invalides
+      .forEach((o) => events.push({
+        type: 'order',
+        id: o.id,
+        amount: o.amount ?? 0,
+        client: o.customer || undefined,
+        createdAt: o.date,
+      }));
     topProducts.forEach((p) => {
       if ((p.viewCount ?? 0) > 0) events.push({
         type: 'product', id: p.id, name: p.name, views: p.viewCount, createdAt: new Date().toISOString(),
       });
     });
-    return events.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return events
+      .filter((event) => {
+        if (!event.createdAt) return false;
+        const d = new Date(event.createdAt).getTime();
+        return !isNaN(d);
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [recentOrders, topProducts]);
 
   const pendingCount = recentOrders.filter((o) => o.status === 'EN_ATTENTE').length;
   const firstName = user?.firstName || user?.email?.split('@')[0] || 'CEO';
+
+  // Notifications functionality
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      await apiClient.patch(`/notifications/${notificationId}/read`);
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchNotifications = async () => {
+      try {
+        const response = await apiClient.get('/notifications/my-notifications');
+        const data = response.data;
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
+        setNotificationsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [notificationsOpen]);
 
   // ── Early returns (après tous les hooks) ───────────────────────────────────
   if (checking || isLoading) return <FullPageState message="Chargement du dashboard…" />;
@@ -407,6 +472,26 @@ export function DashboardShell() {
               router.push('/dashboard/drops');
               return;
             }
+            if (section === 'products') {
+              router.push('/dashboard/produits');
+              return;
+            }
+            if (section === 'orders') {
+              router.push('/dashboard/commandes');
+              return;
+            }
+            if (section === 'analytics') {
+              router.push('/dashboard/analytics');
+              return;
+            }
+            if (section === 'settings') {
+              router.push('/dashboard/settings');
+              return;
+            }
+            if (section === 'notifications') {
+              router.push('/dashboard/notifications');
+              return;
+            }
             setActiveSection(section);
             document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
@@ -423,7 +508,7 @@ export function DashboardShell() {
               <p style={{ margin: 0, fontSize: 11.5, color: 'rgba(0,0,0,0.38)', fontWeight: 500, letterSpacing: '0.2px', textTransform: 'capitalize' }}>
                 {formatDate()}
               </p>
-              <h1 style={{ margin: '2px 0 0', fontSize: 17, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <h1 style={{ margin: '2px 0 0', fontSize: 20, fontWeight: 900, color: '#0A0A0A', letterSpacing: '-0.6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {getGreeting()}, {firstName} 👋
               </h1>
             </div>
@@ -463,26 +548,154 @@ export function DashboardShell() {
               </div>
 
               {/* Notifications bell */}
-              <button type="button" className="dash-icon-btn" aria-label="Notifications" title="Notifications">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                </svg>
-                {pendingCount > 0 && (
-                  <span style={{
-                    position: 'absolute', top: 6, right: 6,
-                    width: 7, height: 7, borderRadius: '50%',
-                    background: '#FF3B30', border: '1.5px solid #fff',
-                    boxShadow: '0 0 0 2px rgba(255,59,48,0.2)',
-                  }} />
+              <div ref={notificationsRef} style={{ position: 'relative' }}>
+                <button 
+                  type="button" 
+                  className="dash-icon-btn" 
+                  onClick={() => setNotificationsOpen(!notificationsOpen)}
+                  aria-label="Notifications" 
+                  title="Notifications"
+                  style={{
+                    color: '#0A0A0A',
+                    background: 'rgba(0,0,0,0.04)',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span style={{
+                      position: 'absolute', top: 6, right: 6,
+                      minWidth: '18px', height: '18px', borderRadius: '9px',
+                      backgroundColor: '#FF3B30', color: '#fff',
+                      fontSize: '10px', fontWeight: 800,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '0 4px', lineHeight: 1,
+                      boxShadow: '0 0 0 2px rgba(255,255,255,0.95)',
+                    }}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {notificationsOpen && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    minWidth: '320px',
+                    maxHeight: '400px',
+                    backgroundColor: '#141414',
+                    borderRadius: '16px',
+                    boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    overflow: 'hidden',
+                    zIndex: 1000,
+                  }}>
+                    {/* Header */}
+                    <div style={{
+                      padding: '16px',
+                      borderBottom: '1px solid rgba(255,255,255,0.08)',
+                      color: 'rgba(255,255,255,0.9)',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                    }}>
+                      Notifications
+                      {unreadCount > 0 && (
+                        <span style={{
+                          marginLeft: '8px',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          backgroundColor: '#FF3B30',
+                          color: '#fff',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                        }}>
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Liste des notifications */}
+                    <div style={{
+                      maxHeight: '300px',
+                      overflowY: 'auto',
+                    }}>
+                      {notifications.length === 0 ? (
+                        <div style={{
+                          padding: '32px 16px',
+                          textAlign: 'center',
+                          color: 'rgba(255,255,255,0.35)',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                        }}>
+                          Aucune notification
+                        </div>
+                      ) : (
+                        notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            style={{
+                              padding: '12px 16px',
+                              borderBottom: '1px solid rgba(255,255,255,0.05)',
+                              backgroundColor: notification.read ? 'transparent' : 'rgba(255,255,255,0.03)',
+                              cursor: 'pointer',
+                              transition: 'background-color 0.15s',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = notification.read 
+                                ? 'rgba(255,255,255,0.05)' 
+                                : 'rgba(255,255,255,0.08)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = notification.read 
+                                ? 'transparent' 
+                                : 'rgba(255,255,255,0.03)';
+                            }}
+                            onClick={() => {
+                              if (!notification.read) {
+                                markNotificationAsRead(notification.id);
+                              }
+                              setNotificationsOpen(false);
+                            }}
+                          >
+                            <div style={{
+                              color: notification.read ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.9)',
+                              fontSize: '13px',
+                              fontWeight: notification.read ? 400 : 600,
+                              lineHeight: 1.4,
+                            }}>
+                              {notification.title || notification.message}
+                            </div>
+                            <div style={{
+                              color: 'rgba(255,255,255,0.4)',
+                              fontSize: '11px',
+                              marginTop: '4px',
+                            }}>
+                              {notification.sentAt && !isNaN(new Date(notification.sentAt).getTime())
+                                ? new Date(notification.sentAt).toLocaleDateString('fr-FR', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                : 'Date invalide'}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 )}
-              </button>
+              </div>
 
               {/* Add product CTA */}
               <button
                 type="button"
                 className="dash-cta-btn"
-                onClick={() => router.push('/dashboard/drops?new=1')}
+                onClick={() => router.push('/dashboard/drops/new')}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <path d="M12 5v14M5 12h14"/>

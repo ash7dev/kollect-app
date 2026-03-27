@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -494,10 +495,37 @@ export function Hero() {
         const products = productsRes.status === 'fulfilled' && Array.isArray(productsRes.value) ? productsRes.value : [];
         const latest = latestRes.status === 'fulfilled' && Array.isArray(latestRes.value) ? latestRes.value : [];
 
+        // Fallback : si aucune donnée, créer des données mock minimales
+        const fallbackProducts = products.length > 0 ? products : [
+          {
+            id: 'mock-1',
+            name: 'Collection Street Dakar',
+            price: 25000,
+            images: [],
+            brand: { name: 'Kollect Original', slug: 'kollect' }
+          }
+        ];
+
+        const fallbackLatestDrop = latest.length > 0 ? latest[0] : null;
+
         setData({
           upcomingDrop: drops[0] ?? null,
-          products,
-          latestDrop: latest[0] ?? null,
+          products: fallbackProducts,
+          latestDrop: fallbackLatestDrop,
+        });
+      } catch (error) {
+        console.error('Hero loading failed:', error);
+        // Fallback minimal pour éviter page vide
+        setData({
+          upcomingDrop: null,
+          products: [{
+            id: 'emergency-fallback',
+            name: 'Découvre les créations locales',
+            price: 15000,
+            images: [],
+            brand: { name: 'Marques sénégalaises', slug: 'local' }
+          }],
+          latestDrop: null,
         });
       } finally {
         setLoading(false);
@@ -570,6 +598,7 @@ export function Hero() {
           gap: '64px',
           position: 'relative',
           zIndex: 1,
+          fontFamily: FONT_FAMILY_INTER,
         }}
       >
 

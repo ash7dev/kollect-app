@@ -1,17 +1,21 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useAuth } from '@/providers/AuthProvider';
 import { useOnboardingGuard } from '@/hooks/useOnboardingGuard';
 import { useCeoCollections } from '@/hooks/dashboard/useCeoCollections';
 import { DashboardSidebar, type SidebarSection } from '@/components/dashboard/DashboardSidebar';
+import { apiClient } from '@/services/api/client';
+import { API_ENDPOINTS } from '@/services/api/endpoints';
 import type { CeoCollection, CollectionStatus } from '@/types/drops';
-import { DropsWizardModal } from './DropsWizardModal';
 
-// ─── Icons ─────────────────────────────────────────────────────────────────────
+// ─── Icons ──────────────────────────────────────────────────────────────────────
 
-function Ic({ d, size = 16, stroke = 'currentColor', sw = 1.6 }: {
+function Ic({ d, size = 16, stroke = 'currentColor', sw = 1.5 }: {
   d: string | string[]; size?: number; stroke?: string; sw?: number;
 }) {
   const paths = Array.isArray(d) ? d : [d];
@@ -33,21 +37,23 @@ const ICONS = {
   play: 'M5 3l14 9-14 9V3z',
   check: 'M20 6L9 17l-5-5',
   star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
-  image: ['M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-3h4l2 3h3a2 2 0 0 1 2 2z', 'M12 12m-3 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0'],
   video: ['M23 7l-7 5 7 5V7z', 'M1 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5z'],
   arrow_right: 'M5 12h14M12 5l7 7-7 7',
   layers: ['M12 2L2 7l10 5 10-5-10-5z', 'M2 17l10 5 10-5', 'M2 12l10 5 10-5'],
+  grid: ['M3 3h7v7H3z', 'M14 3h7v7h-7z', 'M3 14h7v7H3z', 'M14 14h7v7h-7z'],
+  sparkle: ['M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z'],
+  diagonal: 'M7 17L17 7M7 7h10v10',
 };
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────────
 
 function getStatusMeta(status: CollectionStatus) {
   switch (status) {
-    case 'TEASER':     return { label: 'Teaser',      color: '#F59E0B', bg: 'rgba(245,158,11,0.12)',    border: 'rgba(245,158,11,0.25)' };
-    case 'DISPONIBLE': return { label: 'Live',         color: '#10B981', bg: 'rgba(16,185,129,0.12)',   border: 'rgba(16,185,129,0.25)' };
-    case 'EPUISEE':    return { label: 'Épuisée',      color: '#EF4444', bg: 'rgba(239,68,68,0.12)',    border: 'rgba(239,68,68,0.25)' };
-    case 'TERMINE':    return { label: 'Terminée',     color: 'rgba(0,0,0,0.4)', bg: 'rgba(0,0,0,0.06)', border: 'rgba(0,0,0,0.12)' };
-    default:           return { label: 'Brouillon',   color: 'rgba(0,0,0,0.4)', bg: 'rgba(0,0,0,0.05)', border: 'rgba(0,0,0,0.1)' };
+    case 'TEASER':     return { label: 'Teaser',    color: '#C8860A', bg: '#FEF3C7', dot: '#F59E0B' };
+    case 'DISPONIBLE': return { label: 'Live',      color: '#065F46', bg: '#D1FAE5', dot: '#10B981' };
+    case 'EPUISEE':    return { label: 'Épuisée',   color: '#991B1B', bg: '#FEE2E2', dot: '#EF4444' };
+    case 'TERMINE':    return { label: 'Terminée',  color: '#374151', bg: '#F3F4F6', dot: '#9CA3AF' };
+    default:           return { label: 'Brouillon', color: '#374151', bg: '#F3F4F6', dot: '#9CA3AF' };
   }
 }
 
@@ -65,58 +71,64 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// ─── Loader Placeholder ────────────────────────────────────────────────────────
+// ─── Full Page Spinner ────────────────────────────────────────────────────────
 
 function FullPageSpinner({ message }: { message: string }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg,#F7F8FA 0%,#F0F1F4 100%)' }}>
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#FAFAFA' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', border: '2.5px solid rgba(0,0,0,0.06)', borderTopColor: '#FF3B30', animation: 'dp-spin 0.8s linear infinite', margin: '0 auto 14px' }} />
-        <p style={{ color: 'rgba(0,0,0,0.38)', fontSize: 13, margin: 0, fontWeight: 500 }}>{message}</p>
+        <div style={{
+          width: 44, height: 44, margin: '0 auto 16px',
+          border: '2px solid #F0F0F0', borderTopColor: '#E63329',
+          borderRadius: '50%', animation: 'dp-spin 0.75s linear infinite',
+        }} />
+        <p style={{ color: '#9CA3AF', fontSize: 13, margin: 0, fontFamily: 'inherit', fontWeight: 500, letterSpacing: '0.02em' }}>{message}</p>
       </div>
       <style>{`@keyframes dp-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
-// ─── Skeleton Card ─────────────────────────────────────────────────────────────
+// ─── Skeleton Card ────────────────────────────────────────────────────────────
 
 function SkeletonCard() {
   return (
-    <div className="dp-card dp-skeleton-card">
-      <div className="dp-card-img dp-shimmer" />
-      <div className="dp-card-body">
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div className="dp-shimmer" style={{ height: 14, width: '55%', borderRadius: 6 }} />
-          <div className="dp-shimmer" style={{ height: 22, width: 64, borderRadius: 99 }} />
+    <div className="dp-card" style={{ overflow: 'hidden' }}>
+      <div style={{ height: 240, background: '#0A0A0A' }} />
+      <div style={{ padding: '20px 22px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div className="dp-shimmer" style={{ height: 13, width: '50%', borderRadius: 4 }} />
+          <div className="dp-shimmer" style={{ height: 22, width: 58, borderRadius: 99 }} />
         </div>
-        <div className="dp-shimmer" style={{ height: 12, width: '80%', borderRadius: 6, marginBottom: 8 }} />
-        <div className="dp-shimmer" style={{ height: 12, width: '40%', borderRadius: 6, marginBottom: 16 }} />
+        <div className="dp-shimmer" style={{ height: 11, width: '85%', borderRadius: 4, marginBottom: 7 }} />
+        <div className="dp-shimmer" style={{ height: 11, width: '60%', borderRadius: 4, marginBottom: 20 }} />
         <div style={{ display: 'flex', gap: 8 }}>
-          <div className="dp-shimmer" style={{ height: 32, flex: 1, borderRadius: 9 }} />
-          <div className="dp-shimmer" style={{ height: 32, width: 36, borderRadius: 9 }} />
+          <div className="dp-shimmer" style={{ height: 38, flex: 1, borderRadius: 10 }} />
+          <div className="dp-shimmer" style={{ height: 38, width: 38, borderRadius: 10 }} />
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Status Pill ───────────────────────────────────────────────────────────────
+// ─── Status Pill ──────────────────────────────────────────────────────────────
 
 function StatusPill({ status }: { status: CollectionStatus }) {
   const m = getStatusMeta(status);
   return (
     <span style={{
-      fontSize: 11, fontWeight: 700, letterSpacing: '0.3px',
-      padding: '4px 9px', borderRadius: 99,
-      color: m.color, background: m.bg, border: `1px solid ${m.border}`,
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      fontSize: 10.5, fontWeight: 700, letterSpacing: '0.5px',
+      padding: '4px 10px', borderRadius: 99, textTransform: 'uppercase',
+      color: m.color, background: m.bg, fontFamily: 'inherit',
     }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: m.dot, flexShrink: 0 }} />
       {m.label}
     </span>
   );
 }
 
-// ─── Live Countdown ────────────────────────────────────────────────────────────
+// ─── Countdown ────────────────────────────────────────────────────────────────
 
 function CountdownBadge({ target }: { target: string }) {
   const [cd, setCd] = useState(() => calcCountdown(target));
@@ -127,18 +139,17 @@ function CountdownBadge({ target }: { target: string }) {
   if (!cd) return null;
   const parts = cd.d > 0
     ? [`${cd.d}j`, `${cd.h}h`, `${cd.m}m`]
-    : cd.h > 0
-      ? [`${cd.h}h`, `${cd.m}m`, `${cd.s}s`]
-      : [`${cd.m}m`, `${cd.s}s`];
+    : cd.h > 0 ? [`${cd.h}h`, `${cd.m}m`, `${cd.s}s`]
+    : [`${cd.m}m`, `${cd.s}s`];
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <Ic d={ICONS.clock} size={12} stroke="#F59E0B" />
-      <div style={{ display: 'flex', gap: 4 }}>
+      <Ic d={ICONS.clock} size={11} stroke="rgba(255,255,255,0.7)" />
+      <div style={{ display: 'flex', gap: 3 }}>
         {parts.map((p, i) => (
           <span key={i} style={{
-            fontSize: 11, fontWeight: 800,
-            background: 'rgba(245,158,11,0.12)', color: '#B45309',
-            padding: '2px 6px', borderRadius: 6, letterSpacing: '0.2px',
+            fontSize: 11, fontWeight: 800, fontFamily: 'inherit',
+            background: 'rgba(255,255,255,0.15)', color: '#FFF',
+            padding: '2px 6px', borderRadius: 4, letterSpacing: '0.5px',
           }}>{p}</span>
         ))}
       </div>
@@ -146,141 +157,115 @@ function CountdownBadge({ target }: { target: string }) {
   );
 }
 
-// ─── Drop Card ─────────────────────────────────────────────────────────────────
+// ─── Drop Card ────────────────────────────────────────────────────────────────
 
-function DropCard({ item, onNewDrop }: { item: CeoCollection; onNewDrop?: () => void }) {
+function DropCard({ item, onLaunch, onView, index }: {
+  item: CeoCollection;
+  onLaunch?: (id: string) => void;
+  onView?: (id: string) => void;
+  index: number;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const meta = getStatusMeta(item.status);
   const isVideo = !!item.teaserVideo;
-  const hasMedia = isVideo || !!item.coverImage;
   const productCount = item._count?.products ?? 0;
 
   return (
-    <article className="dp-card">
-      {/* Media area */}
-      <div className="dp-card-img" style={{ position: 'relative', overflow: 'hidden', background: '#0A0A0A' }}>
+    <article
+      className="dp-card"
+      style={{ animationDelay: `${index * 0.07}s` }}
+    >
+      {/* ── Media zone — always dark ── */}
+      <div className="dp-card-media">
         {isVideo ? (
-          <>
-            <video
-              ref={videoRef}
-              src={item.teaserVideo!}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.75 }}
-              muted playsInline preload="metadata"
-            />
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.45) 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <div style={{
-                width: 44, height: 44, borderRadius: '50%',
-                background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)',
-                border: '1.5px solid rgba(255,255,255,0.35)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Ic d={ICONS.video} size={16} stroke="#fff" sw={1.8} />
-              </div>
-            </div>
-          </>
+          <video
+            ref={videoRef}
+            src={item.teaserVideo!}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            muted playsInline preload="metadata"
+          />
         ) : item.coverImage ? (
           <img src={item.coverImage} alt={item.name}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <div style={{
-            width: '100%', height: '100%',
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
-          }}>
-            <Ic d={ICONS.drop} size={32} stroke="rgba(255,255,255,0.2)" sw={1.2} />
-            <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.2)', letterSpacing: '1px', textTransform: 'uppercase' }}>
-              Aucun média
+          <div className="dp-card-media-empty">
+            <Ic d={ICONS.drop} size={40} stroke="rgba(255,255,255,0.12)" sw={1} />
+            <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.15)', letterSpacing: '2px', textTransform: 'uppercase', marginTop: 10 }}>
+              No media
             </span>
           </div>
         )}
 
-        {/* Gradient overlay */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0) 55%)',
-        }} />
+        {/* Gradient scrim */}
+        <div className="dp-card-media-scrim" />
 
-        {/* Featured badge */}
+        {/* Featured ribbon */}
         {item.isFeatured && (
-          <div style={{
-            position: 'absolute', top: 10, left: 10,
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '4px 8px', borderRadius: 8,
-            background: 'rgba(255,59,48,0.92)', backdropFilter: 'blur(8px)',
-          }}>
-            <Ic d={ICONS.star} size={10} stroke="#fff" sw={2} />
-            <span style={{ fontSize: 10, fontWeight: 800, color: '#fff', letterSpacing: '0.3px' }}>Featured</span>
+          <div className="dp-featured-badge">
+            <Ic d={ICONS.star} size={9} stroke="#fff" sw={2.5} />
+            <span>Featured</span>
           </div>
         )}
 
-        {/* Status pill in image */}
-        <div style={{ position: 'absolute', top: 10, right: 10 }}>
+        {/* Status top-right */}
+        <div style={{ position: 'absolute', top: 14, right: 14 }}>
           <StatusPill status={item.status} />
         </div>
 
-        {/* Collection name on image */}
-        <div style={{ position: 'absolute', bottom: 12, left: 12, right: 12 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.25, textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
-            {item.name}
-          </div>
+        {/* Title + countdown at bottom of image */}
+        <div className="dp-card-media-footer">
+          <h3 className="dp-card-title">{item.name}</h3>
           {item.status === 'TEASER' && item.launchDate && (
-            <div style={{ marginTop: 6 }}>
+            <div style={{ marginTop: 8 }}>
               <CountdownBadge target={item.launchDate} />
             </div>
           )}
         </div>
       </div>
 
-      {/* Card body */}
+      {/* ── Card body — white ── */}
       <div className="dp-card-body">
         {item.description && (
-          <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'rgba(0,0,0,0.5)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-            {item.description}
-          </p>
+          <p className="dp-card-desc">{item.description}</p>
         )}
 
-        {/* Stats row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Ic d={ICONS.cube} size={13} stroke="rgba(0,0,0,0.35)" />
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)' }}>
-              {productCount} produit{productCount !== 1 ? 's' : ''}
-            </span>
-          </div>
+        {/* Meta row */}
+        <div className="dp-card-meta">
+          <span className="dp-meta-chip">
+            <Ic d={ICONS.cube} size={11} stroke="#9CA3AF" />
+            {productCount} produit{productCount !== 1 ? 's' : ''}
+          </span>
           {item.launchDate && item.status !== 'TEASER' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Ic d={ICONS.clock} size={13} stroke="rgba(0,0,0,0.35)" />
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.5)' }}>
-                {fmtDate(item.launchDate)}
-              </span>
-            </div>
+            <span className="dp-meta-chip">
+              <Ic d={ICONS.clock} size={11} stroke="#9CA3AF" />
+              {fmtDate(item.launchDate)}
+            </span>
           )}
         </div>
 
-        {/* Action row */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        {/* Actions */}
+        <div className="dp-card-actions">
           {item.status === 'TEASER' ? (
-            <button type="button" className="dp-action-primary" style={{ flex: 1 }}>
-              <Ic d={ICONS.rocket} size={13} stroke="#fff" sw={2} />
+            <button type="button" className="dp-btn-primary" style={{ flex: 1 }}
+              onClick={() => onLaunch?.(item.id)}>
+              <Ic d={ICONS.rocket} size={12} stroke="#fff" sw={2} />
               Lancer le drop
             </button>
           ) : item.status === 'DISPONIBLE' ? (
-            <button type="button" className="dp-action-success" style={{ flex: 1 }}>
-              <Ic d={ICONS.check} size={13} stroke="#fff" sw={2.5} />
+            <button type="button" className="dp-btn-live" style={{ flex: 1 }}
+              onClick={() => onView?.(item.id)}>
+              <span className="dp-live-dot" />
               Actif
             </button>
           ) : (
-            <button type="button" className="dp-action-ghost" style={{ flex: 1 }}>
-              <Ic d={ICONS.eye} size={13} stroke="rgba(0,0,0,0.5)" />
+            <button type="button" className="dp-btn-ghost" style={{ flex: 1 }}
+              onClick={() => onView?.(item.id)}>
+              <Ic d={ICONS.eye} size={12} stroke="currentColor" />
               Voir les détails
             </button>
           )}
-          <button type="button" className="dp-icon-btn" title="Voir">
-            <Ic d={ICONS.arrow_right} size={14} stroke="rgba(0,0,0,0.5)" />
+          <button type="button" className="dp-btn-icon" onClick={() => onView?.(item.id)}>
+            <Ic d={ICONS.diagonal} size={13} stroke="currentColor" />
           </button>
         </div>
       </div>
@@ -288,85 +273,195 @@ function DropCard({ item, onNewDrop }: { item: CeoCollection; onNewDrop?: () => 
   );
 }
 
-// ─── Empty State ───────────────────────────────────────────────────────────────
+// ─── Empty State ──────────────────────────────────────────────────────────────
 
 function EmptyState({ onNewDrop }: { onNewDrop: () => void }) {
   return (
     <div style={{
       gridColumn: '1/-1',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      padding: '80px 24px', textAlign: 'center',
+      padding: '100px 24px',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
     }}>
+      {/* Large editorial illustration block */}
       <div style={{
-        width: 88, height: 88, borderRadius: 26,
-        background: 'linear-gradient(135deg, rgba(255,59,48,0.06), rgba(255,59,48,0.12))',
-        border: '1px solid rgba(255,59,48,0.15)',
+        width: 120, height: 120, borderRadius: 32,
+        background: '#0A0A0A',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        marginBottom: 24, boxShadow: '0 16px 40px rgba(255,59,48,0.08)',
+        marginBottom: 32,
+        boxShadow: '0 32px 64px rgba(0,0,0,0.18)',
+        position: 'relative',
+        overflow: 'hidden',
       }}>
-        <Ic d={ICONS.drop} size={36} stroke="rgba(255,59,48,0.5)" sw={1.2} />
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'radial-gradient(circle at 30% 30%, rgba(230,51,41,0.3) 0%, transparent 60%)',
+        }} />
+        <Ic d={ICONS.drop} size={44} stroke="rgba(255,255,255,0.6)" sw={1} />
       </div>
-      <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: '#111', letterSpacing: '-0.5px' }}>
-        Aucun drop pour l&apos;instant
+
+      <div style={{
+        fontSize: 10, fontWeight: 700, letterSpacing: '3px',
+        color: '#E63329', textTransform: 'uppercase',
+        marginBottom: 14, fontFamily: 'inherit',
+      }}>
+        Aucune collection
+      </div>
+
+      <h3 style={{
+        margin: '0 0 12px',
+        fontFamily: 'inherit',
+        fontSize: 30, fontWeight: 700, color: '#0A0A0A', letterSpacing: '-0.5px',
+        lineHeight: 1.2,
+      }}>
+        Ton premier drop t&apos;attend
       </h3>
-      <p style={{ margin: '0 0 28px', fontSize: 14, color: 'rgba(0,0,0,0.45)', maxWidth: 320, lineHeight: 1.6 }}>
-        Crée ton premier drop pour générer du hype autour de ta marque.
+
+      <p style={{
+        margin: '0 0 36px', fontSize: 14.5,
+        color: '#9CA3AF', maxWidth: 300, lineHeight: 1.65,
+        fontFamily: 'inherit',
+      }}>
+        Crée une collection, génère du hype, et lance ton drop quand tu es prêt.
       </p>
-      <button type="button" className="dp-fab-btn" onClick={onNewDrop}>
-        <Ic d={ICONS.plus} size={14} stroke="#fff" sw={2.5} />
+
+      <button type="button" className="dp-btn-primary dp-btn-large" onClick={onNewDrop}>
+        <Ic d={ICONS.plus} size={15} stroke="#fff" sw={2.5} />
         Créer un drop
       </button>
     </div>
   );
 }
 
-// ─── KPI Chip ──────────────────────────────────────────────────────────────────
+// ─── KPI Card ────────────────────────────────────────────────────────────────
 
-function KpiChip({ label, value, color }: { label: string; value: number | string; color: string }) {
+function KpiCard({ label, value, accent, sub }: {
+  label: string; value: number | string; accent: string; sub?: string;
+}) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      padding: '7px 13px', borderRadius: 12,
-      background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.07)',
-    }}>
-      <span style={{ fontSize: 18, fontWeight: 900, color, letterSpacing: '-0.5px' }}>{value}</span>
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(0,0,0,0.4)', letterSpacing: '0.1px' }}>{label}</span>
+    <div className="dp-kpi-card">
+      <div style={{ fontSize: 28, fontWeight: 800, color: accent, letterSpacing: '-1px', fontFamily: 'inherit', lineHeight: 1 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', marginTop: 4, fontFamily: 'inherit', letterSpacing: '0.3px' }}>
+        {label}
+      </div>
+      {sub && (
+        <div style={{ fontSize: 10, color: '#D1D5DB', marginTop: 2, fontFamily: 'inherit' }}>{sub}</div>
+      )}
     </div>
   );
 }
 
-// ─── TABS ──────────────────────────────────────────────────────────────────────
+// ─── Tabs ────────────────────────────────────────────────────────────────────
 
 type TabId = 'all' | CollectionStatus;
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'all',         label: 'Toutes' },
-  { id: 'TEASER',      label: 'Teaser' },
-  { id: 'DISPONIBLE',  label: 'Live' },
-  { id: 'TERMINE',     label: 'Terminées' },
+  { id: 'all',        label: 'Toutes' },
+  { id: 'TEASER',     label: 'Teaser' },
+  { id: 'DISPONIBLE', label: 'Live' },
+  { id: 'TERMINE',    label: 'Terminées' },
 ];
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
+// ─── Alert Banner ────────────────────────────────────────────────────────────
+
+function AlertBanner({ urgentTeasers, kpis }: {
+  urgentTeasers: CeoCollection[];
+  kpis: { total: number; live: number; teaser: number };
+}) {
+  if (urgentTeasers.length > 0) {
+    return (
+      <div className="dp-alert dp-alert-urgent">
+        <div className="dp-alert-icon" style={{ background: '#0A0A0A' }}>
+          <Ic d={ICONS.clock} size={16} stroke="#F59E0B" />
+        </div>
+        <div>
+          <div className="dp-alert-title">
+            {urgentTeasers.length === 1
+              ? `"${urgentTeasers[0].name}" lance dans moins de 48h`
+              : `${urgentTeasers.length} teasers lancent bientôt`}
+          </div>
+          <div className="dp-alert-sub">Lance maintenant ou assure-toi que tout est prêt.</div>
+        </div>
+        <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: '#F59E0B', flexShrink: 0, animation: 'dp-pulse 1.5s ease-in-out infinite' }} />
+      </div>
+    );
+  }
+  if (kpis.live > 0) {
+    return (
+      <div className="dp-context-block">
+        <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: '#10B981', letterSpacing: '2.5px', textTransform: 'uppercase' }}>
+          {kpis.live} collection{kpis.live > 1 ? 's' : ''} en ligne
+        </p>
+        <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 900, color: '#0A0A0A', letterSpacing: '-0.5px', lineHeight: 1.2 }}>
+          Ton catalogue est{' '}
+          <span style={{ color: '#FF3B30' }}>vivant.</span>
+        </h2>
+        <p style={{ margin: 0, fontSize: 13, color: 'rgba(0,0,0,0.45)', lineHeight: 1.6, maxWidth: 520 }}>
+          Chaque collection active est une vitrine ouverte — continue à créer pour garder ta communauté engagée et faire revenir les acheteurs.
+        </p>
+      </div>
+    );
+  }
+  if (kpis.teaser > 0) {
+    return (
+      <div className="dp-alert dp-alert-default">
+        <div className="dp-alert-icon" style={{ background: '#0A0A0A' }}>
+          <Ic d={ICONS.rocket} size={16} stroke="#E63329" />
+        </div>
+        <div>
+          <div className="dp-alert-title">{kpis.teaser} collection{kpis.teaser > 1 ? 's' : ''} en mode teaser</div>
+          <div className="dp-alert-sub">Ta communauté attend — lance-les quand tu es prêt.</div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function DropsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const startNew = searchParams.get('new') === '1';
-
   const { user, isLoading } = useAuth();
   const { checking } = useOnboardingGuard();
-
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [wizardOpen, setWizardOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const tabsRef = useRef<HTMLDivElement>(null);
-  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
 
   const collectionsQuery = useCeoCollections();
   const collections = useMemo(() => collectionsQuery.data?.data ?? [], [collectionsQuery.data]);
 
-  const filtered = useMemo(() =>
-    activeTab === 'all' ? collections : collections.filter(c => c.status === activeTab),
-  [collections, activeTab]);
+  const qc = useQueryClient();
+  const launchMutation = useMutation({
+    mutationFn: (id: string) => apiClient.post(API_ENDPOINTS.COLLECTIONS.LAUNCH(id)),
+    onMutate: () => toast.loading('Lancement en cours…', { id: 'launch' }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['dashboard', 'collections', 'ceo'] });
+      toast.success('Collection lancée avec succès !', { id: 'launch' });
+    },
+    onError: () => toast.error('Erreur lors du lancement', { id: 'launch' }),
+  });
+
+  const handleLaunch = (id: string) => launchMutation.mutate(id);
+  const handleView = (id: string) => router.push(`/dashboard/drops/${id}`);
+
+  const urgentTeasers = useMemo(() =>
+    collections.filter(c => {
+      if (c.status !== 'TEASER' || !c.launchDate) return false;
+      const diff = new Date(c.launchDate).getTime() - Date.now();
+      return diff > 0 && diff < 48 * 3600 * 1000;
+    }),
+  [collections]);
+
+  const filtered = useMemo(() => {
+    const base = activeTab === 'all' ? collections : collections.filter(c => c.status === activeTab);
+    return [...base].sort((a, b) => {
+      const aU = urgentTeasers.some(u => u.id === a.id) ? -1 : 0;
+      const bU = urgentTeasers.some(u => u.id === b.id) ? -1 : 0;
+      return aU - bU;
+    });
+  }, [collections, activeTab, urgentTeasers]);
 
   const kpis = useMemo(() => ({
     total: collections.length,
@@ -374,9 +469,7 @@ export function DropsPage() {
     teaser: collections.filter(c => c.status === 'TEASER').length,
   }), [collections]);
 
-  useEffect(() => { if (startNew) setWizardOpen(true); }, [startNew]);
-
-  // Animate tab indicator
+  // Tab indicator
   useEffect(() => {
     const container = tabsRef.current;
     if (!container) return;
@@ -384,10 +477,10 @@ export function DropsPage() {
     if (!activeEl) return;
     const cr = container.getBoundingClientRect();
     const ar = activeEl.getBoundingClientRect();
-    setIndicatorStyle({ left: ar.left - cr.left, width: ar.width });
-  }, [activeTab]);
+    setIndicator({ left: ar.left - cr.left, width: ar.width });
+  }, [activeTab, collectionsQuery.isLoading]);
 
-  if (checking || isLoading) return <FullPageSpinner message="Chargement du dashboard..." />;
+  if (checking || isLoading) return <FullPageSpinner message="Chargement…" />;
   if (!user?.isCEO) return <FullPageSpinner message="Accès réservé aux comptes CEO." />;
 
   const isLoading_ = collectionsQuery.isLoading;
@@ -396,192 +489,394 @@ export function DropsPage() {
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        *, *::before, *::after { box-sizing: border-box; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+        /* ── Layout ── */
         .dp-layout {
           min-height: 100vh;
           display: grid;
-          background:
-            radial-gradient(ellipse 70% 40% at 80% -5%, rgba(255,59,48,0.05) 0%, transparent 60%),
-            linear-gradient(180deg, #F5F6F8 0%, #ECEEF1 100%);
-          transition: grid-template-columns 0.22s cubic-bezier(0.4,0,0.2,1);
+          background: #FAFAFA;
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          transition: grid-template-columns 0.22s cubic-bezier(0.4,0,0.2,1);
         }
-        .dp-main { padding: 22px 28px; min-width: 0; }
-
-        /* ─── Header ─── */
-        .dp-header {
-          position: sticky; top: 0; z-index: 50;
-          margin-bottom: 24px;
-          padding: 13px 18px;
-          border-radius: 18px;
-          background: rgba(255,255,255,0.84);
-          backdrop-filter: blur(28px) saturate(180%);
-          -webkit-backdrop-filter: blur(28px) saturate(180%);
-          border: 1px solid rgba(255,255,255,0.95);
-          box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 6px 30px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9);
-          display: flex; align-items: center; justify-content: space-between; gap: 16px;
+        .dp-main {
+          padding: 28px 32px 60px;
+          min-width: 0;
+          background: #FAFAFA;
         }
-        .dp-header-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        .dp-header-title { margin: 0; font-size: 17px; font-weight: 900; color: #0A0A0A; letter-spacing: -0.5px; }
-        .dp-header-sub { margin: 0; font-size: 12px; color: rgba(0,0,0,0.4); font-weight: 500; }
-        .dp-header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-        /* ─── KPI chips ─── */
-        .dp-kpi-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+        /* ── Page header — editorial block ── */
+        .dp-page-hero {
+          margin-bottom: 32px;
+          padding: 32px 36px;
+          border-radius: 20px;
+          background: #0A0A0A;
+          position: relative;
+          overflow: hidden;
+        }
+        .dp-page-hero::before {
+          content: '';
+          position: absolute;
+          top: -60px; right: -60px;
+          width: 280px; height: 280px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(230,51,41,0.25) 0%, transparent 70%);
+          pointer-events: none;
+        }
+        .dp-page-hero::after {
+          content: 'DROPS';
+          position: absolute;
+          right: 36px; bottom: -18px;
+          font-family: inherit;
+          font-size: 96px; font-weight: 900;
+          color: rgba(255,255,255,0.03);
+          letter-spacing: -4px;
+          pointer-events: none;
+          user-select: none;
+          line-height: 1;
+        }
+        .dp-hero-label {
+          font-size: 10px; font-weight: 700;
+          letter-spacing: 3px; text-transform: uppercase;
+          color: #E63329; margin-bottom: 10px;
+        }
+        .dp-hero-title {
+          font-family: inherit;
+          font-size: 34px; font-weight: 800;
+          color: #FFFFFF; letter-spacing: -0.8px;
+          line-height: 1.1; margin-bottom: 8px;
+        }
+        .dp-hero-sub {
+          font-size: 13px; color: rgba(255,255,255,0.4);
+          font-weight: 400; letter-spacing: 0.1px;
+        }
+        .dp-hero-actions {
+          display: flex; align-items: center; gap: 10px;
+          margin-top: 28px;
+        }
 
-        /* ─── Tabs ─── */
+        /* ── KPI row ── */
+        .dp-kpi-row {
+          display: flex; gap: 12px;
+          margin-bottom: 28px;
+          flex-wrap: wrap;
+        }
+        .dp-kpi-card {
+          flex: 1; min-width: 100px;
+          padding: 18px 20px;
+          background: #fff;
+          border: 1px solid #F0F0F0;
+          border-radius: 16px;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+          transition: transform 0.18s, box-shadow 0.18s;
+        }
+        .dp-kpi-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        }
+
+        /* ── Tabs ── */
+        .dp-tabs-row {
+          display: flex; align-items: center;
+          justify-content: space-between;
+          margin-bottom: 20px; gap: 16px;
+        }
         .dp-tabs-wrap {
-          margin-bottom: 22px;
-          padding: 4px 4px;
-          background: rgba(255,255,255,0.7);
-          border: 1px solid rgba(0,0,0,0.07);
-          border-radius: 13px;
           display: inline-flex;
+          padding: 3px;
+          background: #fff;
+          border: 1px solid #EBEBEB;
+          border-radius: 12px;
           position: relative;
           gap: 2px;
         }
         .dp-tab-indicator {
           position: absolute;
-          top: 4px; bottom: 4px;
+          top: 3px; bottom: 3px;
           border-radius: 9px;
-          background: #fff;
-          box-shadow: 0 1px 6px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.06);
+          background: #0A0A0A;
           transition: left 0.22s cubic-bezier(0.4,0,0.2,1), width 0.22s cubic-bezier(0.4,0,0.2,1);
           pointer-events: none;
         }
         .dp-tab {
           position: relative; z-index: 1;
-          padding: 7px 16px; border: none; background: transparent; cursor: pointer;
-          font-size: 13px; font-weight: 600; border-radius: 9px; color: rgba(0,0,0,0.45);
-          transition: color 0.18s; white-space: nowrap; font-family: inherit;
+          padding: 8px 18px; border: none; background: transparent;
+          cursor: pointer; font-family: inherit;
+          font-size: 12.5px; font-weight: 600;
+          color: #9CA3AF; border-radius: 9px;
+          transition: color 0.15s; white-space: nowrap;
         }
-        .dp-tab[data-active="true"] { color: #111; font-weight: 700; }
-        .dp-tab-badge {
+        .dp-tab[data-active="true"] { color: #fff; }
+        .dp-tab-count {
           display: inline-flex; align-items: center; justify-content: center;
-          margin-left: 5px; width: 18px; height: 18px; border-radius: 99px;
-          background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.4);
+          margin-left: 5px; min-width: 18px; height: 18px;
+          padding: 0 5px; border-radius: 99px;
           font-size: 10px; font-weight: 800;
+          background: rgba(0,0,0,0.06); color: #6B7280;
         }
-        .dp-tab[data-active="true"] .dp-tab-badge {
-          background: rgba(255,59,48,0.1); color: #FF3B30;
+        .dp-tab[data-active="true"] .dp-tab-count {
+          background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8);
+        }
+        .dp-tabs-count-label {
+          font-size: 12px; color: #9CA3AF; font-weight: 500;
         }
 
-        /* ─── Cards grid ─── */
+        /* ── Context block (editorial, like wizard steps) ── */
+        .dp-context-block {
+          margin-bottom: 22px;
+          padding: 20px 24px;
+          border-radius: 16px;
+          background: rgba(255,255,255,0.7);
+          border: 1px solid rgba(0,0,0,0.06);
+        }
+
+        /* ── Alert banner ── */
+        .dp-alert {
+          display: flex; align-items: center; gap: 14px;
+          padding: 14px 18px; border-radius: 14px;
+          margin-bottom: 22px;
+          animation: dp-fadein 0.4s ease both;
+        }
+        .dp-alert-urgent {
+          background: #FFFBEB;
+          border: 1px solid #FDE68A;
+        }
+        .dp-alert-success {
+          background: #F0FDF4;
+          border: 1px solid #BBF7D0;
+        }
+        .dp-alert-default {
+          background: #FFF5F5;
+          border: 1px solid #FECACA;
+        }
+        .dp-alert-icon {
+          width: 36px; height: 36px;
+          border-radius: 10px; flex-shrink: 0;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .dp-alert-title {
+          font-size: 13px; font-weight: 700; color: #111;
+        }
+        .dp-alert-sub {
+          font-size: 11.5px; color: #9CA3AF; margin-top: 2px;
+        }
+
+        /* ── Cards Grid ── */
         .dp-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 18px;
+          grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+          gap: 20px;
         }
-        @media (min-width: 1400px) { .dp-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (min-width: 1400px) {
+          .dp-grid { grid-template-columns: repeat(3, 1fr); }
+        }
 
-
-        /* ─── Card ─── */
+        /* ── Card ── */
         .dp-card {
           background: #fff;
-          border: 1px solid rgba(0,0,0,0.07);
+          border: 1px solid #F0F0F0;
           border-radius: 20px;
           overflow: hidden;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 8px 28px rgba(0,0,0,0.06);
-          transition: transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s cubic-bezier(0.4,0,0.2,1);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05);
+          transition: transform 0.22s cubic-bezier(0.4,0,0.2,1), box-shadow 0.22s cubic-bezier(0.4,0,0.2,1);
+          animation: dp-cardrise 0.5s cubic-bezier(0.4,0,0.2,1) both;
+          display: flex; flex-direction: column; height: 100%;
         }
         .dp-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 4px 16px rgba(0,0,0,0.06), 0 16px 40px rgba(0,0,0,0.1);
+          transform: translateY(-5px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.08), 0 24px 48px rgba(0,0,0,0.1);
         }
-        .dp-card-img {
-          width: 100%; height: 220px;
-          background: #f5f5f5;
-        }
-        .dp-card-body { padding: 16px; }
 
-        /* ─── Skeleton ─── */
-        .dp-skeleton-card .dp-card-img { height: 220px; }
+        .dp-card-media {
+          width: 100%; height: 240px;
+          background: #0A0A0A;
+          position: relative; overflow: hidden;
+        }
+        .dp-card-media-empty {
+          width: 100%; height: 100%;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          background: linear-gradient(135deg, #0A0A0A 0%, #1a1a1a 100%);
+        }
+        .dp-card-media-scrim {
+          position: absolute; inset: 0;
+          background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 50%);
+        }
+        .dp-card-media-footer {
+          position: absolute; bottom: 14px; left: 16px; right: 16px;
+        }
+        .dp-card-title {
+          font-family: inherit;
+          font-size: 17px; font-weight: 700;
+          color: #fff; letter-spacing: -0.3px;
+          line-height: 1.25;
+          text-shadow: 0 1px 6px rgba(0,0,0,0.4);
+        }
+        .dp-featured-badge {
+          position: absolute; top: 14px; left: 14px;
+          display: flex; align-items: center; gap: 5px;
+          padding: '4px 9px'; border-radius: 8px;
+          background: #E63329;
+          padding: 4px 9px;
+        }
+        .dp-featured-badge span {
+          font-size: 10px; font-weight: 800; color: #fff; letter-spacing: '0.4px';
+        }
+        .dp-card-body {
+          padding: 18px 20px 20px;
+          display: flex; flex-direction: column; flex: 1;
+        }
+        .dp-card-desc {
+          font-size: 12.5px; color: #9CA3AF;
+          line-height: 1.55; margin-bottom: 14px;
+          overflow: hidden; display: -webkit-box;
+          -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+          min-height: 38px;
+        }
+        .dp-card-meta {
+          display: flex; gap: 12px;
+          margin-bottom: 16px; flex-wrap: wrap;
+        }
+        .dp-meta-chip {
+          display: inline-flex; align-items: center; gap: 4px;
+          font-size: 11.5px; font-weight: 600; color: #9CA3AF;
+        }
+        .dp-card-actions {
+          display: flex; gap: 8px;
+          margin-top: auto;
+        }
+
+        /* ── Urgent card outline ── */
+        .dp-card-urgent .dp-card {
+          border-color: #FDE68A;
+          box-shadow: 0 0 0 2px rgba(245,158,11,0.12), 0 8px 24px rgba(0,0,0,0.07);
+        }
+
+        /* ── Buttons ── */
+        .dp-btn-hero {
+          display: inline-flex; align-items: center; gap: 8px;
+          height: 42px; padding: 0 22px; border: none; border-radius: 12px;
+          background: #E63329; color: #fff;
+          font-size: 13.5px; font-weight: 700;
+          font-family: inherit; cursor: pointer;
+          box-shadow: 0 4px 20px rgba(230,51,41,0.4);
+          letter-spacing: -0.1px;
+          transition: transform 0.12s, box-shadow 0.15s;
+        }
+        .dp-btn-hero:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 8px 28px rgba(230,51,41,0.45);
+        }
+        .dp-btn-hero:active { transform: scale(0.98); }
+
+        .dp-btn-hero-ghost {
+          display: inline-flex; align-items: center; gap: 7px;
+          height: 42px; padding: 0 18px; border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.15);
+          background: rgba(255,255,255,0.07);
+          color: rgba(255,255,255,0.65);
+          font-size: 13px; font-weight: 600;
+          font-family: inherit; cursor: pointer;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .dp-btn-hero-ghost:hover {
+          background: rgba(255,255,255,0.12);
+          border-color: rgba(255,255,255,0.25);
+        }
+
+        .dp-btn-primary {
+          display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+          padding: 10px 16px; border: none; border-radius: 10px; cursor: pointer;
+          background: #0A0A0A; color: #fff;
+          font-size: 12.5px; font-weight: 700;
+          font-family: inherit;
+          transition: background 0.15s, transform 0.12s;
+          letter-spacing: -0.1px;
+        }
+        .dp-btn-primary:hover { background: #222; transform: translateY(-1px); }
+        .dp-btn-primary:active { transform: scale(0.98); }
+        .dp-btn-primary.dp-btn-large {
+          height: 48px; padding: 0 28px; font-size: 14px;
+          border-radius: 13px;
+        }
+
+        .dp-btn-live {
+          display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+          padding: 10px 16px; border-radius: 10px; cursor: pointer;
+          border: 1.5px solid #BBF7D0;
+          background: #F0FDF4; color: #065F46;
+          font-size: 12.5px; font-weight: 700;
+          font-family: inherit;
+        }
+        .dp-live-dot {
+          width: 7px; height: 7px; border-radius: 50%;
+          background: #10B981;
+          animation: dp-pulse 1.5s ease-in-out infinite;
+          flex-shrink: 0;
+        }
+
+        .dp-btn-ghost {
+          display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+          padding: 10px 16px; border-radius: 10px; cursor: pointer;
+          border: 1px solid #E5E7EB;
+          background: #F9FAFB; color: #374151;
+          font-size: 12.5px; font-weight: 600;
+          font-family: inherit;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .dp-btn-ghost:hover { background: #F3F4F6; border-color: #D1D5DB; }
+
+        .dp-btn-icon {
+          width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+          border: 1px solid #E5E7EB; background: #F9FAFB;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; color: #6B7280;
+          transition: background 0.15s, color 0.15s;
+        }
+        .dp-btn-icon:hover { background: #0A0A0A; color: #fff; border-color: #0A0A0A; }
+
+        /* ── Skeleton ── */
         @keyframes dp-shimmer {
-          0% { background-position: -400px 0; }
-          100% { background-position: 400px 0; }
+          0% { background-position: -600px 0; }
+          100% { background-position: 600px 0; }
         }
         .dp-shimmer {
-          background: linear-gradient(90deg, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.08) 37%, rgba(0,0,0,0.05) 63%);
-          background-size: 800px 100%;
-          animation: dp-shimmer 1.4s infinite;
-          border-radius: 8px;
+          background: linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%);
+          background-size: 1200px 100%;
+          animation: dp-shimmer 1.6s infinite;
         }
 
-        /* ─── Buttons ─── */
-        .dp-new-btn {
-          display: inline-flex; align-items: center; gap: 7px;
-          height: 36px; padding: 0 16px; border: none; border-radius: 11px;
-          background: linear-gradient(135deg, #FF3B30 0%, #E0321F 100%);
-          color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
-          box-shadow: 0 4px 16px rgba(255,59,48,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
-          transition: transform 0.12s, box-shadow 0.15s; letter-spacing: -0.1px; font-family: inherit;
-        }
-        .dp-new-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(255,59,48,0.35), inset 0 1px 0 rgba(255,255,255,0.15); }
-        .dp-new-btn:active { transform: scale(0.98); }
-
-        .dp-back-btn {
-          display: inline-flex; align-items: center; gap: 6px;
-          height: 36px; padding: 0 14px; border: 1px solid rgba(0,0,0,0.1);
-          border-radius: 11px; background: rgba(255,255,255,0.8);
-          color: rgba(0,0,0,0.65); font-size: 13px; font-weight: 600; cursor: pointer;
-          transition: background 0.15s, box-shadow 0.15s; font-family: inherit;
-        }
-        .dp-back-btn:hover { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-
-        .dp-action-primary {
-          display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-          padding: 8px 14px; border: none; border-radius: 10px; cursor: pointer;
-          background: linear-gradient(135deg, #FF3B30 0%, #E0321F 100%);
-          color: #fff; font-size: 12.5px; font-weight: 700;
-          box-shadow: 0 4px 14px rgba(255,59,48,0.28);
-          transition: transform 0.12s, box-shadow 0.15s; font-family: inherit;
-        }
-        .dp-action-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(255,59,48,0.35); }
-
-        .dp-action-success {
-          display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-          padding: 8px 14px; border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; cursor: pointer;
-          background: rgba(16,185,129,0.08); color: #047857;
-          font-size: 12.5px; font-weight: 700; font-family: inherit;
-        }
-
-        .dp-action-ghost {
-          display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-          padding: 8px 14px; border: 1px solid rgba(0,0,0,0.1); border-radius: 10px; cursor: pointer;
-          background: rgba(0,0,0,0.03); color: rgba(0,0,0,0.6);
-          font-size: 12.5px; font-weight: 600; font-family: inherit;
-          transition: background 0.15s;
-        }
-        .dp-action-ghost:hover { background: rgba(0,0,0,0.06); }
-
-        .dp-icon-btn {
-          width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
-          border: 1px solid rgba(0,0,0,0.1); background: rgba(0,0,0,0.03);
-          display: flex; align-items: center; justify-content: center; cursor: pointer;
-          transition: background 0.15s;
-        }
-        .dp-icon-btn:hover { background: rgba(0,0,0,0.07); }
-
-        /* ─── FAB ─── */
-        .dp-fab {
-          position: fixed; bottom: 28px; right: 28px; z-index: 100;
-        }
-        .dp-fab-btn {
-          display: inline-flex; align-items: center; gap: 8px;
-          padding: 0 22px; height: 48px; border: none; border-radius: 24px;
-          background: linear-gradient(135deg, #FF3B30 0%, #D93025 100%);
-          color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
-          box-shadow: 0 6px 24px rgba(255,59,48,0.38), 0 2px 8px rgba(0,0,0,0.15);
-          transition: transform 0.15s, box-shadow 0.15s; letter-spacing: -0.1px; font-family: inherit;
-        }
-        .dp-fab-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(255,59,48,0.45), 0 4px 12px rgba(0,0,0,0.18); }
-        .dp-fab-btn:active { transform: scale(0.97); }
-
+        /* ── Animations ── */
         @keyframes dp-spin { to { transform: rotate(360deg); } }
+        @keyframes dp-fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        @keyframes dp-cardrise {
+          from { opacity: 0; transform: translateY(18px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes dp-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(0.85); }
+        }
+
+        /* ── Divider ── */
+        .dp-section-divider {
+          display: flex; align-items: center; gap: 12px;
+          margin-bottom: 20px;
+        }
+        .dp-section-divider-line {
+          flex: 1; height: 1px; background: #F0F0F0;
+        }
+        .dp-section-divider-label {
+          font-size: 10px; font-weight: 700; letter-spacing: 2px;
+          color: #D1D5DB; text-transform: uppercase;
+          font-family: inherit;
+        }
       `}</style>
 
-      <div className="dp-layout" style={{ gridTemplateColumns: `${sidebarCollapsed ? 68 : 256}px 1fr` }}>
+      <div
+        className="dp-layout"
+        style={{ gridTemplateColumns: `${sidebarCollapsed ? 68 : 256}px 1fr` }}
+      >
         <DashboardSidebar
           brandName={user.brand?.name}
           userInitials={(user.firstName?.[0] ?? user.email?.[0] ?? 'C').toUpperCase()}
@@ -590,91 +885,120 @@ export function DropsPage() {
           onToggleCollapse={() => setSidebarCollapsed(v => !v)}
           active="drops"
           onNavigate={(section: SidebarSection) => {
-            if (section === 'overview') router.push('/dashboard');
-            else if (section === 'drops') router.push('/dashboard/drops');
+            if (section === 'overview')       router.push('/dashboard');
+            else if (section === 'drops')     router.push('/dashboard/drops');
+            else if (section === 'products')  router.push('/dashboard/produits');
             else router.push('/dashboard');
           }}
           notificationCount={0}
         />
 
         <main className="dp-main">
-          {/* ── Header ── */}
-          <header className="dp-header">
-            <div className="dp-header-left">
-              <h1 className="dp-header-title">Drops</h1>
-              <p className="dp-header-sub">Crée et gère tes collections — teaser, lancement, produits</p>
-            </div>
-            <div className="dp-header-right">
-              {!isLoading_ && (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <KpiChip label="Total" value={kpis.total} color="#111" />
-                  <KpiChip label="Live" value={kpis.live} color="#10B981" />
-                  <KpiChip label="Teaser" value={kpis.teaser} color="#F59E0B" />
-                </div>
-              )}
-              <button type="button" className="dp-back-btn" onClick={() => router.push('/dashboard')}>
-                Dashboard
-              </button>
-              <button type="button" className="dp-new-btn" onClick={() => setWizardOpen(true)}>
-                <Ic d={ICONS.plus} size={13} stroke="#fff" sw={2.5} />
+
+          {/* ── Hero Header ── */}
+          <div className="dp-page-hero">
+            <div className="dp-hero-label">Dashboard · Collections</div>
+            <h1 className="dp-hero-title">Tes Drops</h1>
+            <p className="dp-hero-sub">Crée, teaser, et lance tes collections — tout en un.</p>
+            <div className="dp-hero-actions">
+              <button type="button" className="dp-btn-hero"
+                onClick={() => router.push('/dashboard/drops/new')}>
+                <Ic d={ICONS.plus} size={14} stroke="#fff" sw={2.5} />
                 Nouveau drop
               </button>
+              {!isLoading_ && kpis.total > 0 && (
+                <button type="button" className="dp-btn-hero-ghost">
+                  <Ic d={ICONS.grid} size={13} stroke="currentColor" />
+                  {kpis.total} collection{kpis.total > 1 ? 's' : ''}
+                </button>
+              )}
             </div>
-          </header>
+          </div>
 
-          {/* ── Tabs ── */}
-          {!isLoading_ && (
-            <div ref={tabsRef} className="dp-tabs-wrap">
-              <div className="dp-tab-indicator" style={{ left: indicatorStyle.left, width: indicatorStyle.width }} />
-              {TABS.map(tab => {
-                const count = tab.id === 'all' ? collections.length : collections.filter(c => c.status === tab.id).length;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    className="dp-tab"
-                    data-active={activeTab === tab.id ? 'true' : 'false'}
-                    onClick={() => setActiveTab(tab.id)}
-                  >
-                    {tab.label}
-                    {count > 0 && <span className="dp-tab-badge">{count}</span>}
-                  </button>
-                );
-              })}
+          {/* ── KPIs ── */}
+          {!isLoading_ && kpis.total > 0 && (
+            <div className="dp-kpi-row">
+              <KpiCard label="Total" value={kpis.total} accent="#0A0A0A" />
+              <KpiCard label="En ligne" value={kpis.live} accent="#10B981" />
+              <KpiCard label="Teaser" value={kpis.teaser} accent="#F59E0B" />
+              <KpiCard
+                label="Produits"
+                value={collections.reduce((s, c) => s + (c._count?.products ?? 0), 0)}
+                accent="#E63329"
+              />
             </div>
           )}
 
-          {/* ── Cards Grid ── */}
+          {/* ── Alert ── */}
+          {!isLoading_ && kpis.total > 0 && (
+            <AlertBanner urgentTeasers={urgentTeasers} kpis={kpis} />
+          )}
+
+          {/* ── Tabs + count ── */}
+          {!isLoading_ && (
+            <div className="dp-tabs-row">
+              <div ref={tabsRef} className="dp-tabs-wrap">
+                <div
+                  className="dp-tab-indicator"
+                  style={{ left: indicator.left, width: indicator.width }}
+                />
+                {TABS.map(tab => {
+                  const count =
+                    tab.id === 'all'
+                      ? collections.length
+                      : collections.filter(c => c.status === tab.id).length;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className="dp-tab"
+                      data-active={activeTab === tab.id ? 'true' : 'false'}
+                      onClick={() => setActiveTab(tab.id)}
+                    >
+                      {tab.label}
+                      {count > 0 && (
+                        <span className="dp-tab-count">{count}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="dp-tabs-count-label">
+                {filtered.length} résultat{filtered.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
+
+          {/* ── Section divider ── */}
+          {!isLoading_ && filtered.length > 0 && (
+            <div className="dp-section-divider">
+              <div className="dp-section-divider-line" />
+              <span className="dp-section-divider-label">Collections</span>
+              <div className="dp-section-divider-line" />
+            </div>
+          )}
+
+          {/* ── Grid ── */}
           <div className="dp-grid">
             {isLoading_ ? (
               Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
             ) : filtered.length === 0 ? (
-              <EmptyState onNewDrop={() => setWizardOpen(true)} />
+              <EmptyState onNewDrop={() => router.push('/dashboard/drops/new')} />
             ) : (
-              filtered.map(item => <DropCard key={item.id} item={item} onNewDrop={() => setWizardOpen(true)} />)
+              filtered.map((item, i) => (
+                <div
+                  key={item.id}
+                  className={urgentTeasers.some(u => u.id === item.id) ? 'dp-card-urgent' : ''}
+                  style={{ height: '100%' }}
+                >
+                  <DropCard item={item} onLaunch={handleLaunch} onView={handleView} index={i} />
+                </div>
+              ))
             )}
           </div>
 
-          {/* ── FAB ── */}
-          {!isLoading_ && filtered.length > 0 && (
-            <div className="dp-fab">
-              <button type="button" className="dp-fab-btn" onClick={() => setWizardOpen(true)}>
-                <Ic d={ICONS.plus} size={15} stroke="#fff" sw={2.5} />
-                Nouveau drop
-              </button>
-            </div>
-          )}
         </main>
       </div>
-
-      <DropsWizardModal
-        open={wizardOpen}
-        onClose={() => setWizardOpen(false)}
-        onCreated={() => {
-          setWizardOpen(false);
-          collectionsQuery.refetch();
-        }}
-      />
     </>
   );
 }

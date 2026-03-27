@@ -10,6 +10,7 @@ import { BrandsGrid } from '@/components/brands/BrandsGrid';
 import { BrandsEmpty } from '@/components/brands/BrandsEmpty';
 import { BrandsCreatorCta } from '@/components/brands/BrandsCreatorCta';
 import { BrandFeatured } from '@/components/brands/BrandFeatured';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 function sortBrands(list: BrandListItem[], sort: BrandSortId): BrandListItem[] {
   const copy = [...list];
@@ -192,7 +193,7 @@ export function BrandsPageContent() {
         </section>
       )}
 
-      <div style={{ padding: '32px 0 48px' }}>
+      <div style={{ padding: '32px 0 48px', fontFamily: FONT_FAMILY_INTER }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 var(--layout-container-padding)' }}>
           {fetchError && (
             <p style={{ color: '#FF453A', fontSize: 14, marginBottom: 20, padding: '0 12px' }}>{fetchError}</p>

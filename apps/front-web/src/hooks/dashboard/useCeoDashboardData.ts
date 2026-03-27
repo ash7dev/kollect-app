@@ -46,14 +46,11 @@ type OrderStats = {
 type RecentOrder = {
   id: string;
   orderNumber?: string;
-  total: number;
+  amount: number;
   status: string;
   paymentStatus?: string;
-  createdAt: string;
-  client?: {
-    firstName?: string | null;
-    lastName?: string | null;
-  };
+  date: string;
+  customer: string;
 };
 
 type ProductItem = {

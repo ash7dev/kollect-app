@@ -1,5 +1,7 @@
 'use client';
 
+import { FONT_FAMILY_INTER } from '@/styles/typography';
+
 const IconBolt = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
@@ -109,6 +111,7 @@ export function Features() {
         borderRadius: 'var(--radius-xxxl)',
         overflow: 'hidden',
         border: '1px solid rgba(0,0,0,0.06)',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>

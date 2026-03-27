@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { useState } from 'react';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 import { Logo } from '@/components/ui/Logo';
 
 const FOOTER_LINKS = {
@@ -65,6 +67,7 @@ export function Footer() {
         paddingBottom: '32px',
         borderRadius: '0 0 var(--radius-xxxl) var(--radius-xxxl)',
         margin: '0 12px',
+        fontFamily: FONT_FAMILY_INTER,
         marginTop: '28px',
       }}
     >

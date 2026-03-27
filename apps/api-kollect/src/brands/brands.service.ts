@@ -641,7 +641,6 @@ export class BrandsService {
           where: {
             brandId,
             status: { not: 'ANNULEE' }, // Exclure les annulées
-            paymentStatus: 'VALIDEE',
           },
           _sum: {
             total: true,
@@ -696,7 +695,6 @@ export class BrandsService {
           where: {
             brandId,
             status: { not: 'ANNULEE' },
-            paymentStatus: 'VALIDEE',
             createdAt: { gte: startDate },
           },
           _sum: {
@@ -709,7 +707,6 @@ export class BrandsService {
           where: {
             brandId,
             status: { not: 'ANNULEE' },
-            paymentStatus: 'VALIDEE',
             createdAt: { gte: prevStartDate, lt: startDate },
           },
           _sum: {
@@ -751,8 +748,14 @@ export class BrandsService {
         ? ((ordersThisPeriod - ordersPrevPeriod) / ordersPrevPeriod) * 100
         : ordersThisPeriod > 0 ? 100 : 0;
 
-      const conversionRate = uniqueSessionsThisPeriod > 0
-        ? (ordersThisPeriod / uniqueSessionsThisPeriod) * 100
+      // Fallback: si pas de sessions enregistrées (ex: seeding), utiliser les vues globales des produits
+      let effectiveViews = uniqueSessionsThisPeriod > 0 ? uniqueSessionsThisPeriod : totalViews;
+      if (effectiveViews < ordersThisPeriod && ordersThisPeriod > 0) {
+        effectiveViews = ordersThisPeriod; // empêche un taux > 100% incohérent
+      }
+
+      const conversionRate = effectiveViews > 0
+        ? (ordersThisPeriod / effectiveViews) * 100
         : 0;
 
       const followersChange = followersPrevPeriod > 0
@@ -778,7 +781,7 @@ export class BrandsService {
         conversionRate: Number(conversionRate.toFixed(1)),
         revenueThisPeriod,
         revenueChange: Number(revenueChange.toFixed(1)),
-        viewsThisPeriod: Number(uniqueSessionsThisPeriod || 0),
+        viewsThisPeriod: Number(effectiveViews || 0),
       };
     } catch (error) {
       this.logger.error('❌ [Brands] Erreur lors du calcul des stats:', error);
@@ -819,7 +822,6 @@ export class BrandsService {
       where: {
         brandId,
         status: { not: 'ANNULEE' },
-        paymentStatus: 'VALIDEE',
         createdAt: { gte: startDate }
       },
       select: {

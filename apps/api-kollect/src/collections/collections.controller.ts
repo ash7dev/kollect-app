@@ -408,29 +408,45 @@ export class CollectionsController {
 
   @Patch(':id')
   @Roles('isCEO')
-  @UseInterceptors(AnyFilesInterceptor())
   @UsePipes(new ZodValidationPipe(UpdateCollectionSchema))
   async update(
     @Request() req: any,
     @Param('id') id: string,
     @Body() body: any,
-    @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const dto = UpdateCollectionSchema.parse(body);
+    return this.collectionsService.update(req.user.id, id, dto);
+  }
 
-    if (files && files.length > 0) {
-      const file = files[0];
-      const isVideo = file.mimetype.startsWith('video/');
+  /**
+   * 📷 Mettre à jour le cover (image ou vidéo) d'une collection
+   * PATCH /api/collections/:id/cover
+   */
+  @Patch(':id/cover')
+  @Roles('isCEO')
+  @UseInterceptors(AnyFilesInterceptor())
+  async updateCover(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() body: any,
+    @UploadedFiles() files?: Express.Multer.File[],
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('Aucun fichier fourni');
+    }
 
-      if (isVideo) {
-        const result = await this.cloudinaryService.uploadVideo(file, {
-          folder: ImageFolder.COLLECTIONS,
-        });
-        dto.teaserVideo = result.secureUrl;
-      } else {
-        const url = await this.uploadService.uploadCollectionCover(file);
-        dto.coverImage = url;
-      }
+    const dto = UpdateCollectionSchema.parse(body);
+    const file = files[0];
+    const isVideo = file.mimetype.startsWith('video/');
+
+    if (isVideo) {
+      const result = await this.cloudinaryService.uploadVideo(file, {
+        folder: ImageFolder.COLLECTIONS,
+      });
+      dto.teaserVideo = result.secureUrl;
+    } else {
+      const url = await this.uploadService.uploadCollectionCover(file);
+      dto.coverImage = url;
     }
 
     return this.collectionsService.update(req.user.id, id, dto);

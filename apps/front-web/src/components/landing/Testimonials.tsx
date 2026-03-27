@@ -1,5 +1,7 @@
 'use client';
 
+import { FONT_FAMILY_INTER } from '@/styles/typography';
+
 const TESTIMONIALS = [
   {
     name: 'Aminata D.',
@@ -70,6 +72,7 @@ export function Testimonials() {
         margin: '0 12px',
         borderRadius: 'var(--radius-xxxl)',
         border: '1px solid rgba(0,0,0,0.06)',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>

@@ -356,7 +356,7 @@ function StepTeaser({ draft, setDraft }: { draft: WizardDraft; setDraft: React.D
         {mediaPreview ? (
           <div className="wz-media-preview">
             {mediaType === 'video'
-              ? <video src={mediaPreview} controls muted style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+              ? <video src={mediaPreview} controls muted style={{ width:'100%', height:'100%', objectFit:'contain' }} />
               : <img src={mediaPreview} alt="Aperçu" />
             }
             <button type="button" className="wz-media-change" onClick={() => fileRef.current?.click()}>
@@ -450,7 +450,7 @@ function StepConfirmation({ draft }: { draft: WizardDraft }) {
           {/* Cover */}
           <div style={{ width:'100%', height:180, background:'linear-gradient(135deg,#1a1a2e,#0f3460)', position:'relative', overflow:'hidden' }}>
             {mediaPreviewUrl && !isVideo && <img src={mediaPreviewUrl} alt="Cover" style={{ width:'100%', height:'100%', objectFit:'cover' }} />}
-            {mediaPreviewUrl && isVideo && <video src={mediaPreviewUrl} style={{ width:'100%', height:'100%', objectFit:'cover' }} muted />}
+            {mediaPreviewUrl && isVideo && <video src={mediaPreviewUrl} style={{ width:'100%', height:'100%', objectFit:'contain' }} muted />}
             {!mediaPreviewUrl && previewUrl && <img src={previewUrl} alt="Cover" style={{ width:'100%', height:'100%', objectFit:'cover', opacity:0.5 }} />}
             <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 50%)' }} />
             <div style={{ position:'absolute', bottom:14, left:14, right:14 }}>
@@ -498,8 +498,8 @@ function StepConfirmation({ draft }: { draft: WizardDraft }) {
               const imgUrl = p.images[0] ? URL.createObjectURL(p.images[0]) : null;
               return (
                 <div key={i} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', borderRadius:14, background:'#fff', border:'1px solid rgba(0,0,0,0.07)', boxShadow:'0 1px 4px rgba(0,0,0,0.04)' }}>
-                  <div style={{ width:44, height:44, borderRadius:10, overflow:'hidden', background:'#f0f0f0', flexShrink:0 }}>
-                    {imgUrl && <img src={imgUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />}
+                  <div style={{ width:44, height:44, borderRadius:10, overflow:'hidden', background:'#F5F5F5', flexShrink:0 }}>
+                    {imgUrl && <img src={imgUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'contain' }} />}
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:13, fontWeight:700, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name || `Produit ${i+1}`}</div>
@@ -524,12 +524,6 @@ function StepConfirmation({ draft }: { draft: WizardDraft }) {
 }
 
 // ─── Main wizard ───────────────────────────────────────────────────────────────
-const STEP_META = [
-  { label: 'Produits',    sub: 'Articles de la collection' },
-  { label: 'Collection',  sub: 'Nom, teaser & lancement' },
-  { label: 'Lancement',   sub: 'Vérification & confirmation' },
-];
-
 function initDraft(): WizardDraft {
   return { name:'', description:'', isFeatured:false, mode:'disponible', launchDate:'', collectionMedia:null, products:[emptyProduct()] };
 }
@@ -584,8 +578,6 @@ export function DropsWizardModal({ open, onClose, onCreated }: {
 
   if (!open) return null;
 
-  const progress = (step / 3) * 100;
-
   return (
     <>
       <style>{WIZARD_CSS}</style>
@@ -597,39 +589,15 @@ export function DropsWizardModal({ open, onClose, onCreated }: {
             <div>
               <h2 className="wz-title">Nouveau Drop</h2>
               <p className="wz-subtitle">
-                {step === 1 ? 'Ajoute les produits de ta collection' : step === 2 ? 'Configure l\'identité et le teaser' : 'Vérifie et lance ton drop'}
+                {step === 1 ? 'Produits de la collection' : step === 2 ? 'Identité & teaser' : 'Vérification & lancement'}
               </p>
             </div>
-            <button type="button" className="wz-close" onClick={handleClose}>
-              <Ic d={I.close} size={14} stroke="currentColor" sw={2} />
-            </button>
-          </div>
-
-          {/* Stepper */}
-          <div className="wz-stepper">
-            {STEP_META.map((s, i) => {
-              const n = i + 1;
-              const state = n < step ? 'done' : n === step ? 'active' : 'idle';
-              return (
-                <div key={n} style={{ display:'flex', alignItems:'center', flex: i < 2 ? 1 : 'none' }}>
-                  <div className="wz-step">
-                    <div className={`wz-step-num ${state}`}>
-                      {state === 'done' ? <Ic d={I.check} size={14} stroke="#fff" sw={2.5} /> : n}
-                    </div>
-                    <div className="wz-step-info">
-                      <div className={`wz-step-label ${state}`}>{s.label}</div>
-                      <div className="wz-step-sublabel">{s.sub}</div>
-                    </div>
-                  </div>
-                  {i < 2 && <div className={`wz-step-line${n < step ? ' done' : ''}`} />}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Progress bar */}
-          <div className="wz-progress-bar" style={{ margin:'0 24px', borderRadius:99 }}>
-            <div className="wz-progress-fill" style={{ width:`${progress}%` }} />
+            <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+              <span style={{ fontSize:12, fontWeight:600, color:'rgba(0,0,0,0.3)', letterSpacing:0.2 }}>{step} / 3</span>
+              <button type="button" className="wz-close" onClick={handleClose}>
+                <Ic d={I.close} size={14} stroke="currentColor" sw={2} />
+              </button>
+            </div>
           </div>
 
           {/* Body */}

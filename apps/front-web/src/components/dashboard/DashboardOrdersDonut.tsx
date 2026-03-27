@@ -13,9 +13,9 @@ const SEGMENTS = [
 ] as const;
 
 export function DashboardOrdersDonut({ orders }: { orders: Orders | null }) {
-  const pending   = orders?.enAttente  ?? 0;
-  const confirmed = orders?.confirmees ?? 0;
-  const cancelled = orders?.annulees   ?? 0;
+  const pending   = Number(orders?.enAttente)  || 0;
+  const confirmed = Number(orders?.confirmees) || 0;
+  const cancelled = Number(orders?.annulees)   || 0;
   const total     = Math.max(pending + confirmed + cancelled, 1);
   const realTotal = pending + confirmed + cancelled;
 
@@ -71,104 +71,138 @@ export function DashboardOrdersDonut({ orders }: { orders: Orders | null }) {
       <style>{ANIM}</style>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.3px' }}>
-            Statut commandes
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 3, height: 16, borderRadius: 2, background: 'linear-gradient(180deg, #FF3B30 0%, #E0321F 100%)' }} />
+            Répartition des commandes
           </h3>
-          <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(0,0,0,0.38)' }}>
-            Répartition en temps réel
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(0,0,0,0.5)', fontWeight: 500 }}>
+            Statistiques actuelles
           </p>
         </div>
-        {/* Most common status badge */}
-        <span style={{
-          fontSize: 10.5, fontWeight: 700,
-          padding: '4px 10px', borderRadius: 99,
-          background: maxKey.bg,
-          color: maxKey.color,
-          border: `1px solid ${maxKey.border}`,
-          letterSpacing: '0.2px',
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 16px', borderRadius: 12,
+          background: 'linear-gradient(135deg, rgba(255,59,48,0.08) 0%, rgba(255,59,48,0.04) 100%)', 
+          border: '1px solid rgba(255,59,48,0.15)'
         }}>
-          {maxKey.label}
-        </span>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: maxKey.color, boxShadow: `0 0 6px ${maxKey.color}70` }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#FF3B30' }}>{maxKey.label}</span>
+        </div>
       </div>
 
       {/* Donut — centered, prominent */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-        <div style={{ position: 'relative', width: 140, height: 140 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+        <div style={{ position: 'relative', width: 160, height: 160 }}>
           {/* Outer glow ring */}
           <div style={{
-            position: 'absolute', inset: -4, borderRadius: '50%',
+            position: 'absolute', inset: -6, borderRadius: '50%',
             background: `conic-gradient(${stops})`,
-            filter: 'blur(6px)',
-            opacity: 0.2,
+            filter: 'blur(8px)',
+            opacity: 0.15,
           }} />
           {/* Main donut */}
           <div style={{
-            width: 140, height: 140, borderRadius: '50%',
+            width: 160, height: 160, borderRadius: '50%',
             background: `conic-gradient(${stops})`,
-            boxShadow: '0 6px 20px rgba(0,0,0,0.10)',
-          }} />
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            {/* Animated inner ring */}
+            <div style={{
+              position: 'absolute', inset: 24, borderRadius: '50%',
+              border: '2px solid rgba(255,255,255,0.8)',
+              boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.1)',
+              animation: 'donutRotate 20s linear infinite',
+            }} />
+          </div>
           {/* Hole */}
           <div style={{
             position: 'absolute',
-            inset: 22,
+            inset: 28,
             borderRadius: '50%',
-            background: '#F9F9FB',
-            boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.08), 0 1px 0 rgba(255,255,255,0.9)',
+            background: 'linear-gradient(135deg, #FFFFFF 0%, #F9F9FB 100%)',
+            boxShadow: 'inset 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(255,255,255,0.9)',
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
           }}>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#0A0A0A', letterSpacing: '-0.8px', lineHeight: 1 }}>
+            <span style={{ fontSize: 28, fontWeight: 900, color: '#0A0A0A', letterSpacing: '-1px', lineHeight: 1 }}>
               {realTotal}
             </span>
-            <span style={{ fontSize: 8.5, color: 'rgba(0,0,0,0.35)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', marginTop: 2 }}>
-              total
+            <span style={{ fontSize: 9, color: 'rgba(0,0,0,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', marginTop: 3 }}>
+              commandes
             </span>
           </div>
         </div>
       </div>
 
-      {/* Stats list — filled, no empty space */}
-      <div style={{ display: 'grid', gap: 8 }}>
+      {/* Stats list — enhanced cards */}
+      <div style={{ display: 'grid', gap: 10 }}>
         {SEGMENTS.map(({ key, label, color, bg, border }) => {
           const count = values[key];
           const pct   = Math.round((count / total) * 100);
+          const isMax = key === maxKey.key;
           return (
             <div key={key} style={{
-              padding: '10px 12px',
-              borderRadius: 12,
-              background: bg,
-              border: `1px solid ${border}`,
+              padding: '14px 16px',
+              borderRadius: 16,
+              background: isMax 
+                ? 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)'
+                : 'linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.5) 100%)',
+              border: isMax 
+                ? `2px solid ${color}30` 
+                : `1px solid rgba(0,0,0,0.06)`,
+              backdropFilter: 'blur(8px)',
+              transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              cursor: 'default',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
-                <span style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: color, flexShrink: 0,
-                  boxShadow: `0 0 6px ${color}70`,
-                }} />
-                <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.6)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{
+                  width: 12, height: 12, borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${color} 0%, ${color}CC 100%)`, 
+                  flexShrink: 0,
+                  boxShadow: `0 2px 8px ${color}40`,
+                  position: 'relative',
+                }}>
+                  {isMax && (
+                    <div style={{
+                      position: 'absolute', inset: -2, borderRadius: '50%',
+                      border: `2px solid ${color}30`,
+                      animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }} />
+                  )}
+                </div>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#111', letterSpacing: '-0.1px' }}>
                   {label}
                 </span>
-                <span style={{ fontSize: 15, fontWeight: 900, color: '#0A0A0A', letterSpacing: '-0.3px' }}>
-                  {count}
-                </span>
-                <span style={{
-                  fontSize: 10, fontWeight: 700,
-                  padding: '2px 6px', borderRadius: 99,
-                  background: `${color}20`, color,
-                  minWidth: 30, textAlign: 'center',
-                }}>
-                  {pct}%
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: '#0A0A0A', letterSpacing: '-0.3px' }}>
+                    {count}
+                  </span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700,
+                    padding: '3px 8px', borderRadius: 8,
+                    background: isMax ? color : `${color}20`,
+                    color: isMax ? '#fff' : color,
+                    minWidth: 35, textAlign: 'center',
+                    boxShadow: isMax ? `0 2px 8px ${color}40` : 'none',
+                  }}>
+                    {pct}%
+                  </span>
+                </div>
               </div>
-              {/* Mini progress bar */}
-              <div style={{ height: 4, borderRadius: 99, background: 'rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+              {/* Enhanced progress bar */}
+              <div style={{ height: 6, borderRadius: 99, background: 'rgba(0,0,0,0.08)', overflow: 'hidden', position: 'relative' }}>
                 <div style={{
                   height: '100%', borderRadius: 99,
-                  background: color,
+                  background: isMax 
+                    ? `linear-gradient(90deg, ${color} 0%, ${color}CC 100%)`
+                    : color,
                   width: `${pct}%`,
-                  transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
+                  transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)',
+                  boxShadow: isMax ? `0 0 12px ${color}60` : 'none',
                 }} />
               </div>
             </div>
@@ -183,10 +217,22 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 20,
   border: '1px solid rgba(0,0,0,0.07)',
   background: 'rgba(255,255,255,0.88)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  padding: '20px',
-  boxShadow: '0 4px 16px rgba(0,0,0,0.05), 0 1px 4px rgba(0,0,0,0.06)',
+  backdropFilter: 'blur(24px)',
+  WebkitBackdropFilter: 'blur(24px)',
+  padding: '24px',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06)',
+  display: 'flex',
+  flexDirection: 'column',
 };
 
-const ANIM = `@keyframes doPulse{0%,100%{opacity:1}50%{opacity:.5}}`;
+const ANIM = `
+  @keyframes doPulse{0%,100%{opacity:1}50%{opacity:.5}}
+  @keyframes donutRotate{
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes pulse{
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0; }
+  }
+`;

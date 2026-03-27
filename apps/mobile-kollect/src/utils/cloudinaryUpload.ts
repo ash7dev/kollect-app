@@ -42,6 +42,18 @@ async function getUploadSignature(
   resourceType: 'image' | 'video',
 ): Promise<UploadSignature> {
   const token = await SecureStore.getItemAsync(STORAGE_KEYS.JWT_TOKEN);
+  
+  console.log('🔐 [Cloudinary] Demande de signature:', {
+    folder,
+    resourceType,
+    hasToken: !!token,
+    tokenPreview: token ? `${token.substring(0, 20)}...` : 'none'
+  });
+
+  if (!token) {
+    throw new Error('Aucun token d\'authentification pour la signature Cloudinary');
+  }
+
   const res = await fetch(
     `${apiUrl}/upload/signature?folder=${encodeURIComponent(folder)}&resourceType=${resourceType}`,
     {
@@ -51,8 +63,27 @@ async function getUploadSignature(
       },
     },
   );
-  if (!res.ok) throw new Error('Impossible de générer la signature upload');
-  return res.json() as Promise<UploadSignature>;
+
+  console.log('📝 [Cloudinary] Réponse signature:', {
+    status: res.status,
+    statusText: res.statusText,
+    ok: res.ok
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => 'Unknown error');
+    console.error('❌ [Cloudinary] Erreur signature:', errorText);
+    throw new Error(`Impossible de générer la signature upload (${res.status}): ${errorText}`);
+  }
+
+  const signatureData: UploadSignature = await res.json();
+  console.log('✅ [Cloudinary] Signature reçue:', {
+    hasSignature: !!signatureData.signature,
+    cloudName: signatureData.cloudName,
+    folder: signatureData.folder
+  });
+
+  return signatureData;
 }
 
 /**

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/services/api/client';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 interface Drop {
@@ -76,7 +77,7 @@ function EmptyDrops() {
         Prochains lancements au calendrier
       </h3>
       <p style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.38)', lineHeight: 1.7, maxWidth: '420px', margin: '0 0 32px' }}>
-        Les maisons préparent leurs éditions. Sois averti dès qu&apos;une fenêtre de vente s&apos;ouvre — en quantité souvent limitée.
+        Les Marques préparent leurs éditions. Sois averti dès qu&apos;une fenêtre de vente s&apos;ouvre — en quantité souvent limitée.
       </p>
       {/* CTA */}
       <Link href="#download" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '13px 28px', borderRadius: '12px', fontSize: '14px', fontWeight: 800, color: '#fff', textDecoration: 'none', backgroundColor: '#FF3B30', boxShadow: '0 8px 32px rgba(255,59,48,0.35)' }}>
@@ -144,7 +145,7 @@ function DropCard({ drop }: { drop: Drop }) {
           style={{ width: '100%', padding: '12px 20px', borderRadius: '12px', fontSize: '14px', fontWeight: 700, color: '#fff', backgroundColor: `${drop.accentColor}22`, border: `1px solid ${drop.accentColor}44`, cursor: 'pointer', transition: 'all 220ms ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontFamily: 'inherit' }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={drop.accentColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
           Me notifier
         </button>
@@ -210,6 +211,7 @@ export function DropsPreview() {
         borderRadius: 'var(--radius-xxxl)',
         margin: '0 12px',
         border: '1px solid rgba(255,255,255,0.06)',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       {/* Grid bg */}
@@ -240,7 +242,7 @@ export function DropsPreview() {
             >
               Voir l&apos;agenda
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
+                <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </Link>
           )}

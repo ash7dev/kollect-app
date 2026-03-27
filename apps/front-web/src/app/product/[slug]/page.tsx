@@ -1,19 +1,12 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { fetchAPI } from '@/lib/api';
+import { Navbar } from '@/components/landing/Navbar';
+import { ProductDetailPage, type PublicProduct } from '@/components/brands/brand-shop/ProductDetailPage';
 
-type Product = {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string | null;
-  images?: string[];
-  updatedAt?: string | Date;
-};
-
-async function findProductBySlug(slug: string): Promise<Product | null> {
+async function findProductBySlug(slug: string): Promise<PublicProduct | null> {
   try {
-    return await fetchAPI<Product>(`/produits/public/slug/${slug}`, { revalidate: 300 });
+    return await fetchAPI<PublicProduct>(`/produits/public/slug/${slug}`, { revalidate: 300 });
   } catch {
     return null;
   }
@@ -48,9 +41,9 @@ export default async function ProductPage({ params }: { params: { slug: string }
   }
 
   return (
-    <main style={{ padding: 24 }}>
-      <h1>{product.name}</h1>
-      {product.description && <p>{product.description}</p>}
-    </main>
+    <div style={{ minHeight: '100vh', backgroundColor: '#FFFFFF' }}>
+      <Navbar transparent />
+      <ProductDetailPage product={product} />
+    </div>
   );
 }

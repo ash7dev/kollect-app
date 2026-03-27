@@ -1,5 +1,7 @@
 'use client';
 
+import { useFollowBrand } from '@/hooks/useFollowBrand';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/services/api/client';
@@ -131,7 +133,7 @@ export function BrandFollowButton({
         color: isFollowing ? 'rgba(255,255,255,0.6)' : isAccent ? '#fff' : '#000',
         backdropFilter: 'blur(12px)',
         transition: 'all 180ms ease',
-        fontFamily: 'inherit',
+        fontFamily: FONT_FAMILY_INTER,
       }}
     >
       {loading ? (
