@@ -11,7 +11,7 @@ const FOOTER_LINKS = {
     { label: 'Drops à venir', href: '/drops' },
   ],
   Créateurs: [
-    { label: 'Devenir vendeur', href: '/become-seller' },
+    { label: 'Devenir vendeur', href: '/creators' },
     { label: 'Dashboard CEO', href: '/ceo' },
     { label: 'Comment ça marche', href: '/how-it-works' },
     { label: 'Ressources', href: '/resources' },
