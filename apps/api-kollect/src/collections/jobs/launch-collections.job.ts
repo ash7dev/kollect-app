@@ -1,8 +1,14 @@
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CollectionStatus } from '@prisma/client';
-import { CollectionsService } from '../collections.service';
+import type { Queue } from 'bullmq';
+import {
+  buildLaunchDropJobId,
+  DROP_JOB_NAMES,
+  DROPS_QUEUE,
+} from '../../queues/constants/queue.constants';
 
 @Injectable()
 export class LaunchCollectionsJob {
@@ -10,13 +16,14 @@ export class LaunchCollectionsJob {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly collectionsService: CollectionsService,
-  ) { }
+    @InjectQueue(DROPS_QUEUE)
+    private readonly dropsQueue: Queue,
+  ) {}
 
-  // Vérifier toutes les minutes les collections à lancer
-  @Cron(CronExpression.EVERY_MINUTE)
+  // Filet de sécurité: toutes les 5 minutes on réarme les jobs manquants.
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron() {
-    this.logger.log('Vérification des collections à lancer...');
+    this.logger.log('Vérification de sécurité des drops à lancer...');
 
     const now = new Date();
 
@@ -35,6 +42,7 @@ export class LaunchCollectionsJob {
         select: {
           id: true,
           name: true,
+          brandId: true,
         },
       });
 
@@ -43,24 +51,25 @@ export class LaunchCollectionsJob {
         return;
       }
 
-      this.logger.log(
-        `Tentative de lancement de ${collectionsToLaunch.length} collection(s)...`,
+      this.logger.warn(
+        `Filet de sécurité actif: réinjection de ${collectionsToLaunch.length} job(s) de lancement`,
       );
 
-      // Lancer chaque collection
       for (const collection of collectionsToLaunch) {
         try {
+          await this.dropsQueue.add(
+            DROP_JOB_NAMES.LAUNCH,
+            {
+              dropId: collection.id,
+              brandId: collection.brandId,
+            },
+            {
+              jobId: buildLaunchDropJobId(collection.id),
+            },
+          );
           this.logger.log(
-            `Lancement de la collection: ${collection.name} (${collection.id})`,
+            `Job de lancement réarmé pour ${collection.name} (${collection.id})`,
           );
-
-          // Utiliser le service existant pour lancer la collection
-          await this.collectionsService.launchCollection(
-            'system-cron',
-            collection.id,
-          );
-
-          this.logger.log(`Collection lancée avec succès: ${collection.name}`);
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : String(error);

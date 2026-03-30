@@ -204,7 +204,7 @@ function HeroTrendingCard({ collection, isMain = false }: { collection: Trending
     // Version desktop avec grand visuel
     return (
       <Link
-        href={`/collections/${collection.slug}`}
+        href={`/brand/${collection.brand.slug}/${collection.slug}`}
         className="hero-trending-card"
         style={{
           display: 'block',
@@ -405,7 +405,7 @@ function HeroTrendingCard({ collection, isMain = false }: { collection: Trending
   // Version card standard pour desktop et mobile
   return (
     <Link
-      href={`/collections/${collection.slug}`}
+      href={`/brand/${collection.brand.slug}/${collection.slug}`}
       className="trending-card"
       style={{
         display: 'block',
@@ -703,7 +703,7 @@ function LiveActivity() {
               color: 'rgba(255,255,255,0.4)',
               fontWeight: 500,
             }}>
-              en liste d'attente
+              en liste d&apos;attente
             </div>
           </div>
         </div>

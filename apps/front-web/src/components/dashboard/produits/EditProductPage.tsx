@@ -33,6 +33,64 @@ const COLORS: { value: string; name: string }[] = [
   { value: '#F4E9D8', name: 'Crème' },
 ];
 
+const PRODUCT_TYPES = [
+  { value: 'TSHIRT', label: 'T-shirt / Top' },
+  { value: 'BONNET', label: 'Bonnet / Casquette' },
+  { value: 'SAC', label: 'Sac' },
+  { value: 'ENSEMBLE', label: 'Ensemble' },
+  { value: 'ACCESSOIRE', label: 'Accessoire' },
+];
+
+const PRODUCT_GENDERS = [
+  { value: 'HOMME', label: 'Homme' },
+  { value: 'FEMME', label: 'Femme' },
+  { value: 'UNISEXE', label: 'Unisex' },
+];
+
+// Configuration des champs selon le type de produit
+const PRODUCT_TYPE_FIELDS = {
+  TSHIRT: {
+    showSizes: true,
+    showColors: true,
+    showWeight: false,
+    showDescription: true,
+    sizeLabel: 'Tailles disponibles',
+    colorLabel: 'Couleurs disponibles',
+  },
+  BONNET: {
+    showSizes: false,
+    showColors: true,
+    showWeight: false,
+    showDescription: true,
+    sizeLabel: 'Taille unique',
+    colorLabel: 'Couleur principale',
+  },
+  SAC: {
+    showSizes: false,
+    showColors: true,
+    showWeight: true,
+    showDescription: true,
+    sizeLabel: 'Dimensions',
+    colorLabel: 'Couleurs',
+  },
+  ENSEMBLE: {
+    showSizes: true,
+    showColors: true,
+    showWeight: false,
+    showDescription: true,
+    sizeLabel: 'Tailles (ex: Haut S + Bas M)',
+    colorLabel: 'Couleurs dominantes',
+  },
+  ACCESSOIRE: {
+    showSizes: false,
+    showColors: true,
+    showWeight: false,
+    showDescription: true,
+    sizeLabel: 'Taille',
+    colorLabel: 'Couleurs',
+  },
+} as const;
+
 const STATUS_META: Record<CollectionStatus, { label: string; bg: string; color: string }> = {
   DISPONIBLE: { label: 'Disponible', bg: '#D1FAE5', color: '#065F46' },
   TEASER:     { label: 'Teaser',     bg: '#FEF3C7', color: '#92400E' },
@@ -53,12 +111,15 @@ type CeoProduct = {
   images: string[];
   sizes: string[];
   colors: string[];
+  productType: string | null;
+  gender: string | null;
+  weight: number | null;
   isVisible: boolean;
   isFeatured: boolean;
   collection: { id: string; name: string; status: CollectionStatus } | null;
 };
 
-type FieldError = Partial<Record<'name' | 'price' | 'stock' | 'images', string>>;
+type FieldError = Partial<Record<'name' | 'price' | 'stock' | 'images' | 'productType' | 'gender' | 'sizes' | 'colors' | 'weight', string>>;
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -255,6 +316,9 @@ export function EditProductPage({ productId }: { productId: string }) {
   const [colors, setColors] = useState<string[]>([]);
   const [isVisible, setIsVisible] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
+  const [productType, setProductType] = useState<string>('');
+  const [gender, setGender] = useState<string>('');
+  const [weight, setWeight] = useState<string>('');
   // Unified image list — existing URLs + new Files, in display order
   const [images, setImages] = useState<ImageItem[]>([]);
   const [initialized, setInitialized] = useState(false);
@@ -284,6 +348,9 @@ export function EditProductPage({ productId }: { productId: string }) {
     setColors(p.colors ?? []);
     setIsVisible(p.isVisible);
     setIsFeatured(p.isFeatured);
+    setProductType(p.productType ?? '');
+    setGender(p.gender ?? '');
+    setWeight(p.weight ? String(p.weight) : '');
     setImages((p.images ?? []).map(url => ({ kind: 'existing' as const, url })));
     setInitialized(true);
   }, [productQuery.data, initialized]);
@@ -319,12 +386,21 @@ export function EditProductPage({ productId }: { productId: string }) {
   // ── Validation ──
   const validate = useCallback((): FieldError => {
     const e: FieldError = {};
+    if (!productType)                                             e.productType = 'Choisis un type de produit';
+    if (!gender)                                                  e.gender = 'Choisis un genre';
     if (!name.trim() || name.trim().length < 3)                    e.name  = 'Nom trop court (3 car. min)';
     if (!price || isNaN(Number(price)) || Number(price) < 0)       e.price = 'Prix invalide';
     if (stock === '' || isNaN(Number(stock)) || Number(stock) < 0) e.stock = 'Stock invalide';
     if (totalImages === 0)                                          e.images = 'Au moins une photo est requise';
+    
+    // Validation conditionnelle selon le type
+    const fields = PRODUCT_TYPE_FIELDS[productType as keyof typeof PRODUCT_TYPE_FIELDS];
+    if (fields?.showSizes && sizes.length === 0)                     e.sizes = 'Ajoute au moins une taille';
+    if (fields?.showColors && colors.length === 0)                    e.colors = 'Ajoute au moins une couleur';
+    if (fields?.showWeight && (!weight || isNaN(Number(weight))))        e.weight = 'Poids invalide';
+    
     return e;
-  }, [name, price, stock, totalImages]);
+  }, [productType, gender, name, price, stock, totalImages, sizes, colors, weight]);
 
   const fieldError = (key: keyof FieldError) =>
     (submitted || touched.has(key)) ? errors[key] : undefined;
@@ -332,6 +408,29 @@ export function EditProductPage({ productId }: { productId: string }) {
   const touch = (key: string) => setTouched(prev => new Set(prev).add(key));
 
   useEffect(() => { setErrors(validate()); }, [validate]);
+
+  // ── Reset conditional fields when product type changes ──
+  useEffect(() => {
+    if (!productType) return;
+    
+    const fields = PRODUCT_TYPE_FIELDS[productType as keyof typeof PRODUCT_TYPE_FIELDS];
+    if (!fields) return;
+
+    // Reset weight if not shown for this product type
+    if (!fields.showWeight) {
+      setWeight('');
+    }
+
+    // Reset sizes if not shown for this product type
+    if (!fields.showSizes) {
+      setSizes([]);
+    }
+
+    // Reset colors if not shown for this product type
+    if (!fields.showColors) {
+      setColors([]);
+    }
+  }, [productType]);
 
   // ── Submit ──
   const updateMutation = useMutation({
@@ -342,10 +441,13 @@ export function EditProductPage({ productId }: { productId: string }) {
         stock: Number(stock),
         sizes: sizes.length ? sizes : ['UNIQUE'],
         colors,
+        productType: productType || null,
+        gender: gender || null,
+        weight: weight ? Number(weight) : undefined,
         isVisible,
         isFeatured,
         ...(description.trim() ? { description: description.trim() } : { description: null }),
-        // Send existing URLs in the user-chosen order; backend appends new uploads after
+        // Send existing URLs in user-chosen order; backend appends new uploads after
         ...(existingUrls.length > 0 ? { images: existingUrls } : {}),
       };
       const fd = new FormData();
@@ -695,6 +797,38 @@ export function EditProductPage({ productId }: { productId: string }) {
                       />
                     </Field>
 
+                    <Field label="Type de produit" required error={fieldError('productType')}>
+                      <select
+                        className="ep-input"
+                        style={fieldError('productType') ? errInput : baseInput}
+                        value={productType}
+                        onChange={e => { setProductType(e.target.value); touch('productType'); }}
+                      >
+                        <option value="">Choisir un type</option>
+                        {PRODUCT_TYPES.map(type => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field label="Genre" required error={fieldError('gender')}>
+                      <select
+                        className="ep-input"
+                        style={fieldError('gender') ? errInput : baseInput}
+                        value={gender}
+                        onChange={e => { setGender(e.target.value); touch('gender'); }}
+                      >
+                        <option value="">Choisir un genre</option>
+                        {PRODUCT_GENDERS.map(g => (
+                          <option key={g.value} value={g.value}>
+                            {g.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                       <Field label="Prix" required error={fieldError('price')}>
                         <div className="ep-price-wrap">
@@ -734,35 +868,67 @@ export function EditProductPage({ productId }: { productId: string }) {
                 </div>
 
                 {/* Variantes */}
-                <div className="ep-card">
-                  <div className="ep-card-title">
-                    <div className="ep-card-title-bar" style={{ background: '#6366F1' }} />
-                    Variantes
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+                {productType && (
+                  <div className="ep-card">
+                    <div className="ep-card-title">
+                      <div className="ep-card-title-bar" style={{ background: '#6366F1' }} />
+                      Variantes
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+                      {(() => {
+                        const fields = PRODUCT_TYPE_FIELDS[productType as keyof typeof PRODUCT_TYPE_FIELDS];
+                        if (!fields) return null;
 
-                    <Field label="Tailles disponibles" hint="Si aucune, le produit sera vendu en taille UNIQUE.">
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
-                        {PRESET_SIZES.map(s => (
-                          <button
-                            key={s} type="button"
-                            className="ep-size-chip"
-                            data-active={sizes.includes(s) ? 'true' : 'false'}
-                            onClick={() => toggleSize(s)}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    </Field>
+                        return (
+                          <>
+                            {/* Champ Poids (uniquement pour les sacs) */}
+                            {fields.showWeight && (
+                              <Field label="Poids (g)" error={fieldError('weight')}>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  placeholder="500"
+                                  className="ep-input"
+                                  style={fieldError('weight') ? errInput : baseInput}
+                                  value={weight}
+                                  onChange={e => setWeight(e.target.value)}
+                                  onBlur={() => touch('weight')}
+                                />
+                              </Field>
+                            )}
 
-                    <Field label="Couleurs disponibles" hint="Optionnel — clique pour sélectionner.">
-                      <div style={{ marginTop: 4 }}>
-                        <ColorSwatches selected={colors} onChange={setColors} />
-                      </div>
-                    </Field>
+                            {/* Champ Tailles */}
+                            {fields.showSizes && (
+                              <Field label={fields.sizeLabel} hint="Si aucune, le produit sera vendu en taille UNIQUE.">
+                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+                                  {PRESET_SIZES.map(s => (
+                                    <button
+                                      key={s} type="button"
+                                      className="ep-size-chip"
+                                      data-active={sizes.includes(s) ? 'true' : 'false'}
+                                      onClick={() => toggleSize(s)}
+                                    >
+                                      {s}
+                                    </button>
+                                  ))}
+                                </div>
+                              </Field>
+                            )}
+
+                            {/* Champ Couleurs */}
+                            {fields.showColors && (
+                              <Field label={fields.colorLabel} hint="Optionnel — clique pour sélectionner.">
+                                <div style={{ marginTop: 4 }}>
+                                  <ColorSwatches selected={colors} onChange={setColors} />
+                                </div>
+                              </Field>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Paramètres */}
                 <div className="ep-card">

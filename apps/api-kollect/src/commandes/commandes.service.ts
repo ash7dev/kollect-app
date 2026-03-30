@@ -13,17 +13,26 @@ import {
   NotFoundException,
   ForbiddenException,
   Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailService } from '../email/ email.service';
 import { MetricsService } from '../metrics/metrics.service';
+import type { Queue } from 'bullmq';
 import {
   CommandeItemDto,
   CreateCommandeDto,
   QueryCommandesDto,
 } from './dto/create-commande.dto';
 import { $Enums, CommandeStatus, Prisma } from '@prisma/client';
+import {
+  buildProcessOrderJobId,
+  ORDERS_QUEUE,
+  ORDER_JOB_NAMES,
+} from '../queues/constants/queue.constants';
+import type { ProcessOrderJobPayload } from '../queues/interfaces/queue-jobs.interface';
 
 
 // Type pour les items de commande
@@ -48,6 +57,93 @@ export interface AutoCancelResult {
 @Injectable()
 export class CommandesService {
   private readonly logger = new Logger(CommandesService.name);
+
+  private async reserveVariantStock(
+    tx: Prisma.TransactionClient,
+    variantId: string,
+    quantity: number,
+  ): Promise<void> {
+    const result = await tx.varianteProduit.updateMany({
+      where: {
+        id: variantId,
+        stock: { gte: quantity },
+      },
+      data: {
+        stock: {
+          decrement: quantity,
+        },
+      },
+    });
+
+    if (result.count !== 1) {
+      throw new BadRequestException(
+        "Impossible de réserver le stock de la variante. Veuillez réessayer.",
+      );
+    }
+  }
+
+  private async reserveProductStock(
+    tx: Prisma.TransactionClient,
+    productId: string,
+    quantity: number,
+  ): Promise<void> {
+    const result = await tx.produit.updateMany({
+      where: {
+        id: productId,
+        stock: { gte: quantity },
+      },
+      data: {
+        stock: {
+          decrement: quantity,
+        },
+      },
+    });
+
+    if (result.count !== 1) {
+      throw new BadRequestException(
+        "Impossible de réserver le stock du produit. Veuillez réessayer.",
+      );
+    }
+  }
+
+  private async generateUniqueOrderNumber(
+    tx: Prisma.TransactionClient,
+    maxAttempts = 5,
+  ): Promise<string> {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const candidate = await this.generateOrderNumber(tx);
+      const existingOrder = await tx.commande.findUnique({
+        where: { orderNumber: candidate },
+        select: { id: true },
+      });
+
+      if (!existingOrder) {
+        return candidate;
+      }
+    }
+
+    throw new InternalServerErrorException(
+      "Impossible de générer un numéro de commande unique",
+    );
+  }
+
+  private async createNotificationSafely(params: {
+    userId: string;
+    type: string;
+    title: string;
+    message: string;
+    data?: Record<string, unknown>;
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  }): Promise<void> {
+    try {
+      await this.notificationsService.create(params);
+    } catch (error) {
+      this.logger.error(
+        `Erreur lors de la creation de notification type=${params.type} userId=${params.userId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
 
   /**
    * Annuler une commande (CEO ou client)
@@ -137,32 +233,28 @@ export class CommandesService {
     });
 
     // Notifications non bloquantes
-    try {
-      // Notifier le client
-      this.notificationsService.create({
+    await Promise.all([
+      this.createNotificationSafely({
         userId: commande.clientId,
         type: 'COMMANDE_ANNULEE',
         title: '❌ Commande annulée',
         message: `Ta commande #${commande.orderNumber} a été annulée`,
         data: { commandeId: commande.id },
         priority: 'MEDIUM',
-      });
-
-      // Notifier le CEO
-      const brandUserId = commande.brand.userId;
-      if (brandUserId) {
-        this.notificationsService.create({
-          userId: brandUserId,
-          type: 'COMMANDE_ANNULEE',
-          title: '❌ Commande annulée',
-          message: `La commande #${commande.orderNumber} a été annulée`,
-          data: { commandeId: commande.id },
-          priority: 'LOW',
-        });
-      }
-    } catch (error) {
-      this.logger.error('Erreur lors de la notification COMMANDE_ANNULEE', error);
-    }
+      }),
+      ...(commande.brand.userId
+        ? [
+            this.createNotificationSafely({
+              userId: commande.brand.userId,
+              type: 'COMMANDE_ANNULEE',
+              title: '❌ Commande annulée',
+              message: `La commande #${commande.orderNumber} a été annulée`,
+              data: { commandeId: commande.id },
+              priority: 'LOW',
+            }),
+          ]
+        : []),
+    ]);
 
     return updated;
   }
@@ -171,6 +263,8 @@ export class CommandesService {
     private notificationsService: NotificationsService,
     private emailService: EmailService,
     private metricsService: MetricsService,
+    @InjectQueue(ORDERS_QUEUE)
+    private readonly ordersQueue: Queue,
   ) {}
 
   /**
@@ -211,11 +305,7 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
             if (!variant.isActive) throw new BadRequestException(`Le produit "${variant.product.name}" n'est plus disponible`);
             if (variant.stock < item.quantity) throw new BadRequestException(`Stock insuffisant pour "${variant.product.name}" (${variant.name}). Disponible: ${variant.stock}, Demandé: ${item.quantity}`);
 
-            const updatedVariant = await tx.varianteProduit.update({
-              where: { id: item.variantId, stock: { gte: item.quantity } },
-              data: { stock: { decrement: item.quantity } },
-            });
-            if (!updatedVariant) throw new BadRequestException(`Impossible de réserver le stock pour "${variant.product.name}". Veuillez réessayer.`);
+            await this.reserveVariantStock(tx, item.variantId, item.quantity);
 
             const itemPrice = (variant.price && variant.price > 0) ? variant.price : variant.product.price;
             subtotal += itemPrice * item.quantity;
@@ -234,11 +324,7 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
             if (!product.isVisible) throw new BadRequestException(`Le produit "${product.name}" n'est pas disponible`);
             if (product.stock < item.quantity) throw new BadRequestException(`Stock insuffisant pour "${product.name}". Disponible: ${product.stock}, Demandé: ${item.quantity}`);
 
-            const updatedProduct = await tx.produit.update({
-              where: { id: item.productId, stock: { gte: item.quantity } as any },
-              data: { stock: { decrement: item.quantity } },
-            });
-            if (!updatedProduct) throw new BadRequestException(`Impossible de réserver le stock pour "${product.name}". Veuillez réessayer.`);
+            await this.reserveProductStock(tx, item.productId, item.quantity);
 
             subtotal += product.price * item.quantity;
             items.push({
@@ -260,16 +346,18 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
         const shippingFee = 0; // MVP: gratuit
         const total = subtotal + shippingFee;
 
-        const orderNumber = await this.generateOrderNumber(tx);
+        const orderNumber = await this.generateUniqueOrderNumber(tx);
 
         const commande = await tx.commande.create({
           data: {
             orderNumber,
             clientId: userId,
             brandId,
+            shippingName: dto.adresseLivraison.nom.trim(),
             shippingAddress: dto.adresseLivraison.adresse,
             shippingCity: dto.adresseLivraison.ville,
             shippingPhone: dto.adresseLivraison.telephone,
+            notes: dto.notes?.trim() || null,
             subtotal,           // ✅ En FCFA normal
             shippingFee,        // ✅ En FCFA normal
             discount: 0,
@@ -311,72 +399,15 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
       },
     );
 
-    const notificationCommande = {
-      ...commande,
-      client: commande.client,
+    const orderJobPayload: ProcessOrderJobPayload = {
+      orderId: commande.id,
+      clientId: commande.clientId,
       brandId: commande.brandId,
-      items: commande.items.map((item) => ({
-        id: item.id,
-        productId: item.productId,
-        // Peut être null si tu n'utilises pas de variantes
-        variantId: item.variantId ?? null,
-        productName: item.productName || 'Produit sans nom',
-        price: item.price,
-        quantity: item.quantity,
-        size: item.size,
-        color: item.color,
-      })),
-      brand: {
-        id: commande.brand.id,
-        name: commande.brand.name,
-      },
     };
 
-    // Emails transactionnels
-    try {
-      const clientEmail = (commande.client as any)?.email as string | undefined;
-      const clientName = `${(commande.client as any)?.firstName || ''} ${(commande.client as any)?.lastName || ''}`.trim() || 'Client';
-      const brandName = commande.brand?.name ?? 'Marque';
-      const totalFormatted = `${commande.total.toLocaleString('fr-FR')} FCFA`;
-      const itemsHtml = this.buildItemsHtml(commande.items);
-
-      if (clientEmail) {
-        await this.emailService.sendClientConfirmationCommande(clientEmail, {
-          clientName,
-          brandName,
-          orderNumber: commande.orderNumber,
-          orderDate: commande.createdAt.toLocaleDateString('fr-FR'),
-          totalAmount: totalFormatted,
-          itemsHtml,
-        });
-      }
-
-      const brand = await this.prisma.marque.findUnique({
-        where: { id: commande.brandId },
-        include: { user: true },
-      });
-
-      const brandEmail = brand?.user?.email;
-      const dashboardBase = process.env.KOLLECT_DASHBOARD_URL || 'https://kollect.sn/backoffice';
-
-      if (brandEmail) {
-        await this.emailService.sendMarqueNouvelleCommandeCEO(brandEmail, {
-          brandName,
-          clientName,
-          orderNumber: commande.orderNumber,
-          orderDate: commande.createdAt.toLocaleDateString('fr-FR'),
-          totalAmount: totalFormatted,
-          itemsHtml,
-          backofficeUrl: `${dashboardBase}/commandes/${commande.id}`,
-        });
-      }
-    } catch (e) {
-      // On log mais on ne bloque pas la création de commande si l'email échoue
-       
-      console.error('Erreur lors de lenvoi des emails de commande:', e);
-    }
-
-    await this.notifyNewCommande(notificationCommande);
+    await this.ordersQueue.add(ORDER_JOB_NAMES.PROCESS_ORDER, orderJobPayload, {
+      jobId: buildProcessOrderJobId(commande.id),
+    });
 
     return commande;
   } catch (error) {
@@ -775,8 +806,7 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
     });
 
     // Notifier le client (push in-app) - ne doit pas casser la confirmation si non implémenté
-    try {
-      this.notificationsService.create({
+    await this.createNotificationSafely({
         userId: commande.clientId,
         type: 'COMMANDE_CONFIRMEE',
         title: '✅ Commande confirmée',
@@ -784,9 +814,6 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
         data: { commandeId },
         priority: 'MEDIUM',
       });
-    } catch (error) {
-      this.logger.error('Erreur lors de la notification COMMANDE_CONFIRMEE', error);
-    }
 
     // Email de confirmation détaillé au client
     try {
@@ -878,27 +905,24 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
         });
 
         // Notifier le client et le CEO (non bloquant si NotificationsService n'est pas implémenté)
-        try {
-          this.notificationsService.create({
+        await Promise.all([
+          this.createNotificationSafely({
             userId: commande.clientId,
             type: 'COMMANDE_ANNULEE',
             title: '❌ Commande annulée automatiquement',
             message: `Ta commande #${commande.orderNumber} a été annulée (délai dépassé)`,
             data: { commandeId: commande.id },
             priority: 'MEDIUM',
-          });
-
-          this.notificationsService.create({
+          }),
+          this.createNotificationSafely({
             userId: commande.brand.userId,
             type: 'COMMANDE_ANNULEE',
             title: '⏰ Commande expirée',
             message: `La commande #${commande.orderNumber} a été annulée automatiquement`,
             data: { commandeId: commande.id },
             priority: 'LOW',
-          });
-        } catch (error) {
-          this.logger.error('Erreur lors de la notification COMMANDE_ANNULEE', error);
-        }
+          }),
+        ]);
 
         results.push({
           commandeId: commande.id,
@@ -923,58 +947,4 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
     };
   }
 
-  /**
-   * Notifier le CEO d'une nouvelle commande
-   */
-  private async notifyNewCommande(commande: {
-  client: any;
-  id: string;
-  orderNumber: string;
-  brandId: string;
-  status: CommandeStatus;
-  total: number;
-  items: Array<{
-    id: string;
-    productId: string;
-    variantId: string | null;
-    productName: string;
-    price: number;
-    quantity: number;
-    size: string | null;
-    color: string | null;
-  }>;
-  brand: {
-    id: string;
-    name: string;
-  };
-}) {
-  try {
-    const brand = await this.prisma.marque.findUnique({
-      where: { id: commande.brandId },
-      include: { user: true },
-    });
-
-    if (!brand) return;
-
-    // ✅ Format en FCFA normal (pas besoin de diviser par 100)
-    const montantFormatted = commande.total.toLocaleString('fr-FR');
-    const clientName =
-      `${commande.client?.firstName || ''} ${commande.client?.lastName || ''}`.trim() ||
-      'Client';
-
-     this.notificationsService.create({
-      userId: brand.userId,
-      type: 'NOUVELLE_COMMANDE',
-      title: '💰 Nouvelle commande',
-      message: `Nouvelle commande de ${clientName} - ${montantFormatted} FCFA`,
-      data: {
-        commandeId: commande.id,
-      },
-      priority: 'HIGH',
-    });
-  } catch (error) {
-    // On log mais on ne casse pas la création de commande si la notif échoue
-    this.logger.error('Erreur lors de la notification de nouvelle commande', error);
-  }
-  }
 }

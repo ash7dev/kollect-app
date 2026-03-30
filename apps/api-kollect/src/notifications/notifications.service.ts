@@ -21,6 +21,14 @@ export interface SendNotificationResult {
   error?: string;
 }
 
+interface SendPushToTokenParams {
+  token: string;
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+}
+
 @Injectable()
 export class NotificationsService implements OnModuleInit {
   async create(params: {
@@ -155,44 +163,22 @@ export class NotificationsService implements OnModuleInit {
         return { success: false, error: 'No FCM token' };
       }
 
-      // Convertir le token Expo en format compatible
-      const fcmToken = this.convertExpoTokenToFCM(user.fcmToken);
-
       this.logger.log(`📤 Sending notification to ${user.email}`);
-
-      // Préparer le message
-      const message: admin.messaging.Message = {
-        token: fcmToken,
-        notification: {
-          title,
-          body,
-        },
+      const response = await this.sendPushToToken({
+        token: user.fcmToken,
+        title,
+        body,
         data: {
           ...data,
           type,
           timestamp: new Date().toISOString(),
         },
-        android: {
-          priority: this.getAndroidPriority(priority),
-          notification: {
-            sound: 'default',
-            channelId: 'default',
-          },
-        },
-        apns: {
-          payload: {
-            aps: {
-              sound: 'default',
-              badge: 1,
-            },
-          },
-        },
-      };
+        priority,
+      });
 
-      // Envoyer la notification via FCM
-      const response = await admin.messaging().send(message);
-
-      this.logger.log(`✅ Notification sent successfully: ${response}`);
+      if (!response.success) {
+        return response;
+      }
 
       // Sauvegarder la notification en base de données
       await this.prisma.notification.create({
@@ -207,7 +193,7 @@ export class NotificationsService implements OnModuleInit {
         },
       });
 
-      return { success: true, messageId: response };
+      return response;
     } catch (error) {
       this.logger.error('❌ Error sending notification:', error);
       return {
@@ -262,6 +248,57 @@ export class NotificationsService implements OnModuleInit {
     } catch (error) {
       this.logger.error(`❌ Error updating FCM token:`, error);
       throw error;
+    }
+  }
+
+  async sendPushToToken({
+    token,
+    title,
+    body,
+    data = {},
+    priority = 'MEDIUM',
+  }: SendPushToTokenParams): Promise<SendNotificationResult> {
+    try {
+      if (!this.isInitialized) {
+        this.logger.warn('⚠️ Firebase not initialized, skipping notification');
+        return { success: false, error: 'Firebase not initialized' };
+      }
+
+      const normalizedToken = this.convertExpoTokenToFCM(token);
+      const message: admin.messaging.Message = {
+        token: normalizedToken,
+        notification: {
+          title,
+          body,
+        },
+        data,
+        android: {
+          priority: this.getAndroidPriority(priority),
+          notification: {
+            sound: 'default',
+            channelId: 'default',
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1,
+            },
+          },
+        },
+      };
+
+      const response = await admin.messaging().send(message);
+
+      this.logger.log(`✅ Notification sent successfully: ${response}`);
+      return { success: true, messageId: response };
+    } catch (error) {
+      this.logger.error('❌ Error sending notification to token:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   }
 

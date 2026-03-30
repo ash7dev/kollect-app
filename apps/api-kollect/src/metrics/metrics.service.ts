@@ -18,6 +18,7 @@ export class MetricsService {
   private readonly usersRegisteredCounter: client.Counter<string>;
   private readonly brandFollowCounter: client.Counter<string>;
   private readonly productFavoriteCounter: client.Counter<string>;
+  private readonly brandOrdersProcessedCounter: client.Counter<string>;
   private readonly httpRequestDuration: client.Histogram<string>;
   private readonly httpRequestTotal: client.Counter<string>;
   private readonly dbQueryDuration: client.Histogram<string>;
@@ -89,6 +90,13 @@ export class MetricsService {
       registers: [this.register],
       labelNames: ['action'],
     });
+
+    this.brandOrdersProcessedCounter = new client.Counter({
+      name: 'kollect_brand_orders_processed_total',
+      help: 'Nombre total de traitements post-commande par marque',
+      registers: [this.register],
+      labelNames: ['brandId'],
+    });
   }
 
   incrementOrdersCreated(status: string = 'EN_ATTENTE'): void {
@@ -105,6 +113,10 @@ export class MetricsService {
 
   incrementProductFavorite(action: 'follow' | 'unfollow'): void {
     this.productFavoriteCounter.inc({ action });
+  }
+
+  incrementBrandOrderProcessed(brandId: string): void {
+    this.brandOrdersProcessedCounter.inc({ brandId });
   }
 
   // Méthodes HTTP

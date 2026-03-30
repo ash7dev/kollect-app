@@ -14,13 +14,15 @@ type PublicCollectionPageProps = {
 };
 
 export function PublicCollectionPage({ collection, products }: PublicCollectionPageProps) {
+  const canShowGrid = collection.status === 'DISPONIBLE' && products.length > 0;
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fff', fontFamily: FONT_FAMILY_INTER }}>
       <PublicCollectionHero collection={collection} />
 
       {/* Products */}
       <section style={{ maxWidth: 1280, margin: '0 auto', padding: '80px 40px' }}>
-        {products.length > 0 ? (
+        {canShowGrid ? (
           <>
             <div style={{ marginBottom: 48 }}>
               <p style={{
@@ -59,7 +61,7 @@ export function PublicCollectionPage({ collection, products }: PublicCollectionP
               letterSpacing: '-0.3px',
             }}>
               {collection.status === 'TEASER'
-                ? 'Les produits seront révélés au lancement.'
+                ? 'Les produits sont déjà prêts, mais seront révélés au lancement.'
                 : 'Aucun produit disponible pour l\'instant.'}
             </p>
           </div>

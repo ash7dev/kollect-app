@@ -25,6 +25,7 @@ export const CreateCollectionSchema = z.object({
   description: z.string().optional().nullable(),
   mode: z.enum(['disponible', 'teaser']).default('disponible'),
   launchDate: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
   isFeatured: z.boolean().optional().default(false),
   coverImage: z.union([z.string(), z.null(), z.undefined()]).optional(),
   teaserVideo: z.union([z.string(), z.null(), z.undefined()]).optional(),

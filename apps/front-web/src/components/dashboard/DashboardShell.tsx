@@ -750,7 +750,7 @@ export function DashboardShell() {
                 isLoading={dashboardLoading}
                 onShare={() => {
                   if (typeof navigator !== 'undefined' && navigator.clipboard && brand?.slug) {
-                    navigator.clipboard.writeText(`${window.location.origin}/boutiques/${brand.slug}`);
+                    navigator.clipboard.writeText(`${window.location.origin}/brand/${brand.slug}`);
                   }
                 }}
               />
@@ -776,7 +776,7 @@ export function DashboardShell() {
               onManageBrand={() => router.push('/brands/my-brand')}
               onShareProfile={() => {
                 if (brand?.slug) {
-                  void navigator.clipboard.writeText(`${window.location.origin}/brands/${brand.slug}`);
+                  void navigator.clipboard.writeText(`${window.location.origin}/brand/${brand.slug}`);
                 }
               }}
             />

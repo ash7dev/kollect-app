@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ============================================
@@ -147,6 +146,7 @@ model Collection {
   // Statuts et dates
   status          CollectionStatus  @default(BROUILLON)
   launchDate      DateTime?         // Date de lancement prévue
+  endDate         DateTime?         // Date de fin prévue
   launchedAt      DateTime?         // Date réelle de lancement
   
   // Marque
@@ -168,6 +168,7 @@ model Collection {
   @@index([brandId])
   @@index([status])
   @@index([launchDate])
+  @@index([endDate])
   @@index([isFeatured])
   @@map("collections")
 }
@@ -190,6 +191,8 @@ model Produit {
   slug          String    @db.VarChar(220)
   description   String?   @db.Text
   price         Int       // En FCFA
+  productType   ProductType?
+  gender        ProductGender?
 
   // Images
   images        String[]  // Array d'URLs Cloudinary
@@ -238,6 +241,20 @@ model Produit {
   @@index([isVisible, isDeleted])
   @@index([isFeatured])
   @@map("products")
+}
+
+enum ProductType {
+  TSHIRT
+  BONNET
+  SAC
+  ENSEMBLE
+  ACCESSOIRE
+}
+
+enum ProductGender {
+  HOMME
+  FEMME
+  UNISEXE
 }
 
 // ============================================
@@ -293,9 +310,11 @@ model Commande {
   brand           Marque          @relation(fields: [brandId], references: [id], onDelete: Cascade)
   
   // Adresse de livraison (copie figée)
+  shippingName    String         @db.VarChar(150)
   shippingAddress String         @db.Text
   shippingCity    String         @db.VarChar(100)
   shippingPhone   String         @db.VarChar(20)
+  notes           String?        @db.Text
   
   // Montants (en FCFA)
   subtotal        Int            // Total produits
@@ -653,6 +672,13 @@ model VueProduit {
   @@index([sessionId])
   @@index([viewedAt])
   @@map("product_views")
+}
+
+model AnalyticsFlushLog {
+  key         String   @id @db.VarChar(255)
+  processedAt DateTime @default(now())
+
+  @@map("analytics_flush_logs")
 }
 
 // ============================================

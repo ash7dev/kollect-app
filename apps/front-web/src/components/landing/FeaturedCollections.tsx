@@ -565,7 +565,7 @@ function FeaturedCard({ collection, index }: { collection: FeaturedCollection; i
           }}>
             {/* Brand pill - Glassmorphism comme DepthCarousel */}
             <Link
-              href={`/brands/${collection.brand.slug}`}
+              href={`/brand/${collection.brand.slug}`}
               onClick={(e) => e.stopPropagation()}
               style={{
                 display: 'flex',

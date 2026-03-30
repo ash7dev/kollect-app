@@ -6,40 +6,11 @@ import { Footer } from '@/components/landing/Footer';
 import { PublicCollectionPage } from '@/components/collections/PublicCollectionPage';
 import type { PublicCollection } from '@/types/drops';
 
-type CollectionProduct = {
-  id: string;
-  slug: string;
-  name: string;
-  price: number;
-  images?: string[] | null;
-  stock?: number | null;
-  collection?: { name?: string | null } | null;
-};
-
-type Paginated<T> = {
-  data: T[];
-  meta: { total: number; page: number; limit: number; totalPages: number };
-};
-
 async function getCollection(slug: string): Promise<PublicCollection | null> {
   try {
     return await fetchAPI<PublicCollection>(`/collections/public/slug/${slug}`, { revalidate: 300 });
   } catch {
     return null;
-  }
-}
-
-async function getCollectionProducts(collectionId: string): Promise<CollectionProduct[]> {
-  try {
-    const res = await fetchAPI<CollectionProduct[] | { data: CollectionProduct[] }>(
-      `/produits/collection/${collectionId}?limit=50`,
-      { revalidate: 300 },
-    );
-    if (Array.isArray(res)) return res;
-    if (res && 'data' in res && Array.isArray(res.data)) return res.data;
-    return [];
-  } catch {
-    return [];
   }
 }
 
@@ -68,16 +39,19 @@ export default async function CollectionDetailPage({
   const collection = await getCollection(params.collectionSlug);
   if (!collection) notFound();
 
-  const rawProducts = await getCollectionProducts(collection.id);
-  const products = rawProducts.map((p) => ({
-    id: p.id,
-    slug: p.slug,
-    name: p.name,
-    price: p.price,
-    images: p.images ?? [],
-    stock: p.stock ?? null,
-    collection: p.collection ?? null,
-  }));
+  const products = (collection.products ?? [])
+    .filter((product) => product.slug && product.name && typeof product.price === 'number')
+    .map((product) => ({
+      id: product.id,
+      slug: product.slug!,
+      name: product.name!,
+      price: product.price!,
+      images: product.images ?? [],
+      stock: product.stock ?? null,
+      sizes: product.sizes ?? [],
+      colors: product.colors ?? [],
+      collection: { name: collection.name },
+    }));
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fff' }}>

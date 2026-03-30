@@ -44,9 +44,11 @@ type OrderDetail = {
   subtotal: number;
   shippingFee: number;
   discount: number;
+  shippingName: string;
   shippingAddress: string;
   shippingCity: string;
   shippingPhone: string;
+  notes?: string | null;
   client: { firstName: string; lastName: string; phone: string };
   items: {
     id: string;
@@ -426,8 +428,13 @@ function DetailDrawer({ orderId, onClose, onConfirm, onCancel, confirming, cance
                   </div>
                   <div>
                     <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#0A0A0A' }}>
-                      {`${order.client.firstName} ${order.client.lastName}`.trim() || 'Client anonyme'}
+                      {order.shippingName || `${order.client.firstName} ${order.client.lastName}`.trim() || 'Client anonyme'}
                     </p>
+                    {order.shippingName && order.shippingName !== `${order.client.firstName} ${order.client.lastName}`.trim() && (
+                      <p style={{ margin: '2px 0 0', fontSize: 11.5, color: '#9CA3AF' }}>
+                        Compte: {`${order.client.firstName} ${order.client.lastName}`.trim() || 'Client anonyme'}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 46 }}>
@@ -442,6 +449,17 @@ function DetailDrawer({ orderId, onClose, onConfirm, onCancel, confirming, cance
                 </div>
               </div>
             </div>
+
+            {order.notes && (
+              <div style={{ background: '#F9FAFB', borderRadius: 16, padding: '20px 22px' }}>
+                <p style={{ margin: '0 0 10px', fontSize: 10, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: '#9CA3AF' }}>
+                  Note client
+                </p>
+                <p style={{ margin: 0, fontSize: 13, color: '#6B7280', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                  {order.notes}
+                </p>
+              </div>
+            )}
 
             {/* Items */}
             <div>

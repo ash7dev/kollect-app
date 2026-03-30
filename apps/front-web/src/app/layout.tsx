@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { AppProviders } from '@/providers/AppProviders';
+import { getSiteUrl } from '@/lib/api';
 import './globals.css';
 
 const inter = Inter({
@@ -11,6 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: 'Kollect — Plateforme streetwear sénégalaise',
     template: '%s | Kollect',

@@ -10,13 +10,25 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { CollectionStatus, Prisma } from '@prisma/client';
+import type { Queue } from 'bullmq';
 import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
 import { ActivateTeaserDto } from './dto/activate-teaser.dto';
 import { QueryCollectionsDto } from './dto/query-collections.dto';
 import slugify from 'slugify';
+import {
+  ANALYTICS_JOB_NAMES,
+  ANALYTICS_QUEUE,
+  buildFinishDropJobId,
+  buildLaunchDropJobId,
+  DROP_JOB_NAMES,
+  DROPS_QUEUE,
+} from '../queues/constants/queue.constants';
+import { PublicCatalogService } from '../public-catalog/public-catalog.service';
+import { PublicCollectionDto } from '../public-catalog/dto/public-collection.dto';
 
 interface CollectionScore {
   id: string;
@@ -28,7 +40,14 @@ interface CollectionScore {
 export class CollectionsService {
   private readonly logger = new Logger(CollectionsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly publicCatalogService: PublicCatalogService,
+    @InjectQueue(DROPS_QUEUE)
+    private readonly dropsQueue: Queue,
+    @InjectQueue(ANALYTICS_QUEUE)
+    private readonly analyticsQueue: Queue,
+  ) {}
 
   /**
    * Créer une collection
@@ -41,6 +60,7 @@ export class CollectionsService {
     description: string | null;
     status: CollectionStatus;
     launchDate: Date | null;
+    endDate: Date | null;
     launchedAt: Date | null;
     isFeatured: boolean;
     coverImage: string | null;
@@ -114,10 +134,10 @@ export class CollectionsService {
     let status: CollectionStatus = CollectionStatus.DISPONIBLE;
     let launchedAt: Date | null = new Date();
 
-    const now = new Date();
-    const minLaunchDate = new Date(now.getTime() + 60 * 60 * 1000); // +1h
+      const now = new Date();
+      const minLaunchDate = new Date(now.getTime() + 60 * 60 * 1000); // +1h
 
-    if (dto.mode === 'teaser') {
+      if (dto.mode === 'teaser') {
       status = CollectionStatus.TEASER;
       launchedAt = null;
 
@@ -128,6 +148,18 @@ export class CollectionsService {
       const launchDate = new Date(dto.launchDate);
       if (!(launchDate > minLaunchDate)) {
         throw new BadRequestException('La date de lancement doit être au minimum dans 1 heure');
+      }
+
+      if (dto.endDate) {
+        const endDate = new Date(dto.endDate);
+        if (!(endDate > launchDate)) {
+          throw new BadRequestException('La date de fin doit être postérieure à la date de lancement');
+        }
+      }
+    } else if (dto.endDate) {
+      const endDate = new Date(dto.endDate);
+      if (!(endDate > now)) {
+        throw new BadRequestException('La date de fin doit être dans le futur');
       }
     } else {
       // Mode disponible : ignorer launchDate éventuelle
@@ -149,12 +181,13 @@ export class CollectionsService {
           description: dto.description,
           status,
           launchDate: dto.launchDate ? new Date(dto.launchDate) : null,
+          endDate: dto.endDate ? new Date(dto.endDate) : null,
           launchedAt,
           isFeatured: dto.isFeatured || false,
           brandId,
           coverImage: dto.coverImage || null,
           teaserVideo: dto.teaserVideo || null,
-        },
+        } as any,
         include: {
           brand: {
             select: {
@@ -223,6 +256,7 @@ export class CollectionsService {
         description: collectionWithCount.description,
         status: collectionWithCount.status,
         launchDate: collectionWithCount.launchDate,
+        endDate: (collectionWithCount as any).endDate,
         launchedAt: collectionWithCount.launchedAt,
         isFeatured: collectionWithCount.isFeatured,
         coverImage: collectionWithCount.coverImage,
@@ -235,6 +269,14 @@ export class CollectionsService {
       };
     });
     
+    if (result.status === CollectionStatus.TEASER && result.launchDate) {
+      await this.scheduleLaunchJob(result.id, result.brandId, result.launchDate);
+    }
+
+    if (result.endDate) {
+      await this.scheduleFinishJob(result.id, result.brandId, result.endDate);
+    }
+
     return result;
   }
 
@@ -306,6 +348,14 @@ export class CollectionsService {
       `🔥 Teaser activé pour la collection: ${updated.name} (${updated.id})`,
     );
 
+    if (updated.launchDate) {
+      await this.scheduleLaunchJob(updated.id, updated.brandId, updated.launchDate);
+    }
+
+    if ((updated as any).endDate) {
+      await this.scheduleFinishJob(updated.id, updated.brandId, (updated as any).endDate);
+    }
+
     return updated;
   }
 
@@ -368,8 +418,12 @@ export class CollectionsService {
       }
     }
 
+    if ((collection as any).endDate && new Date() >= new Date((collection as any).endDate)) {
+      throw new BadRequestException('La date de fin du drop est déjà dépassée');
+    }
+
     // Lancer la collection dans une transaction
-    return await this.prisma.$transaction(async (tx) => {
+    const launchedCollection = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.collection.update({
         where: { id: collectionId },
         data: {
@@ -402,6 +456,10 @@ export class CollectionsService {
 
       return updated;
     });
+
+    await this.removeLaunchJob(collectionId);
+
+    return launchedCollection;
   }
 
   /**
@@ -509,14 +567,9 @@ async findAllForCEO(
    * 🔍 Récupérer une collection publique par slug
    * Retourne la première collection TEASER/DISPONIBLE correspondant au slug
    */
-  async findPublicBySlug(slug: string) {
+  async findPublicBySlug(slug: string): Promise<PublicCollectionDto> {
     const collection = await this.prisma.collection.findFirst({
-      where: {
-        slug,
-        status: {
-          in: [CollectionStatus.TEASER, CollectionStatus.DISPONIBLE],
-        },
-      },
+      where: this.publicCatalogService.getPublicCollectionWhere({ slug }),
       include: {
         brand: {
           select: {
@@ -528,8 +581,8 @@ async findAllForCEO(
           },
         },
         products: {
-          where: { isDeleted: false, isVisible: true },
-          select: { id: true, images: true },
+          where: { isDeleted: false },
+          select: { id: true, images: true, isVisible: true },
           take: 1,
           orderBy: { createdAt: 'asc' },
         },
@@ -543,26 +596,37 @@ async findAllForCEO(
       throw new NotFoundException('Collection non trouvée');
     }
 
-    await this.prisma.collection.update({
-      where: { id: collection.id },
-      data: { viewCount: { increment: 1 } },
-    });
+    await this.analyticsQueue.add(
+      ANALYTICS_JOB_NAMES.TRACK_COLLECTION_VIEW,
+      {
+        collectionId: collection.id,
+      },
+      {
+        jobId: `collection:${collection.id}:view:${Date.now()}`,
+      },
+    );
 
-    return collection;
+    return this.publicCatalogService.mapPublicCollection(collection);
   }
 
   /**
    * 🌍 Lister les collections publiques (pour les clients)
    */
-  async findAllPublic(query: QueryCollectionsDto, includeProducts = false) {
+  async findAllPublic(query: QueryCollectionsDto, includeProducts = false): Promise<{
+    data: PublicCollectionDto[];
+    meta: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
   const { page = 1, limit = 10, isFeatured } = query;
 
-  const where: Prisma.CollectionWhereInput = {
-    status: {
-      in: [CollectionStatus.TEASER, CollectionStatus.DISPONIBLE],
-    },
+  const where = this.publicCatalogService.getPublicCollectionWhere({
+    ...(query.status && { status: query.status }),
     ...(isFeatured !== undefined && { isFeatured }),
-  };
+  });
 
   const [collections, total] = await Promise.all([
     this.prisma.collection.findMany({
@@ -579,7 +643,7 @@ async findAllForCEO(
         },
         // Toujours inclure le 1er produit pour le fallback cover (si video)
         products: {
-          where: { isDeleted: false, isVisible: true },
+          where: { isDeleted: false },
           select: {
             id: true,
             images: true,
@@ -606,7 +670,7 @@ async findAllForCEO(
   ]);
 
   return {
-    data: collections,
+    data: collections.map((collection) => this.publicCatalogService.mapPublicCollection(collection)),
     meta: {
       total,
       page,
@@ -632,6 +696,7 @@ async findAllForCEO(
     description: string | null;
     status: CollectionStatus;
     launchDate: Date | null;
+    endDate: Date | null;
     launchedAt: Date | null;
     isFeatured: boolean;
     coverImage: string | null;
@@ -647,8 +712,9 @@ async findAllForCEO(
     };
     products?: Array<{
       id: string;
-      name: string;
-      price: number;
+      name?: string;
+      slug?: string;
+      price?: number;
       images?: string[];
       stock?: number;
       isVisible?: boolean;
@@ -676,20 +742,20 @@ async findAllForCEO(
       },
       ...(includeProducts && {
         products: {
-          // Pour les requêtes publiques, on ne filtre plus par isVisible ici
-          // afin que le client mobile puisse afficher les produits "bientôt disponibles"
-          // (isVisible = false) pour les collections en mode TEASER.
           where: isPublic
             ? { isDeleted: false }
             : {},
           select: {
             id: true,
             name: true,
+            slug: true,
+            description: true,
             price: true,
-            images: true, // Toujours inclure les images
-            // On renvoie toujours isVisible au client, quelle que soit la requête,
-            // pour qu'il décide de l'affichage (bientôt disponible, etc.).
+            images: true,
             stock: true,
+            sizes: true,
+            colors: true,
+            sku: true,
             isVisible: true,
             isDeleted: !isPublic ? true : undefined,
           },
@@ -714,17 +780,29 @@ async findAllForCEO(
   } 
   // Pour les requêtes publiques, vérifier que la collection est visible
   else {
-    const publicStatuses: CollectionStatus[] = [CollectionStatus.TEASER, CollectionStatus.DISPONIBLE];
-    if (!publicStatuses.includes(collection.status)) {
+    if (!this.publicCatalogService.isCollectionPublic(collection.status)) {
     throw new NotFoundException('Collection non trouvée');
     }
   }
 
   // Incrémenter le compteur de vues pour les requêtes publiques
   if (isPublic) {
-    await this.prisma.collection.update({
-      where: { id },
-      data: { viewCount: { increment: 1 } },
+    await this.analyticsQueue.add(
+      ANALYTICS_JOB_NAMES.TRACK_COLLECTION_VIEW,
+      {
+        collectionId: id,
+        userId,
+      },
+      {
+        jobId: `collection:${id}:view:${Date.now()}`,
+      },
+    );
+  }
+
+  if (isPublic) {
+    return this.publicCatalogService.mapPublicCollection({
+      ...collection,
+      endDate: (collection as any).endDate,
     });
   }
 
@@ -735,6 +813,7 @@ async findAllForCEO(
     description: collection.description,
     status: collection.status,
     launchDate: collection.launchDate,
+    endDate: (collection as any).endDate,
     launchedAt: collection.launchedAt,
     isFeatured: collection.isFeatured,
     coverImage: collection.coverImage,
@@ -775,16 +854,32 @@ async findAllForCEO(
       }
     }
 
+    if (dto.endDate) {
+      const endDate = new Date(dto.endDate);
+      const referenceDate = dto.launchDate
+        ? new Date(dto.launchDate)
+        : collection.launchDate ?? new Date();
+
+      if (!(endDate > referenceDate)) {
+        throw new BadRequestException('La date de fin doit être postérieure à la date de lancement');
+      }
+    }
+
     // Préparer les données de mise à jour
     const updateData: Prisma.CollectionUpdateInput = {
       ...(dto.name && {
         name: dto.name,
-        slug: slugify(dto.name, { lower: true, strict: true }),
       }),
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.launchDate && { launchDate: new Date(dto.launchDate) }),
+      ...(dto.endDate !== undefined && { endDate: dto.endDate ? new Date(dto.endDate) : null }),
       ...(dto.isFeatured !== undefined && { isFeatured: dto.isFeatured }),
-    };
+    } as any;
+
+    if (dto.name) {
+      const baseSlug = slugify(dto.name, { lower: true, strict: true });
+      updateData.slug = await this.generateUniqueSlug(collection.brandId, baseSlug, id);
+    }
 
     const updated = await this.prisma.collection.update({
       where: { id },
@@ -805,6 +900,18 @@ async findAllForCEO(
     });
 
     this.logger.log(`✏️ Collection mise à jour: ${updated.name} (${updated.id})`);
+
+    if (updated.status === CollectionStatus.TEASER && updated.launchDate) {
+      await this.scheduleLaunchJob(updated.id, updated.brandId, updated.launchDate);
+    } else {
+      await this.removeLaunchJob(updated.id);
+    }
+
+    if ((updated as any).endDate) {
+      await this.scheduleFinishJob(updated.id, updated.brandId, (updated as any).endDate);
+    } else {
+      await this.removeFinishJob(updated.id);
+    }
 
     return updated;
   }
@@ -832,6 +939,9 @@ async findAllForCEO(
   if (collection.brand.userId !== userId) {
     throw new ForbiddenException('Vous ne pouvez pas supprimer cette collection');
   }
+
+  await this.removeLaunchJob(id);
+  await this.removeFinishJob(id);
 
   // 3. Démarrer une transaction pour assurer l'intégrité des données
   return this.prisma.$transaction(async (prisma) => {
@@ -866,6 +976,7 @@ async findAllForCEO(
   private async generateUniqueSlug(
     brandId: string,
     baseSlug: string,
+    excludeCollectionId?: string,
   ): Promise<string> {
     let slug = baseSlug;
     let counter = 1;
@@ -880,12 +991,73 @@ async findAllForCEO(
         },
       });
 
-      if (!existing) {
+      if (!existing || existing.id === excludeCollectionId) {
         return slug;
       }
 
       slug = `${baseSlug}-${counter}`;
       counter++;
+    }
+  }
+
+  private async scheduleLaunchJob(
+    dropId: string,
+    brandId: string,
+    launchDate: Date,
+  ): Promise<void> {
+    const delay = Math.max(launchDate.getTime() - Date.now(), 0);
+
+    await this.removeLaunchJob(dropId);
+
+    await this.dropsQueue.add(
+      DROP_JOB_NAMES.LAUNCH,
+      {
+        dropId,
+        brandId,
+      },
+      {
+        delay,
+        jobId: buildLaunchDropJobId(dropId),
+      },
+    );
+  }
+
+  private async scheduleFinishJob(
+    dropId: string,
+    brandId: string,
+    endDate: Date,
+  ): Promise<void> {
+    const delay = Math.max(endDate.getTime() - Date.now(), 0);
+
+    await this.removeFinishJob(dropId);
+
+    await this.dropsQueue.add(
+      DROP_JOB_NAMES.FINISH,
+      {
+        dropId,
+        brandId,
+        targetStatus: CollectionStatus.TERMINE,
+      },
+      {
+        delay,
+        jobId: buildFinishDropJobId(dropId),
+      },
+    );
+  }
+
+  private async removeLaunchJob(dropId: string): Promise<void> {
+    const existingJob = await this.dropsQueue.getJob(buildLaunchDropJobId(dropId));
+
+    if (existingJob) {
+      await existingJob.remove();
+    }
+  }
+
+  private async removeFinishJob(dropId: string): Promise<void> {
+    const existingJob = await this.dropsQueue.getJob(buildFinishDropJobId(dropId));
+
+    if (existingJob) {
+      await existingJob.remove();
     }
   }
 

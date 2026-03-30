@@ -763,7 +763,7 @@ export class ShareLinksController {
     const imageUrl = product.images?.[0] ?? null;
     const deepLink = `kollect://product/${product.id}`;
     const url = `${res.req.protocol}://${res.req.get('host')}${res.req.originalUrl}`;
-    const priceFcfa = `${(product.price / 100).toLocaleString('fr-FR')} FCFA`;
+    const priceFcfa = `${product.price.toLocaleString('fr-FR')} FCFA`;
     const isNewProduct = new Date(product.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     
     // Formater les informations avec une meilleure UX

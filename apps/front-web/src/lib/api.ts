@@ -23,17 +23,22 @@ export async function fetchAPI<T>(
 ): Promise<T> {
   const url = buildApiUrl(path);
   const revalidate = options.revalidate ?? 300;
+  const shouldBypassCache = options.cache === 'no-store';
 
   const res = await fetch(url, {
     cache: options.cache,
     headers: {
       'ngrok-skip-browser-warning': 'true',
     },
-    next: {
-      revalidate,
-      tags: options.tags,
-      ...options.next,
-    },
+    ...(shouldBypassCache
+      ? { next: options.next }
+      : {
+          next: {
+            revalidate,
+            tags: options.tags,
+            ...options.next,
+          },
+        }),
   });
   if (!res.ok) {
     throw new Error(`API error ${res.status} on ${url}`);
@@ -50,7 +55,11 @@ export async function fetchAPI<T>(
 // Fonction pour récupérer les produits depuis la base de données
 export async function fetchProducts(limit: number = 10): Promise<PublicProduct[]> {
   try {
-    return await fetchAPI<PublicProduct[]>('/produits', { revalidate: 60 });
+    const res = await fetchAPI<{ data: PublicProduct[] }>(
+      `/produits/public/random?limit=${limit}&page=1`,
+      { revalidate: 60 },
+    );
+    return Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Erreur lors de la récupération des produits:', error);
     return [];

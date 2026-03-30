@@ -20,6 +20,11 @@ import { UploadService } from '../upload/upload.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { Marque, Prisma } from '@prisma/client';
+import { PublicCatalogService } from '../public-catalog/public-catalog.service';
+import {
+  PublicBrandDetailDto,
+  PublicBrandListItemDto,
+} from '../public-catalog/dto/public-brand.dto';
 
 // Types pour améliorer la lisibilité
 export type BrandWithRelations = Prisma.MarqueGetPayload<{
@@ -60,6 +65,7 @@ export class BrandsService {
   constructor(
     private prisma: PrismaService,
     private uploadService: UploadService,
+    private readonly publicCatalogService: PublicCatalogService,
   ) { }
 
   // ========================================
@@ -229,7 +235,7 @@ export class BrandsService {
   /**
    * 📋 Récupérer toutes les marques actives (pour clients)
    */
-  async findAll(filters?: BrandFilters) {
+  async findAll(filters?: BrandFilters): Promise<PublicBrandListItemDto[]> {
     const where: Prisma.MarqueWhereInput = {};
 
     // isActive: par défaut true si non fourni
@@ -251,7 +257,7 @@ export class BrandsService {
       ];
     }
 
-    return await this.prisma.marque.findMany({
+    const brands = await this.prisma.marque.findMany({
       where,
       include: {
         user: {
@@ -299,12 +305,14 @@ export class BrandsService {
         { createdAt: 'desc' },
       ],
     });
+
+    return brands.map((brand) => this.publicCatalogService.mapPublicBrandListItem(brand));
   }
 
   /**
    * 🔍 Récupérer une marque par son slug (page publique)
    */
-  async findBySlug(slug: string) {
+  async findBySlug(slug: string): Promise<PublicBrandDetailDto> {
     const brand = await this.prisma.marque.findUnique({
       where: { slug },
       include: {
@@ -317,14 +325,12 @@ export class BrandsService {
           },
         },
         collections: {
-          where: {
-            status: {
-              in: ['TEASER', 'DISPONIBLE'],
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
+          where: this.publicCatalogService.getPublicCollectionWhere(),
+          orderBy: [
+            { status: 'asc' },
+            { launchDate: 'desc' },
+            { createdAt: 'desc' },
+          ],
           take: 20,
           include: {
             _count: {
@@ -335,13 +341,11 @@ export class BrandsService {
           },
         },
         products: {
-          where: {
-            isVisible: true,
-            isDeleted: false,
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
+          where: this.publicCatalogService.getPublicProductWhere(),
+          orderBy: [
+            { isFeatured: 'desc' },
+            { createdAt: 'desc' },
+          ],
           take: 22,
         },
         _count: {
@@ -363,14 +367,14 @@ export class BrandsService {
       throw new NotFoundException("Cette boutique n'est plus disponible");
     }
 
-    return brand;
+    return this.publicCatalogService.mapPublicBrandDetail(brand);
   }
 
   /**
    * 🔍 Récupérer une marque par son id (page publique)
    * Utile pour les liens de partage quand le slug n'est pas disponible côté mobile.
    */
-  async findPublicById(id: string) {
+  async findPublicById(id: string): Promise<PublicBrandDetailDto> {
     const brand = await this.prisma.marque.findUnique({
       where: { id },
       include: {
@@ -383,14 +387,12 @@ export class BrandsService {
           },
         },
         collections: {
-          where: {
-            status: {
-              in: ['TEASER', 'DISPONIBLE'],
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
+          where: this.publicCatalogService.getPublicCollectionWhere(),
+          orderBy: [
+            { status: 'asc' },
+            { launchDate: 'desc' },
+            { createdAt: 'desc' },
+          ],
           take: 20,
           include: {
             _count: {
@@ -401,13 +403,11 @@ export class BrandsService {
           },
         },
         products: {
-          where: {
-            isVisible: true,
-            isDeleted: false,
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
+          where: this.publicCatalogService.getPublicProductWhere(),
+          orderBy: [
+            { isFeatured: 'desc' },
+            { createdAt: 'desc' },
+          ],
           take: 22,
         },
         _count: {
@@ -429,7 +429,7 @@ export class BrandsService {
       throw new NotFoundException("Cette boutique n'est plus disponible");
     }
 
-    return brand;
+    return this.publicCatalogService.mapPublicBrandDetail(brand);
   }
 
   /**
@@ -733,14 +733,15 @@ export class BrandsService {
         }).catch(() => 0),
 
         // Sessions uniques de vues produit sur la période (proxy conversion)
-        this.prisma.vueProduit.findMany({
-          where: {
-            viewedAt: { gte: startDate },
-            product: { brandId },
-          },
-          distinct: ['sessionId'],
-          select: { sessionId: true },
-        }).then(r => r.length).catch(() => 0),
+        this.prisma.$queryRaw<Array<{ count: bigint | number }>>(Prisma.sql`
+          SELECT COUNT(DISTINCT pv."sessionId") AS count
+          FROM "product_views" pv
+          INNER JOIN "products" p ON p.id = pv."productId"
+          WHERE pv."viewedAt" >= ${startDate}
+            AND p."brandId" = ${brandId}
+        `)
+          .then((rows) => Number(rows[0]?.count ?? 0))
+          .catch(() => 0),
       ]);
 
       // Calculs

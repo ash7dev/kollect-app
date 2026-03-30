@@ -2,15 +2,20 @@ export type PublicProduct = {
   id: string;
   name: string;
   slug: string;
-  description?: string | null;
+  description: string | null;
   price: number;
   images: string[];
-  stock?: number | null;
+  stock: number;
   sizes: string[];
   colors: string[];
-  material?: string | null;
-  collection?: { id: string; name: string } | null;
-  brand: { id: string; name: string; slug: string; logo?: string | null };
+  isFeatured: boolean;
+  productType?: string | null;
+  gender?: string | null;
+  collection: { id: string; name: string; slug?: string; status: string } | null;
+  brand: { id: string; name: string; slug: string; logo?: string | null; isVerified?: boolean };
+  createdAt?: string;
+  updatedAt?: string;
+  viewCount?: number;
 };
 
 export type ProductListItem = {
@@ -22,8 +27,11 @@ export type ProductListItem = {
   stock?: number | null;
   sizes?: string[];
   colors?: string[];
-  collection?: { id: string; name: string } | null;
-  brand?: { id: string; name: string; slug: string; logo?: string | null };
+  isFeatured?: boolean;
+  productType?: string | null;
+  gender?: string | null;
+  collection?: { id: string; name: string; slug?: string; status?: string } | null;
+  brand?: { id: string; name: string; slug: string; logo?: string | null; isVerified?: boolean };
   createdAt?: string;
 };
 

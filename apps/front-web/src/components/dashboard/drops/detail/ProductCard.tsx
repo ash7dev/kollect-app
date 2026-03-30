@@ -66,8 +66,9 @@ const F = 'Inter, -apple-system, BlinkMacSystemFont, sans-serif';
 
 export function ProductCard({ product }: { product: CollectionProduct }) {
   const { name, price, stock, sizes, images } = product;
+  const stockValue = stock ?? 0;
   const primaryImage = images?.[0];
-  const sm = getStockMeta(stock);
+  const sm = getStockMeta(stockValue);
   const allSizes = sortSizes(sizes ?? []);
   const visible = allSizes.slice(0, 4);
   const extra = allSizes.length > 4 ? allSizes.length - 4 : 0;
@@ -137,7 +138,7 @@ export function ProductCard({ product }: { product: CollectionProduct }) {
         )}
 
         {/* Low-stock floating badge */}
-        {stock > 0 && stock <= 5 && (
+        {stockValue > 0 && stockValue <= 5 && (
           <div style={{
             position: 'absolute', top: 10, left: 10,
             background: 'rgba(0,0,0,0.72)',
@@ -147,7 +148,7 @@ export function ProductCard({ product }: { product: CollectionProduct }) {
           }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#F59E0B', flexShrink: 0 }} />
             <span style={{ fontFamily: F, fontSize: 10, fontWeight: 700, color: '#FCD34D', letterSpacing: '0.2px' }}>
-              {stock} restants
+              {stockValue} restants
             </span>
           </div>
         )}

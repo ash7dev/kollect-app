@@ -10,29 +10,60 @@ import { AuthRequiredModal } from '@/components/checkout/AuthRequiredModal';
 import { SimilarProducts } from '@/components/product/SimilarProducts';
 import { Footer } from '@/components/landing/Footer';
 import { fetchProducts } from '@/lib/api';
-import { PublicProduct } from '@/types/product';
+import type { PublicProduct } from '@/types/product';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
-
-export type PublicProduct = {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string | null;
-  price: number;
-  images: string[];
-  stock?: number | null;
-  sizes: string[];
-  colors: string[];
-  material?: string | null;
-  collection?: { id: string; name: string } | null;
-  brand: { id: string; name: string; slug: string; logo?: string | null };
-};
 
 type ConflictDialogProps = {
   conflictingBrands: string[];
   onConfirm: () => void;
   onCancel: () => void;
 };
+
+const COLOR_SWATCH_MAP: Record<string, string> = {
+  noir: '#111111',
+  black: '#111111',
+  blanc: '#F5F5F5',
+  white: '#F5F5F5',
+  rouge: '#E53935',
+  red: '#E53935',
+  bleu: '#2563EB',
+  blue: '#2563EB',
+  vert: '#16A34A',
+  green: '#16A34A',
+  jaune: '#FACC15',
+  yellow: '#FACC15',
+  orange: '#F97316',
+  rose: '#EC4899',
+  pink: '#EC4899',
+  violet: '#8B5CF6',
+  purple: '#8B5CF6',
+  marron: '#7C4A2D',
+  brown: '#7C4A2D',
+  beige: '#D6C6A5',
+  gris: '#9CA3AF',
+  gray: '#9CA3AF',
+  grey: '#9CA3AF',
+  argent: '#CBD5E1',
+  silver: '#CBD5E1',
+  or: '#D4AF37',
+  gold: '#D4AF37',
+  marine: '#1E3A8A',
+  bordeaux: '#7F1D1D',
+  kaki: '#5F6F52',
+  creme: '#F3E9D2',
+  crème: '#F3E9D2',
+};
+
+function getColorSwatch(value: string) {
+  const normalized = value.trim().toLowerCase();
+  const background = COLOR_SWATCH_MAP[normalized] ?? value;
+  const isLightTone = ['blanc', 'white', 'beige', 'creme', 'crème', 'argent', 'silver'].includes(normalized);
+
+  return {
+    background,
+    borderColor: isLightTone ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.08)',
+  };
+}
 
 function ConflictDialog({ conflictingBrands, onConfirm, onCancel }: ConflictDialogProps) {
   const label =
@@ -314,30 +345,43 @@ export function ProductDetailPage({ product }: { product: PublicProduct }) {
               <div style={{ marginBottom: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
                   <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(0,0,0,0.4)' }}>Couleur</span>
-                  {selectedColor && (
-                    <span style={{ fontSize: 13, fontWeight: 800, color: '#000', letterSpacing: '-0.2px' }}>{selectedColor}</span>
-                  )}
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                   {product.colors.map((color) => (
                     <button
                       key={color}
                       type="button"
+                      aria-label={`Choisir la couleur ${color}`}
+                      title={color}
                       onClick={() => setSelectedColor(color)}
                       style={{
-                        padding: '8px 18px',
-                        borderRadius: 10,
+                        width: 34,
+                        height: 34,
+                        padding: 0,
+                        borderRadius: '50%',
                         border: selectedColor === color
                           ? '2px solid #000'
-                          : '1.5px solid rgba(0,0,0,0.15)',
-                        backgroundColor: selectedColor === color ? '#000' : '#fff',
-                        color: selectedColor === color ? '#fff' : '#000',
-                        fontSize: 13, fontWeight: 700,
+                          : '1.5px solid rgba(0,0,0,0.14)',
+                        background: '#fff',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         cursor: 'pointer',
-                        transition: 'all 150ms ease',
+                        transition: 'transform 150ms ease, border-color 150ms ease',
+                        transform: selectedColor === color ? 'scale(1.06)' : 'scale(1)',
                       }}
                     >
-                      {color}
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: getColorSwatch(color).background,
+                          border: `1px solid ${getColorSwatch(color).borderColor}`,
+                          display: 'block',
+                        }}
+                      />
                     </button>
                   ))}
                 </div>

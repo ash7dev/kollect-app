@@ -690,7 +690,9 @@ export function Hero() {
               {isDropMode && data.upcomingDrop ? (
                 <>
                   <Link
-                    href={`/collections/${data.upcomingDrop.slug}`}
+                    href={data.upcomingDrop.brand?.slug
+                      ? `/brand/${data.upcomingDrop.brand.slug}/${data.upcomingDrop.slug}`
+                      : `/collection/${data.upcomingDrop.slug}`}
                     className="hero-btn-primary"
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -702,7 +704,9 @@ export function Hero() {
                     <IconBell size={14} /> M&apos;alerter en premier
                   </Link>
                   <Link
-                    href={`/collections/${data.upcomingDrop.slug}`}
+                    href={data.upcomingDrop.brand?.slug
+                      ? `/brand/${data.upcomingDrop.brand.slug}/${data.upcomingDrop.slug}`
+                      : `/collection/${data.upcomingDrop.slug}`}
                     className="hero-btn-secondary"
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: '8px',

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ProductGender, ProductType } from '@prisma/client';
 
 export const CreateProduitSchema = z.object({
   collectionId: z.string().min(1),
@@ -11,6 +12,8 @@ export const CreateProduitSchema = z.object({
   stock: z.number().int().min(0).default(0),
   sizes: z.array(z.string()).default([]),
   colors: z.array(z.string()).default([]),
+  productType: z.nativeEnum(ProductType).optional().nullable(),
+  gender: z.nativeEnum(ProductGender).optional().nullable(),
   sku: z.string().max(50).optional().nullable(),
   material: z.string().max(100).optional().nullable(),
   weight: z.number().positive().optional().nullable(), // en grammes
@@ -19,4 +22,3 @@ export const CreateProduitSchema = z.object({
 });
 
 export type CreateProduitDto = z.infer<typeof CreateProduitSchema>;
-

@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { fetchAPI } from '@/lib/api';
 import { Navbar } from '@/components/landing/Navbar';
-import { ProductDetailPage, type PublicProduct } from '@/components/brands/brand-shop/ProductDetailPage';
+import { ProductDetailPage } from '@/components/brands/brand-shop/ProductDetailPage';
+import type { PublicProduct } from '@/types/product';
 
 async function findProductBySlug(slug: string): Promise<PublicProduct | null> {
   try {

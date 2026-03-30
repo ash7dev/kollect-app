@@ -5,8 +5,13 @@ import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from '@/components/landing/Footer';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
 
+type FavoriteItem = {
+  name: string;
+  description?: string;
+};
+
 export default function FavoritesPage() {
-  const [favorites, setFavorites] = useState([]);
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
 
   return (
     <div style={{ minHeight: '100vh', background: '#F7F8FA', fontFamily: FONT_FAMILY_INTER }}>

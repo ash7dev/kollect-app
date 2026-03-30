@@ -3,13 +3,18 @@
 
 /* eslint-disable prettier/prettier */
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import slugify from 'slugify';
 import { CollectionStatus, Prisma } from '@prisma/client';
+import type { Queue } from 'bullmq';
 import { CreateProduitDto } from './dto/create-produit.dto';
 import { UpdateProduitDto } from './dto/update-produit.dto';
 import { QueryProduitsDto, RandomProduitsDto } from './dto/query-produits.dto';
 import { createHash } from 'crypto';
+import { ANALYTICS_JOB_NAMES, ANALYTICS_QUEUE } from '../queues/constants/queue.constants';
+import { PublicCatalogService } from '../public-catalog/public-catalog.service';
+import { PublicProductDto } from '../public-catalog/dto/public-product.dto';
 
 @Injectable()
 export class ProduitsService {
@@ -17,13 +22,7 @@ export class ProduitsService {
     const page = Number(query.page ?? 1);
     const limit = Number(query.limit ?? 20);
 
-    const where: Prisma.ProduitWhereInput = {
-      isVisible: true,
-      isDeleted: false,
-      collection: {
-        status: CollectionStatus.DISPONIBLE,
-      },
-    };
+    const where = this.publicCatalogService.getPublicProductWhere();
 
     const [products, total] = await Promise.all([
       this.prisma.produit.findMany({
@@ -59,7 +58,7 @@ export class ProduitsService {
     const shuffled = [...products].sort(() => Math.random() - 0.5);
 
     return {
-      data: shuffled,
+      data: shuffled.map((product) => this.publicCatalogService.mapPublicProduct(product)),
       meta: {
         total,
         page,
@@ -68,7 +67,12 @@ export class ProduitsService {
       },
     };
   }
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly publicCatalogService: PublicCatalogService,
+    @InjectQueue(ANALYTICS_QUEUE)
+    private readonly analyticsQueue: Queue,
+  ) {}
 
   async create(userId: string, dto: CreateProduitDto) {
     // 1) Vérifier le CEO et récupérer sa marque
@@ -127,6 +131,8 @@ export class ProduitsService {
         brandId: user.brand.id,
         isVisible,
         isFeatured: dto.isFeatured ?? false,
+        productType: dto.productType ?? null,
+        gender: dto.gender ?? null,
       },
       include: {
         collection: { select: { id: true, name: true, status: true } },
@@ -244,19 +250,12 @@ export class ProduitsService {
     return product;
   }
 
-  async findPublicBySlug(slug: string) {
+  async findPublicBySlug(slug: string): Promise<PublicProductDto> {
     const product = await this.prisma.produit.findFirst({
-      where: {
-        slug,
-        isDeleted: false,
-        isVisible: true,
-        collection: {
-          status: CollectionStatus.DISPONIBLE,
-        },
-      },
+      where: this.publicCatalogService.getPublicProductWhere({ slug }),
       include: {
-        collection: { select: { id: true, name: true, status: true } },
-        brand: { select: { id: true, name: true, slug: true, logo: true } },
+        collection: { select: { id: true, name: true, slug: true, status: true } },
+        brand: { select: { id: true, name: true, slug: true, logo: true, isVerified: true } },
       },
     });
 
@@ -264,36 +263,52 @@ export class ProduitsService {
       throw new NotFoundException('Produit non trouvé');
     }
 
-    await this.prisma.produit.update({
-      where: { id: product.id },
-      data: { viewCount: { increment: 1 } },
-    });
+    await this.analyticsQueue.add(
+      ANALYTICS_JOB_NAMES.TRACK_PRODUCT_VIEW,
+      {
+        productId: product.id,
+      },
+      {
+        jobId: `product:${product.id}:view:${Date.now()}`,
+      },
+    );
 
-    return product;
+    return this.publicCatalogService.mapPublicProduct(product);
   }
 
-  async findOnePublic(id: string) {
-    // 1. Récupérer le produit et incrémenter le compteur de vues de manière atomique
-    const [product] = await this.prisma.$transaction([
-      this.prisma.produit.update({
-        where: { id },
-        data: { viewCount: { increment: 1 } },
-        include: {
-          collection: { select: { id: true, name: true, status: true } },
-          brand: { select: { id: true, name: true, slug: true, logo: true } },
-        },
-      })
-    ]);
+  async findOnePublic(id: string): Promise<PublicProductDto> {
+    const product = await this.prisma.produit.findUnique({
+      where: { id },
+      include: {
+        collection: { select: { id: true, name: true, slug: true, status: true } },
+        brand: { select: { id: true, name: true, slug: true, logo: true, isVerified: true } },
+      },
+    });
 
     if (!product || product.isDeleted) {
       throw new NotFoundException('Produit non trouvé');
     }
 
-    if (product.collection.status !== CollectionStatus.DISPONIBLE || !product.isVisible) {
+    if (
+      !product.isVisible ||
+      product.isDeleted ||
+      !this.publicCatalogService.isCollectionPublic(product.collection.status) ||
+      product.collection.status !== CollectionStatus.DISPONIBLE
+    ) {
       throw new NotFoundException('Produit non disponible');
     }
 
-    return product;
+    await this.analyticsQueue.add(
+      ANALYTICS_JOB_NAMES.TRACK_PRODUCT_VIEW,
+      {
+        productId: product.id,
+      },
+      {
+        jobId: `product:${product.id}:view:${Date.now()}`,
+      },
+    );
+
+    return this.publicCatalogService.mapPublicProduct(product);
   }
 
   async update(userId: string, id: string, dto: UpdateProduitDto) {
@@ -359,6 +374,8 @@ export class ProduitsService {
     if (dto.weight !== undefined) updateData.weight = dto.weight;
     if (dto.isFeatured !== undefined) updateData.isFeatured = dto.isFeatured;
     if (dto.isVisible !== undefined) updateData.isVisible = dto.isVisible;
+    if (dto.productType !== undefined) updateData.productType = dto.productType ?? null;
+    if (dto.gender !== undefined) updateData.gender = dto.gender ?? null;
 
     // 6) Mettre à jour le produit
     const updatedProduct = await this.prisma.produit.update({
@@ -450,14 +467,9 @@ export class ProduitsService {
    */
   async findFeatured(limit = 10) {
     const products = await this.prisma.produit.findMany({
-      where: {
+      where: this.publicCatalogService.getPublicProductWhere({
         isFeatured: true,
-        isVisible: true,
-        isDeleted: false,
-        collection: {
-          status: CollectionStatus.DISPONIBLE,
-        },
-      },
+      }),
       include: {
         collection: {
           select: {
@@ -483,7 +495,7 @@ export class ProduitsService {
       take: limit,
     });
 
-    return products;
+    return products.map((product) => this.publicCatalogService.mapPublicProduct(product));
   }
 
   /**
@@ -491,13 +503,7 @@ export class ProduitsService {
    * Algorithme simple mais efficace
    */
   async findPopular(limit = 20, days = 30) {
-    const baseWhere: Prisma.ProduitWhereInput = {
-      isVisible: true,
-      isDeleted: false,
-      collection: {
-        status: CollectionStatus.DISPONIBLE,
-      },
-    };
+    const baseWhere = this.publicCatalogService.getPublicProductWhere();
 
     // Étape 1 : vérifier s'il existe au moins un produit avec des vues
     const productWithMaxViews = await this.prisma.produit.findFirst({
@@ -551,7 +557,7 @@ export class ProduitsService {
       take: limit,
     });
 
-    return products;
+    return products.map((product) => this.publicCatalogService.mapPublicProduct(product));
   }
 
   /**
@@ -563,16 +569,11 @@ export class ProduitsService {
     dateLimit.setDate(dateLimit.getDate() - days);
 
     const products = await this.prisma.produit.findMany({
-      where: {
-        isVisible: true,
-        isDeleted: false,
-        collection: {
-          status: CollectionStatus.DISPONIBLE,
-        },
+      where: this.publicCatalogService.getPublicProductWhere({
         createdAt: {
           gte: dateLimit,
         },
-      },
+      }),
       include: {
         collection: {
           select: {
@@ -597,7 +598,7 @@ export class ProduitsService {
       take: limit,
     });
 
-    return products;
+    return products.map((product) => this.publicCatalogService.mapPublicProduct(product));
   }
 
   /**
@@ -637,16 +638,11 @@ export class ProduitsService {
 
     // 3. Récupérer les produits des marques favorites
     const products = await this.prisma.produit.findMany({
-      where: {
-        isVisible: true,
-        isDeleted: false,
+      where: this.publicCatalogService.getPublicProductWhere({
         brandId: {
           in: Array.from(favoriteBrandIds),
         },
-        collection: {
-          status: CollectionStatus.DISPONIBLE,
-        },
-      },
+      }),
       include: {
         collection: {
           select: {
@@ -672,13 +668,21 @@ export class ProduitsService {
       take: limit,
     });
 
+    const mappedProducts = products.map((product) =>
+      this.publicCatalogService.mapPublicProduct(product),
+    );
+
     // 4. Si pas assez de résultats, compléter avec des produits populaires
-    if (products.length < limit) {
+    if (mappedProducts.length < limit) {
       const popular = await this.findPopular(limit - products.length);
-      products.push(...popular.filter(p => !products.find(existing => existing.id === p.id)));
+      mappedProducts.push(
+        ...popular.filter(
+          (product) => !mappedProducts.find((existing) => existing.id === product.id),
+        ),
+      );
     }
 
-    return products.slice(0, limit);
+    return mappedProducts.slice(0, limit);
   }
 
   /**
@@ -687,14 +691,9 @@ export class ProduitsService {
    */
   async findRandomByCollection(collectionId: string, limit = 10) {
     const products = await this.prisma.produit.findMany({
-      where: {
+      where: this.publicCatalogService.getPublicProductWhere({
         collectionId,
-        isVisible: true,
-        isDeleted: false,
-        collection: {
-          status: CollectionStatus.DISPONIBLE,
-        },
-      },
+      }),
       include: {
         collection: {
           select: {
@@ -720,7 +719,9 @@ export class ProduitsService {
     });
 
     // Mélanger aléatoirement
-    return products.sort(() => Math.random() - 0.5);
+    return products
+      .sort(() => Math.random() - 0.5)
+      .map((product) => this.publicCatalogService.mapPublicProduct(product));
   }
 
   /**
@@ -752,12 +753,7 @@ export class ProduitsService {
       limit = 20,
     } = options;
 
-    const where: Prisma.ProduitWhereInput = {
-      isVisible: true,
-      isDeleted: false,
-      collection: {
-        status: CollectionStatus.DISPONIBLE,
-      },
+    const where = this.publicCatalogService.getPublicProductWhere({
       ...(query && {
         OR: [
           { name: { contains: query, mode: 'insensitive' } },
@@ -779,7 +775,7 @@ export class ProduitsService {
           hasSome: colors,
         },
       }),
-    };
+    });
 
     const [products, total] = await Promise.all([
       this.prisma.produit.findMany({
@@ -813,7 +809,7 @@ export class ProduitsService {
     ]);
 
     return {
-      data: products,
+      data: products.map((product) => this.publicCatalogService.mapPublicProduct(product)),
       meta: {
         total,
         page,
@@ -859,14 +855,9 @@ export class ProduitsService {
         break;
     }
 
-    const where: Prisma.ProduitWhereInput = {
+    const where = this.publicCatalogService.getPublicProductWhere({
       brandId: brand.id,
-      isVisible: true,
-      isDeleted: false,
-      collection: {
-        status: CollectionStatus.DISPONIBLE,
-      },
-    };
+    });
 
     const [products, total] = await Promise.all([
       this.prisma.produit.findMany({
@@ -897,7 +888,7 @@ export class ProduitsService {
     ]);
 
     return {
-      data: products,
+      data: products.map((product) => this.publicCatalogService.mapPublicProduct(product)),
       meta: {
         total,
         page,
@@ -923,4 +914,3 @@ export class ProduitsService {
     }
   }
 }
-

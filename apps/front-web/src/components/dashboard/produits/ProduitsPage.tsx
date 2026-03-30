@@ -475,7 +475,10 @@ export function ProduitsPage() {
     staleTime: 30_000,
   });
 
-  const allProducts: CeoProduct[] = productsQuery.data?.data ?? [];
+  const allProducts = useMemo<CeoProduct[]>(
+    () => productsQuery.data?.data ?? [],
+    [productsQuery.data?.data],
+  );
 
   // ── Toggle visibility ──
   const toggleMutation = useMutation({

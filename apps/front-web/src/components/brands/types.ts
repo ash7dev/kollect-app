@@ -5,6 +5,9 @@ export type BrandListItem = {
   bio?: string | null;
   logo?: string | null;
   coverImage?: string | null;
+  website?: string | null;
+  instagram?: string | null;
+  whatsapp?: string | null;
   isVerified?: boolean;
   followerCount?: number;
   createdAt?: string;

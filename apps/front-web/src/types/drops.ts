@@ -7,6 +7,7 @@ export type CeoCollection = {
   description: string | null;
   status: CollectionStatus;
   launchDate: string | null;
+  endDate?: string | null;
   launchedAt: string | null;
   isFeatured: boolean;
   coverImage: string | null;
@@ -25,10 +26,24 @@ export type CollectionProduct = {
   description: string | null;
   price: number;
   stock: number;
-  sku: string;
+  sku: string | null;
   sizes: string[];
   colors: string[];
   images: string[];
+};
+
+export type PublicCollectionProduct = {
+  id: string;
+  name?: string;
+  slug?: string;
+  description?: string | null;
+  price?: number;
+  stock?: number;
+  sku?: string | null;
+  sizes?: string[];
+  colors?: string[];
+  images: string[];
+  isVisible?: boolean;
 };
 
 export type CeoCollectionDetail = CeoCollection & {
@@ -42,6 +57,7 @@ export type PublicCollection = {
   description: string | null;
   status: CollectionStatus;
   launchDate: string | null;
+  endDate?: string | null;
   launchedAt: string | null;
   isFeatured: boolean;
   coverImage: string | null;
@@ -51,9 +67,9 @@ export type PublicCollection = {
     slug: string;
     name: string;
     logo: string | null;
-    isVerified?: boolean;
+    isVerified: boolean;
   };
-  products?: Array<{ id: string; images: string[] }>;
+  products?: PublicCollectionProduct[];
   _count?: { products: number };
 };
 
@@ -77,4 +93,3 @@ export type WizardDraft = {
   collectionMedia: File | null;
   products: WizardProductDraft[];
 };
-

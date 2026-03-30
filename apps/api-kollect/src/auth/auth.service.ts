@@ -123,8 +123,6 @@ export class AuthService {
       has_seen_creator_prompt: user.has_seen_creator_prompt ?? false,
       brand: brand ?? null,
     };
-
-    console.log('🔑 Generating JWT with payload:', JSON.stringify(payload, null, 2));
     return this.jwtService.sign(payload);
   }
 
@@ -240,7 +238,9 @@ export class AuthService {
       const token = this.generateJwtToken(user, brand);
       const userProfileResponse = this.toUserProfile(user);
 
-      this.metricsService.incrementUserRegistered();
+      if (!existingUser) {
+        this.metricsService.incrementUserRegistered();
+      }
 
       return {
         access_token: token,
@@ -273,22 +273,27 @@ export class AuthService {
         throw new Error('User not found');
       }
 
-      const isFirstUpgradeToSeller = !currentUser.isCEO && role === 'vendeur';
+      const shouldCleanupClientData = role === 'vendeur' && !currentUser.isCEO;
 
       const [updatedUser] = await this.prisma.$transaction([
         this.prisma.utilisateur.update({
           where: { id: userId },
           data: {
+            // MVP: un utilisateur ne porte qu'un seul profil actif.
             isClient: role === 'client',
             isCEO: role === 'vendeur',
             has_seen_creator_prompt: hasSeenCreatorPrompt,
           },
         }),
-        ...(isFirstUpgradeToSeller
+        ...(shouldCleanupClientData
           ? [
-            this.prisma.favori.deleteMany({ where: { userId } }),
-            this.prisma.notification.deleteMany({ where: { userId } }),
-          ]
+              this.prisma.favori.deleteMany({
+                where: { userId },
+              }),
+              this.prisma.notification.deleteMany({
+                where: { userId },
+              }),
+            ]
           : []),
       ]);
 
@@ -308,7 +313,10 @@ export class AuthService {
 
       return {
         access_token: token,
-        user: this.toUserProfile(updatedUser),
+        user: {
+          ...this.toUserProfile(updatedUser),
+          brand,
+        },
       };
     } catch (error) {
       console.error('Error updating user role:', error);

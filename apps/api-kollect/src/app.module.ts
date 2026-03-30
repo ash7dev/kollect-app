@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { UploadModule } from './upload/upload.module';
@@ -22,12 +23,18 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { CacheService } from './common/cache/cache.service';
+import { QueuesModule } from './queues/queues.module';
+import { DropsWorkerModule } from './queues/workers/drops-worker.module';
+import { NotificationsWorkerModule } from './queues/workers/notifications-worker.module';
+import { OrdersWorkerModule } from './queues/workers/orders-worker.module';
+import { AnalyticsWorkerModule } from './queues/workers/analytics-worker.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
       global: true,
@@ -35,6 +42,7 @@ import { CacheService } from './common/cache/cache.service';
       signOptions: { expiresIn: '24h' },
     }),
     PrismaModule,
+    QueuesModule,
     AuthModule,
     NotificationsModule,
     UploadModule, // 🆕 Ajout du module upload
@@ -46,6 +54,10 @@ import { CacheService } from './common/cache/cache.service';
     MetricsModule,
     ShareModule,
     ShareLinksModule,
+    DropsWorkerModule,
+    NotificationsWorkerModule,
+    OrdersWorkerModule,
+    AnalyticsWorkerModule,
   ],
   controllers: [AppController],
   providers: [

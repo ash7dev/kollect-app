@@ -169,7 +169,6 @@ export default function SettingsPage() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 12,
                 padding: '16px 20px', borderRadius: 16,
-                border: 'none',
                 background: activeSection === item.id 
                   ? 'linear-gradient(135deg, #0A0A0A 0%, #1a1a1a 100%)'
                   : '#fff',
