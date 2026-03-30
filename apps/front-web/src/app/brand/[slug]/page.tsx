@@ -9,6 +9,11 @@ type BrandCollection = {
   name: string;
   slug: string;
   coverImage?: string | null;
+  teaserVideo?: string | null;
+  status?: string | null;
+  launchDate?: string | null;
+  launchedAt?: string | null;
+  createdAt?: string | null;
   _count?: { products: number } | null;
 };
 

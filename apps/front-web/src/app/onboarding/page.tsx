@@ -308,10 +308,8 @@ export default function OnboardingPage() {
     try {
       setLoading(true);
 
-      // 1. Confirmer le rôle vendeur
-      await updateUserRole('vendeur');
-
-      // 2. Créer la marque
+      // Création de la marque : le backend se charge désormais d'upgrader l'utilisateur
+      // au rôle 'vendeur' (CEO) et de nettoyer l'ancien profil client de façon atomique.
       const formData = new FormData();
       formData.append('name', brandName.trim());
       formData.append('slug', brandSlug || slugify(brandName));
@@ -320,14 +318,14 @@ export default function OnboardingPage() {
       if (instagram.trim()) formData.append('instagram', instagram.trim());
       if (logoFile) formData.append('logo', logoFile);
 
-      const { data } = await apiClient.post<{ user: BackendUser; access_token: string }>(
+      await apiClient.post(
         API_ENDPOINTS.BRANDS.CREATE,
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } },
       );
 
-      // 3. Sync le contexte auth avec les données fraîches (brand attachée)
-      applyAuthResponse(data);
+      // 3. Mettre à jour le profil (incluant la nouvelle marque rattachée)
+      await refreshUser();
 
       router.replace('/dashboard');
     } catch (err) {

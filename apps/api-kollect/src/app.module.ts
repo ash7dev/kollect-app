@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -28,19 +27,16 @@ import { DropsWorkerModule } from './queues/workers/drops-worker.module';
 import { NotificationsWorkerModule } from './queues/workers/notifications-worker.module';
 import { OrdersWorkerModule } from './queues/workers/orders-worker.module';
 import { AnalyticsWorkerModule } from './queues/workers/analytics-worker.module';
+import { RedisModule } from './common/redis/redis.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    RedisModule,
     ScheduleModule.forRoot(),
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    JwtModule.register({
-      global: true,
-      secret: process.env.JWT_SECRET || 'default-secret',
-      signOptions: { expiresIn: '24h' },
-    }),
     PrismaModule,
     QueuesModule,
     AuthModule,

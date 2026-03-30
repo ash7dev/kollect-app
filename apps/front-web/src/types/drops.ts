@@ -82,6 +82,9 @@ export type WizardProductDraft = {
   sizes: string[];
   colors: string[];
   images: File[];
+  productType: string;
+  gender: string;
+  weight?: number;
 };
 
 export type WizardDraft = {

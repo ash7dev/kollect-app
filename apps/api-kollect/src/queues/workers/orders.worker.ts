@@ -1,11 +1,14 @@
 import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { NotificationPriority, NotificationType } from '@prisma/client';
 import type { Job, Queue } from 'bullmq';
+import type Redis from 'ioredis';
 import { MetricsService } from '../../metrics/metrics.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { REDIS_CLIENT } from '../../common/redis/redis.module';
 import {
   buildSyncDropJobId,
+  DEADLETTER_QUEUE,
   DROP_JOB_NAMES,
   DROPS_QUEUE,
   NOTIFICATION_JOB_NAMES,
@@ -19,6 +22,8 @@ import type {
   SendNotificationJobPayload,
 } from '../interfaces/queue-jobs.interface';
 
+const ORDER_PROCESSED_TTL = 7 * 24 * 3600; // 7 jours
+
 @Injectable()
 @Processor(ORDERS_QUEUE)
 export class OrdersWorker extends WorkerHost {
@@ -31,6 +36,10 @@ export class OrdersWorker extends WorkerHost {
     private readonly notificationsQueue: Queue,
     @InjectQueue(DROPS_QUEUE)
     private readonly dropsQueue: Queue,
+    @InjectQueue(DEADLETTER_QUEUE)
+    private readonly deadletterQueue: Queue,
+    @Inject(REDIS_CLIENT)
+    private readonly redis: Redis,
   ) {
     super();
   }
@@ -42,6 +51,13 @@ export class OrdersWorker extends WorkerHost {
     }
 
     const { orderId } = job.data;
+
+    const idempotencyKey = `order:processed:${orderId}`;
+    const alreadyProcessed = await this.redis.get(idempotencyKey);
+    if (alreadyProcessed) {
+      this.logger.log(`Commande ${orderId} déjà traitée, job ignoré`);
+      return;
+    }
 
     const order = await this.prisma.commande.findUnique({
       where: { id: orderId },
@@ -104,7 +120,7 @@ export class OrdersWorker extends WorkerHost {
         NOTIFICATION_JOB_NAMES.SEND_EMAIL,
         emailJob,
         {
-          jobId: `order:${order.id}:client-email`,
+          jobId: `order-${order.id}-client-email`,
         },
       );
     }
@@ -131,7 +147,7 @@ export class OrdersWorker extends WorkerHost {
         NOTIFICATION_JOB_NAMES.SEND_EMAIL,
         emailJob,
         {
-          jobId: `order:${order.id}:brand-email`,
+          jobId: `order-${order.id}-brand-email`,
         },
       );
     }
@@ -151,7 +167,7 @@ export class OrdersWorker extends WorkerHost {
       NOTIFICATION_JOB_NAMES.SEND_PUSH,
       notificationJob,
       {
-        jobId: `order:${order.id}:ceo-notification`,
+        jobId: `order-${order.id}-ceo-notification`,
       },
     );
 
@@ -175,13 +191,29 @@ export class OrdersWorker extends WorkerHost {
         ),
       ),
     );
+
+    await this.redis.set(idempotencyKey, '1', 'EX', ORDER_PROCESSED_TTL);
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: Job | undefined, error: Error) {
+  async onFailed(job: Job | undefined, error: Error) {
     this.logger.error(
-      `OrdersWorker failure job=${job?.name ?? 'unknown'} id=${job?.id ?? 'unknown'} reason=${error.message}`,
+      `OrdersWorker failure job=${job?.name ?? 'unknown'} id=${job?.id ?? 'unknown'} attempt=${job?.attemptsMade ?? 0} reason=${error.message}`,
       error.stack,
     );
+
+    if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+      await this.deadletterQueue
+        .add('failed-job', {
+          originalQueue: ORDERS_QUEUE,
+          jobId: job.id,
+          jobName: job.name,
+          jobData: job.data,
+          error: error.message,
+          failedAt: new Date().toISOString(),
+          attemptsMade: job.attemptsMade,
+        })
+        .catch((e: Error) => this.logger.error(`Deadletter enqueue failed: ${e.message}`));
+    }
   }
 }

@@ -24,6 +24,7 @@ type BrandProductCardProps = {
   brandName?: string;
   product: BrandProductCardItem;
   accent: string;
+  isTeaser?: boolean;
 };
 
 function mediaUrl(url?: string | null): string | null {
@@ -103,7 +104,7 @@ function ConflictDialog({ conflictingBrands, onConfirm, onCancel }: ConflictDial
 
 // ── Card ──────────────────────────────────────────────────────────────────────
 
-export function BrandProductCard({ brandSlug, brandName, product, accent }: BrandProductCardProps) {
+export function BrandProductCard({ brandSlug, brandName, product, accent, isTeaser }: BrandProductCardProps) {
   const addItem = useBrandCartStore((s) => s.addItem);
   const [hovered, setHovered] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
@@ -128,7 +129,9 @@ export function BrandProductCard({ brandSlug, brandName, product, accent }: Bran
     return () => observer.disconnect();
   }, []);
 
-  const disabled = typeof product.stock === 'number' && product.stock <= 0;
+  const isOutOfStock = typeof product.stock === 'number' && product.stock <= 0;
+  const disabledAddToCart = isOutOfStock || isTeaser;
+  
   const image = product.images?.[0] ? mediaUrl(product.images[0]) : null;
   const priceFormatted = new Intl.NumberFormat('fr-FR').format(product.price);
 
@@ -156,7 +159,7 @@ export function BrandProductCard({ brandSlug, brandName, product, accent }: Bran
   };
 
   const handleAddToCart = () => {
-    if (disabled) return;
+    if (disabledAddToCart) return;
     const { itemsByBrand } = useBrandCartStore.getState();
     const conflicts = Object.entries(itemsByBrand)
       .filter(([slug, items]) => slug !== brandSlug && items.length > 0)
@@ -249,12 +252,22 @@ export function BrandProductCard({ brandSlug, brandName, product, accent }: Bran
           </Link>
 
           {/* Badge rupture */}
-          {disabled && (
+          {isOutOfStock && !isTeaser && (
             <div aria-hidden style={{ position: 'absolute', top: 10, left: 10, pointerEvents: 'none' }}>
               <span style={{
                 padding: '5px 12px', borderRadius: 999,
                 backgroundColor: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 11, fontWeight: 900,
               }}>Rupture</span>
+            </div>
+          )}
+          {/* Badge Teaser overlay */}
+          {isTeaser && (
+            <div aria-hidden style={{ position: 'absolute', top: 10, left: 10, pointerEvents: 'none' }}>
+              <span style={{
+                padding: '5px 12px', borderRadius: 999,
+                backgroundColor: 'rgba(255,59,48,0.95)', color: '#fff', fontSize: 11, fontWeight: 900,
+                letterSpacing: '0.5px'
+              }}>Teaser</span>
             </div>
           )}
 
@@ -304,23 +317,23 @@ export function BrandProductCard({ brandSlug, brandName, product, accent }: Bran
             {/* Bouton principal */}
             <button
               type="button"
-              disabled={disabled}
+              disabled={disabledAddToCart}
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCart(); }}
               style={{
                 flex: 1,
                 padding: '11px 14px',
                 borderRadius: 12,
-                border: 'none',
-                backgroundColor: disabled ? 'rgba(0,0,0,0.07)' : '#000',
-                color: disabled ? 'rgba(0,0,0,0.3)' : '#fff',
-                fontSize: 13, fontWeight: 900,
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                letterSpacing: '-0.1px',
+                border: isTeaser ? `1.5px solid ${accent}` : 'none',
+                backgroundColor: isTeaser ? 'rgba(255,59,48,0.05)' : disabledAddToCart ? 'rgba(0,0,0,0.07)' : '#000',
+                color: isTeaser ? accent : disabledAddToCart ? 'rgba(0,0,0,0.3)' : '#fff',
+                fontSize: 12, fontWeight: 900,
+                cursor: isTeaser ? 'default' : disabledAddToCart ? 'not-allowed' : 'pointer',
+                letterSpacing: '0.2px',
                 whiteSpace: 'nowrap',
-                transition: 'background-color 150ms ease',
+                transition: 'all 150ms ease',
               }}
             >
-              {disabled ? 'Épuisé' : 'Ajouter au panier'}
+              {isTeaser ? 'DROP IMMINENT' : isOutOfStock ? 'Épuisé' : 'Ajouter au panier'}
             </button>
 
             {/* Bouton secondaire ↗ — carré outline */}

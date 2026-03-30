@@ -23,10 +23,15 @@ export interface PublicProductDto {
   price: number;
   images: string[];
   stock: number;
+  sizes: string[];
+  colors: string[];
+  sku?: string | null;
+  material?: string | null;
+  weight?: number | null;
   isFeatured: boolean;
   brandId: string;
   collectionId: string;
-  brand: PublicProductBrandDto;
+  brand: PublicProductBrandDto | null;
   collection: PublicProductCollectionDto;
   productType?: ProductType | null;
   gender?: ProductGender | null;

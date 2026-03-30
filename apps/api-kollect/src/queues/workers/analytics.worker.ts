@@ -9,6 +9,7 @@ import {
   ANALYTICS_QUEUE,
   ANALYTICS_REDIS_KEYS,
 } from '../constants/queue.constants';
+import { getRedisUrl } from '../utils/redis-connection.util';
 import type {
   TrackCollectionViewJobPayload,
   TrackInteractionJobPayload,
@@ -29,12 +30,8 @@ export class AnalyticsWorker
   }
 
   async onModuleInit() {
-    if (!process.env.REDIS_URL) {
-      throw new Error('REDIS_URL is not defined in environment variables');
-    }
-
     this.redisClient = createClient({
-      url: process.env.REDIS_URL,
+      url: getRedisUrl(),
     });
 
     this.redisClient.on('error', (error) => {

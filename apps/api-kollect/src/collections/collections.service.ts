@@ -582,8 +582,20 @@ async findAllForCEO(
         },
         products: {
           where: { isDeleted: false },
-          select: { id: true, images: true, isVisible: true },
-          take: 1,
+          select: { 
+            id: true, 
+            name: true,
+            slug: true, 
+            description: true,
+            price: true,
+            images: true, 
+            stock: true,
+            sizes: true,
+            colors: true,
+            sku: true,
+            isVisible: true 
+          },
+          take: 10,
           orderBy: { createdAt: 'asc' },
         },
         _count: {
@@ -602,7 +614,7 @@ async findAllForCEO(
         collectionId: collection.id,
       },
       {
-        jobId: `collection:${collection.id}:view:${Date.now()}`,
+        jobId: `collection-${collection.id}-view-${Date.now()}`,
       },
     );
 
@@ -794,7 +806,7 @@ async findAllForCEO(
         userId,
       },
       {
-        jobId: `collection:${id}:view:${Date.now()}`,
+        jobId: `collection-${id}-view-${Date.now()}`,
       },
     );
   }

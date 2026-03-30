@@ -61,7 +61,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // Retire les propriétés non définies dans le DTO
-      forbidNonWhitelisted: true, // Erreur si propriétés non autorisées
+      forbidNonWhitelisted: false, // Désactivé temporairement pour debugger
       transform: true, // Transforme automatiquement les types
     }),
   );

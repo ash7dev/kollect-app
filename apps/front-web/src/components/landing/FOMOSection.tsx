@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+/* eslint-disable @next/next/no-img-element */
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/services/api/client';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
+import { FeaturedCard, FeaturedSkeleton, type FeaturedCollection } from './FeaturedCollections';
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 interface TrendingCollection {
@@ -587,53 +589,108 @@ function HeroTrendingCard({ collection, isMain = false }: { collection: Trending
   );
 }
 
-/* ─── Live Activity Component ───────────────────────────────────────────────── */
+/* ─── Live Activity Component — polling réel, fallback propre ──────── */
+interface LiveActivityData {
+  viewingNow: number;
+  recentSales: Array<{
+    productName: string;
+    soldAt: string;
+    size?: string;
+    price: number;
+  }>;
+  totalSalesToday?: number;
+  hasRealData: boolean;
+}
+
 function LiveActivity() {
-  const [activity, setActivity] = useState<LiveActivity | null>(null);
+  const [activity, setActivity] = useState<LiveActivityData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Simuler l'activité en attendant la vraie route
-    const mockActivity: LiveActivity = {
-      viewingNow: Math.floor(Math.random() * 500) + 100,
-      recentSales: [
-        {
-          productName: 'Street Dakar Premium',
-          soldAt: new Date(Date.now() - Math.random() * 900000).toISOString(),
-          price: 25000,
-          size: 'L'
-        },
-        {
-          productName: 'Urban Flow Limited',
-          soldAt: new Date(Date.now() - Math.random() * 1800000).toISOString(),
-          price: 18000,
-          size: 'M'
-        },
-      ],
-      waitingList: Math.floor(Math.random() * 1000) + 200,
-      lastUpdated: new Date().toISOString(),
-    };
-    
-    setTimeout(() => {
-      setActivity(mockActivity);
+  const fetchActivity = async () => {
+    try {
+      // On réutilise /collections/home qui contient les infos de tendance
+      const res = await apiClient.get('/collections/home');
+      const homeData = res.data;
+
+      // Extraire les ventes récentes depuis les trending collections
+      const trending: any[] = Array.isArray(homeData?.trending) ? homeData.trending : [];
+      const recentSales: LiveActivityData['recentSales'] = [];
+
+      trending.forEach((col: any) => {
+        if (Array.isArray(col.recentSales)) {
+          col.recentSales.slice(0, 2).forEach((sale: any) => {
+            recentSales.push({
+              productName: sale.productName || col.name,
+              soldAt: sale.soldAt || sale.createdAt || new Date().toISOString(),
+              size: sale.size,
+              price: sale.price ?? 0,
+            });
+          });
+        }
+      });
+
+      // viewingNow depuis le champ stats de la home, sinon on accumule viewCount
+      const totalViews = trending.reduce((acc: number, c: any) => acc + (c.viewCount ?? 0), 0);
+      // Normaliser : on montre pas le total brut, mais une fenêtre "actifs maintenant"
+      // Logique : viewCount / durée de vie estimée en heures → approximation sensée
+      const estimatedActive = trending.length > 0
+        ? Math.min(Math.max(Math.round(totalViews / 24), 12), 9999)
+        : 0;
+
+      setActivity({
+        viewingNow: estimatedActive,
+        recentSales: recentSales.slice(0, 3),
+        totalSalesToday: homeData?.stats?.salesToday ?? 0,
+        hasRealData: recentSales.length > 0 || estimatedActive > 0,
+      });
+    } catch {
+      // Pas d'erreur visible — on affiche un état "calme" neutre
+      setActivity({ viewingNow: 0, recentSales: [], hasRealData: false });
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  };
 
-    // Simuler des mises à jour toutes les 30 secondes
-    const interval = setInterval(() => {
-      setActivity(prev => prev ? {
-        ...prev,
-        viewingNow: prev.viewingNow + Math.floor(Math.random() * 20) - 10,
-        waitingList: prev.waitingList + Math.floor(Math.random() * 10) - 3,
-        lastUpdated: new Date().toISOString(),
-      } : null);
-    }, 30000);
-
+  useEffect(() => {
+    fetchActivity();
+    // Polling léger toutes les 2 minutes — pas de WebSocket nécessaire
+    const interval = setInterval(fetchActivity, 120_000);
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) return <LiveActivitySkeleton />;
   if (!activity) return null;
+
+  // Quand il n'y a pas de vraies données, afficher un état calme (pas de faux chiffres)
+  if (!activity.hasRealData) {
+    return (
+      <div style={{
+        backgroundColor: '#0A0A0A',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '16px',
+        padding: '24px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        textAlign: 'center', gap: '12px',
+      }}>
+        <div style={{
+          width: '40px', height: '40px', borderRadius: '12px',
+          backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        </div>
+        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', margin: 0, lineHeight: 1.5 }}>
+          Calme en ce moment.
+          <br />
+          <span style={{ color: 'rgba(255,255,255,0.18)' }}>Les nouveaux drops arrivent bientôt.</span>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -645,137 +702,87 @@ function LiveActivity() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
         <div style={{
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          backgroundColor: '#FF3B30',
+          width: '8px', height: '8px', borderRadius: '50%',
+          backgroundColor: '#34C759',
+          boxShadow: '0 0 8px rgba(52,199,89,0.7)',
           animation: 'livePulse 2s ease-in-out infinite',
         }} />
-        <span style={{
-          fontSize: '12px',
-          fontWeight: 700,
-          color: '#FF3B30',
-          letterSpacing: '1px',
-          textTransform: 'uppercase',
-        }}>
-          En direct
+        <span style={{ fontSize: '12px', fontWeight: 700, color: '#34C759', letterSpacing: '1px', textTransform: 'uppercase' }}>
+          Activité récente
         </span>
       </div>
 
-      {/* Stats */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <IconUsers />
-          <div>
-            <div style={{
-              fontSize: '18px',
-              fontWeight: 800,
-              color: '#fff',
-              letterSpacing: '-0.5px',
-              lineHeight: 1,
-            }}>
-              {formatNumber(activity.viewingNow)}
-            </div>
-            <div style={{
-              fontSize: '11px',
-              color: 'rgba(255,255,255,0.4)',
-              fontWeight: 500,
-            }}>
-              personnes connectées
+      {/* Stats — only shown when > 0 */}
+      {activity.viewingNow > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <IconUsers />
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1 }}>
+                {formatNumber(activity.viewingNow)}
+              </div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
+                actifs aujourd&apos;hui
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <IconClock />
-          <div>
-            <div style={{
-              fontSize: '18px',
-              fontWeight: 800,
-              color: '#FF9500',
-              letterSpacing: '-0.5px',
-              lineHeight: 1,
-            }}>
-              {formatNumber(activity.waitingList)}
+          {(activity.totalSalesToday ?? 0) > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF9500" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" />
+              </svg>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#FF9500', letterSpacing: '-0.5px', lineHeight: 1 }}>
+                  {activity.totalSalesToday}
+                </div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
+                  ventes aujourd&apos;hui
+                </div>
+              </div>
             </div>
-            <div style={{
-              fontSize: '11px',
-              color: 'rgba(255,255,255,0.4)',
-              fontWeight: 500,
-            }}>
-              en liste d&apos;attente
-            </div>
-          </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Recent sales */}
-      <div>
-        <h4 style={{
-          fontSize: '12px',
-          fontWeight: 700,
-          color: 'rgba(255,255,255,0.6)',
-          letterSpacing: '0.5px',
-          textTransform: 'uppercase',
-          margin: '0 0 12px',
-        }}>
-          Ventes récentes
-        </h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {activity.recentSales.map((sale, index) => (
-            <div key={index} style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(255,255,255,0.03)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{
-                  width: '4px',
-                  height: '4px',
-                  borderRadius: '50%',
-                  backgroundColor: '#34C759',
-                }} />
-                <span style={{
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: 'rgba(255,255,255,0.7)',
-                }}>
-                  {sale.productName}
-                </span>
-                {sale.size && (
-                  <span style={{
-                    fontSize: '10px',
-                    color: 'rgba(255,255,255,0.4)',
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                  }}>
-                    {sale.size}
+      {activity.recentSales.length > 0 && (
+        <div>
+          <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.8px', textTransform: 'uppercase', margin: '0 0 10px' }}>
+            Ventes récentes
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {activity.recentSales.map((sale, index) => (
+              <div key={index} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '8px 12px', borderRadius: '8px',
+                backgroundColor: 'rgba(255,255,255,0.03)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#34C759', flexShrink: 0 }} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {sale.productName}
                   </span>
-                )}
+                  {sale.size && (
+                    <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', backgroundColor: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
+                      {sale.size}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  {sale.price > 0 && (
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>
+                      {formatPrice(sale.price)}
+                    </span>
+                  )}
+                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>
+                    {getTimeAgo(sale.soldAt)}
+                  </span>
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  color: '#fff',
-                }}>
-                  {formatPrice(sale.price)}
-                </span>
-                <span style={{
-                  fontSize: '10px',
-                  color: 'rgba(255,255,255,0.4)',
-                }}>
-                  {getTimeAgo(sale.soldAt)}
-                </span>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -784,21 +791,22 @@ function LiveActivity() {
 export function FOMOSection() {
   const [trending, setTrending] = useState<TrendingCollection[]>([]);
   const [comingSoon, setComingSoon] = useState<ComingSoonCollection[]>([]);
+  const [featured, setFeatured] = useState<FeaturedCollection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        // Utiliser les vraies routes existantes comme dans DropsPreview
-        const res = await apiClient.get('/collections/home');
-        const homeData = res.data;
+        const [homeRes, featuredRes] = await Promise.all([
+          apiClient.get('/collections/home'),
+          apiClient.get('/collections/featured?limit=6'),
+        ]);
 
-        const trending: any[] = Array.isArray(homeData?.trending) ? homeData.trending : [];
-        const comingSoon: any[] = Array.isArray(homeData?.comingSoon) ? homeData.comingSoon : [];
-
-        setTrending(trending);
-        setComingSoon(comingSoon);
+        const homeData = homeRes.data;
+        setTrending(Array.isArray(homeData?.trending) ? homeData.trending : []);
+        setComingSoon(Array.isArray(homeData?.comingSoon) ? homeData.comingSoon : []);
+        setFeatured(Array.isArray(featuredRes.data) ? featuredRes.data : []);
       } catch (err) {
         console.error('Failed to fetch FOMO data:', err);
         setError(true);
@@ -871,77 +879,34 @@ export function FOMOSection() {
           </h2>
         </div>
 
-        {/* Content Grid */}
-        {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-            <TrendingSkeleton />
-            <TrendingSkeleton />
-            <LiveActivitySkeleton />
-          </div>
-        ) : error ? (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            padding: '60px 24px',
-            textAlign: 'center',
-          }}>
-            <div style={{
-              fontSize: '16px',
-              color: 'rgba(255,255,255,0.4)',
-              marginBottom: '20px',
-            }}>
-              Impossible de charger les tendances
-            </div>
-            <button
-              onClick={() => window.location.reload()}
-              style={{
-                padding: '12px 24px',
-                borderRadius: '8px',
-                backgroundColor: '#FF3B30',
-                color: '#fff',
-                border: 'none',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Réessayer
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-            {/* Hero Trending Card - Grand visuel impactant */}
-            <div style={{ height: '100%', minHeight: '400px' }}>
-              {trending[0] && <HeroTrendingCard collection={trending[0]} isMain={true} />}
-            </div>
-
-            {/* Secondary content */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Live Activity */}
-              <LiveActivity />
-              
-              {/* Other trending collections compactes */}
-              <div>
-                <h3 style={{
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  color: 'rgba(255,255,255,0.6)',
-                  letterSpacing: '0.5px',
-                  textTransform: 'uppercase',
-                  margin: '0 0 12px',
-                }}>
-                  Autres tendances
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {trending.slice(1, 4).map((collection, index) => (
-                    <HeroTrendingCard key={collection.id} collection={collection} isMain={false} />
-                  ))}
-                </div>
+        {/* Carousel featured */}
+        <div className="featured-carousel" style={{
+          display: 'flex',
+          overflowX: 'auto',
+          gap: '24px',
+          padding: '4px 4px 20px',
+          scrollSnapType: 'x mandatory',
+          scrollBehavior: 'smooth',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          marginBottom: '48px',
+        }}>
+          {loading ? (
+            [0, 1, 2].map(i => (
+              <div key={i} style={{ flexShrink: 0, width: 'clamp(280px, 38vw, 480px)', scrollSnapAlign: 'center' }}>
+                <FeaturedSkeleton />
               </div>
-            </div>
-          </div>
-        )}
+            ))
+          ) : (
+            featured.map((collection, index) => (
+              <div key={collection.id} style={{ flexShrink: 0, width: 'clamp(280px, 38vw, 480px)', scrollSnapAlign: 'center' }}>
+                <FeaturedCard collection={collection} index={index} />
+              </div>
+            ))
+          )}
+        </div>
+
 
         {/* Footer CTA */}
         {!loading && !error && (

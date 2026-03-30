@@ -9,9 +9,45 @@ export interface RedisConnectionOptions {
   enableReadyCheck: boolean;
 }
 
-export function buildRedisConnection(redisUrl?: string): RedisConnectionOptions {
+const REDIS_SOCKET_PROTOCOLS = new Set(['redis:', 'rediss:']);
+
+function isRedisSocketUrl(value: string): boolean {
+  try {
+    return REDIS_SOCKET_PROTOCOLS.has(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+export function getRedisUrl(): string {
+  const redisUrl = process.env.REDIS_URL?.trim();
+  if (redisUrl) {
+    if (!isRedisSocketUrl(redisUrl)) {
+      throw new Error(
+        'REDIS_URL must be a redis:// or rediss:// URL for BullMQ and Redis workers',
+      );
+    }
+
+    return redisUrl;
+  }
+
+  const upstashRestUrl = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  if (upstashRestUrl) {
+    throw new Error(
+      'REDIS_URL is required for BullMQ. UPSTASH_REDIS_REST_URL is an HTTP REST endpoint and cannot be used as a Redis socket connection.',
+    );
+  }
+
+  throw new Error(
+    'REDIS_URL is not defined in environment variables. Set it to a redis:// or rediss:// connection string.',
+  );
+}
+
+export function buildRedisConnection(redisUrl = getRedisUrl()): RedisConnectionOptions {
   if (!redisUrl) {
-    throw new Error('REDIS_URL is not defined in environment variables');
+    throw new Error(
+      'REDIS_URL is not defined in environment variables. Set it to a redis:// or rediss:// connection string.',
+    );
   }
 
   const parsed = new URL(redisUrl);

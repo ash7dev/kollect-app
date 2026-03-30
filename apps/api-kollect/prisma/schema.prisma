@@ -5,6 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ============================================
@@ -170,6 +171,7 @@ model Collection {
   @@index([launchDate])
   @@index([endDate])
   @@index([isFeatured])
+  @@index([brandId, status])
   @@map("collections")
 }
 
@@ -240,6 +242,7 @@ model Produit {
   @@index([brandId])
   @@index([isVisible, isDeleted])
   @@index([isFeatured])
+  @@index([brandId, isVisible, isDeleted])
   @@map("products")
 }
 
@@ -352,6 +355,9 @@ model Commande {
   @@index([status])
   @@index([createdAt])
   @@index([paymentStatus])
+  @@index([brandId, status])
+  @@index([brandId, createdAt])
+  @@index([clientId, createdAt])
   @@map("commandes")
 }
 
@@ -504,6 +510,7 @@ model Notification {
   @@index([userId, read])
   @@index([type])
   @@index([sentAt])
+  @@index([userId, sentAt])
   @@map("notifications")
 }
 

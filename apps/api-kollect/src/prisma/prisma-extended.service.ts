@@ -202,34 +202,28 @@ export class PrismaExtendedService {
 
   // Database statistics
   async getTableStats(): Promise<Record<string, number>> {
-    const tables = [
-      'users',
-      'brands',
-      'products',
-      'collections',
-      'commandes',
-      'favoris',
-      'reviews',
+    const operations: Array<[string, () => Promise<number>]> = [
+      ['users', () => this.prismaService.utilisateur.count()],
+      ['brands', () => this.prismaService.marque.count()],
+      ['products', () => this.prismaService.produit.count()],
+      ['collections', () => this.prismaService.collection.count()],
+      ['commandes', () => this.prismaService.commande.count()],
+      ['favoris', () => this.prismaService.favori.count()],
     ];
 
     const stats: Record<string, number> = {};
 
-    for (const table of tables) {
+    for (const [name, countFn] of operations) {
       try {
-        const result = await this.query('count', table, () =>
-          this.prismaService.$queryRawUnsafe(
-            `SELECT COUNT(*) as count FROM ${table}`,
-          ),
-        );
-        stats[table] = (result as any)[0]?.count || 0;
+        stats[name] = await this.query('count', name, countFn);
       } catch (error) {
-        this.appLogger.warn(`Failed to get stats for table ${table}`, {
+        this.appLogger.warn(`Failed to get stats for table ${name}`, {
           module: 'DATABASE',
           operation: 'stats',
-          table,
+          table: name,
           error: error instanceof Error ? error.message : 'Unknown error',
         });
-        stats[table] = -1; // Indicate error
+        stats[name] = -1;
       }
     }
 

@@ -16,6 +16,8 @@ import { BrandReviews } from '@/components/brands/brand-shop/BrandReviews';
 import { BrandBio } from '@/components/brands/brand-shop/BrandBio';
 import { BrandCollectionCards } from '@/components/brands/brand-shop/BrandCollectionCards';
 import { BrandGallery } from '@/components/brands/brand-shop/BrandGallery';
+import { BrandUpcomingDrop } from '@/components/brands/brand-shop/BrandUpcomingDrop';
+import { BrandRecentDrop } from '@/components/brands/brand-shop/BrandRecentDrop';
 
 type PaginatedMeta = {
   total: number;
@@ -29,6 +31,11 @@ type BrandCollection = {
   name: string;
   slug: string;
   coverImage?: string | null;
+  teaserVideo?: string | null;
+  status?: string | null;
+  launchDate?: string | null;
+  launchedAt?: string | null;
+  createdAt?: string | null;
   _count?: { products: number } | null;
 };
 
@@ -45,6 +52,7 @@ type BrandDetail = {
   instagram?: string | null;
   whatsapp?: string | null;
   website?: string | null;
+  _count?: { products: number; collections: number; favoris?: number; reviews?: number } | null;
 };
 
 type CollectionGroup = {
@@ -157,11 +165,61 @@ export function BrandShopPage({ brand, initialProducts, initialMeta }: BrandShop
         logoUrl={logoUrl}
         bannerUrl={bannerUrl}
         accent={accent}
-        collectionsCount={collections.length}
+        collectionsCount={brand._count?.collections ?? Math.max(collections.length, groupedProducts.length)}
         productsCount={meta.total}
         followerCount={brand.followerCount ?? 0}
         isVerified={!!brand.isVerified}
       />
+
+      {/* Upcoming drop — collection en TEASER avec launchDate future */}
+      {(() => {
+        const upcoming = collections.find(
+          (c) =>
+            c.status === 'TEASER' &&
+            c.launchDate &&
+            new Date(c.launchDate).getTime() > Date.now(),
+        );
+        return upcoming ? (
+          <BrandUpcomingDrop
+            collection={{
+              id: upcoming.id,
+              name: upcoming.name,
+              slug: upcoming.slug,
+              coverImage: upcoming.coverImage,
+              teaserVideo: upcoming.teaserVideo,
+              launchDate: upcoming.launchDate,
+              brand: { slug: brand.slug, name: brand.name },
+            }}
+          />
+        ) : null;
+      })()}
+
+      {/* Recent drop — collection DISPONIBLE sortie dans les 15 derniers jours */}
+      {(() => {
+        const FIFTEEN_DAYS = 15 * 24 * 60 * 60 * 1000;
+        const recent = collections.find((c) => {
+          if (c.status !== 'DISPONIBLE') return false;
+          const ref = c.launchDate ?? c.launchedAt ?? c.createdAt;
+          if (!ref) return false;
+          const diff = Date.now() - new Date(ref).getTime();
+          return diff >= 0 && diff <= FIFTEEN_DAYS;
+        });
+        return recent ? (
+          <BrandRecentDrop
+            collection={{
+              id: recent.id,
+              name: recent.name,
+              slug: recent.slug,
+              coverImage: recent.coverImage,
+              teaserVideo: recent.teaserVideo,
+              launchDate: recent.launchDate,
+              launchedAt: recent.launchedAt,
+              createdAt: recent.createdAt,
+              brand: { slug: brand.slug, name: brand.name },
+            }}
+          />
+        ) : null;
+      })()}
 
       {/* Bio */}
       {brand.bio && (

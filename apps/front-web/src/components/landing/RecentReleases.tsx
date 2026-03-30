@@ -77,7 +77,7 @@ function SkeletonCard() {
 function RecentCollectionCard({ collection }: { collection: RecentCollection }) {
   const hasVideo = !!collection.teaserVideo;
   const hasImage = !!collection.coverImage;
-  const isRecent = new Date(collection.createdAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 jours
+  const isRecent = new Date(collection.createdAt).getTime() > Date.now() - 15 * 24 * 60 * 60 * 1000; // 15 jours
 
   return (
     <div
@@ -288,7 +288,7 @@ export function RecentReleases() {
     async function fetchRecentReleases() {
       try {
         // Récupérer les collections récentes (créées dans les 30 derniers jours)
-        const res = await apiClient.get<RecentCollection[]>('/collections/recent?limit=6');
+        const res = await apiClient.get<RecentCollection[]>('/collections/recent?limit=6&days=15');
         let recentCollections = Array.isArray(res.data) ? res.data : [];
 
         // Si aucune collection récente, fallback vers les collections featured

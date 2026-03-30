@@ -269,7 +269,7 @@ export class ProduitsService {
         productId: product.id,
       },
       {
-        jobId: `product:${product.id}:view:${Date.now()}`,
+        jobId: `product-${product.id}-view-${Date.now()}`,
       },
     );
 
@@ -304,7 +304,7 @@ export class ProduitsService {
         productId: product.id,
       },
       {
-        jobId: `product:${product.id}:view:${Date.now()}`,
+        jobId: `product-${product.id}-view-${Date.now()}`,
       },
     );
 

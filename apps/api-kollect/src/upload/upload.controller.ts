@@ -29,6 +29,7 @@ import { DeleteResourceDto } from './dto/upload.dto';
 import { UploadImageDto } from './dto/upload-image.dto';
 import { UploadVideoDto } from './dto/upload-video.dto';
 import { ImageFolder, UPLOAD_CONSTANTS } from './types/upload.types';
+import { MagicBytesValidator } from './validators/magic-bytes.validator';
 
 @Controller('upload')
 @UseGuards(JwtAuthGuard)
@@ -72,6 +73,7 @@ export class UploadController {
               UPLOAD_CONSTANTS.ALLOWED_IMAGE_MIMETYPES.join('|'),
             ),
           }),
+          new MagicBytesValidator(),
         ],
       }),
     )
@@ -116,6 +118,7 @@ export class UploadController {
               UPLOAD_CONSTANTS.ALLOWED_IMAGE_MIMETYPES.join('|'),
             ),
           }),
+          new MagicBytesValidator(),
         ],
       }),
     )
@@ -160,6 +163,7 @@ export class UploadController {
               UPLOAD_CONSTANTS.ALLOWED_VIDEO_MIMETYPES.join('|'),
             ),
           }),
+          new MagicBytesValidator(),
         ],
       }),
     )

@@ -1,11 +1,11 @@
 import { Navbar } from '@/components/landing/Navbar';
-import { Hero } from '@/components/landing/Hero';
+import { HeroBanner } from '@/components/landing/HeroBanner';
 import { SocialProof } from '@/components/landing/SocialProof';
+import { DropsCalendar } from '@/components/landing/DropsCalendar';
 import { CuratedSelection } from '@/components/landing/CuratedSelection';
-import { FeaturedCollections } from '@/components/landing/FeaturedCollections';
 import { Features } from '@/components/landing/Features';
 import { HowItWorks } from '@/components/landing/HowItWorks';
-import { DropsPreview } from '@/components/landing/DropsPreview';
+import { FOMOSection } from '@/components/landing/FOMOSection';
 import { CreatorCTA } from '@/components/landing/CreatorCTA';
 import { Testimonials } from '@/components/landing/Testimonials';
 import { CTA } from '@/components/landing/CTA';
@@ -15,6 +15,13 @@ import { FONT_FAMILY_INTER } from '@/styles/typography';
 export const metadata = {
   title: 'Kollect — La plateforme streetwear sénégalaise',
   description: 'Découvrez, collectionnez et portez les créations des meilleurs créateurs streetwear du Sénégal. Drops exclusifs, marques vérifiées, livraison partout.',
+  openGraph: {
+    title: 'Kollect — Streetwear sénégalais',
+    description: 'Les drops exclusifs des créateurs locaux vérifiés. Sois le premier.',
+    siteName: 'Kollect',
+    locale: 'fr_SN',
+    type: 'website',
+  },
 };
 
 const LANDING_CANVAS = '#FFFFFF';
@@ -31,7 +38,9 @@ export default function LandingPage() {
     >
       <Navbar />
       <main style={{ backgroundColor: 'transparent' }}>
-        <Hero />
+        {/* Hero dynamique : bannière si drop imminent/récent, showcase sinon */}
+        <HeroBanner />
+
         <div
           className="landing-sections"
           style={{
@@ -42,13 +51,26 @@ export default function LandingPage() {
             padding: '20px 0 32px',
           }}
         >
+          {/* Marques partenaires */}
           <SocialProof />
+
+          {/* Section agenda : drops à venir + nouveautés */}
+          <DropsCalendar />
+
+          {/* Sélection curatée + collections featuredées */}
           <CuratedSelection />
-          <FeaturedCollections />
+
+          {/* Features + Comment ça marche */}
           <Features />
           <HowItWorks />
-          <DropsPreview />
+
+          {/* Tendances & activité réelle */}
+          <FOMOSection />
+
+          {/* Section créateurs */}
           <CreatorCTA />
+
+          {/* Témoignages + App download */}
           <Testimonials />
           <CTA />
         </div>

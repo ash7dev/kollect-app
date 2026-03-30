@@ -2,6 +2,7 @@ export const DROPS_QUEUE = 'drops-queue';
 export const NOTIFICATIONS_QUEUE = 'notifications-queue';
 export const ORDERS_QUEUE = 'orders-queue';
 export const ANALYTICS_QUEUE = 'analytics-queue';
+export const DEADLETTER_QUEUE = 'deadletter-queue';
 
 export const DROP_JOB_NAMES = {
   LAUNCH: 'launch-drop',
@@ -34,7 +35,7 @@ export const ANALYTICS_REDIS_KEYS = {
 
 export const ANALYTICS_FLUSH_JOB_ID = 'analytics:flush';
 
-export const buildLaunchDropJobId = (dropId: string) => `drop:${dropId}:launch`;
-export const buildSyncDropJobId = (dropId: string) => `drop:${dropId}:sync-status`;
-export const buildFinishDropJobId = (dropId: string) => `drop:${dropId}:finish`;
-export const buildProcessOrderJobId = (orderId: string) => `order:${orderId}:process`;
+export const buildLaunchDropJobId = (dropId: string) => `drop-${dropId}-launch`;
+export const buildSyncDropJobId = (dropId: string) => `drop-${dropId}-sync-status`;
+export const buildFinishDropJobId = (dropId: string) => `drop-${dropId}-finish`;
+export const buildProcessOrderJobId = (orderId: string) => `order-${orderId}-process`;

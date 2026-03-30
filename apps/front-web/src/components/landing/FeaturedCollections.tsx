@@ -7,7 +7,7 @@ import { apiClient } from '@/services/api/client';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 /* ─── Types ─────────────────────────────────────────────────────── */
-interface FeaturedCollection {
+export interface FeaturedCollection {
   id: string;
   name: string;
   slug: string;
@@ -114,7 +114,7 @@ function formatNumber(num: number): string {
 }
 
 /* ─── Skeleton Component ───────────────────────────────────────────────── */
-function FeaturedSkeleton() {
+export function FeaturedSkeleton() {
   return (
     <div style={{
       width: '100%',
@@ -224,7 +224,7 @@ function FeaturedSkeleton() {
 }
 
 /* ─── Featured Card (DepthCarousel style sans carrousel) ───────────────────────────────────────────────── */
-function FeaturedCard({ collection, index }: { collection: FeaturedCollection; index: number }) {
+export function FeaturedCard({ collection, index }: { collection: FeaturedCollection; index: number }) {
   const [isMuted, setIsMuted] = useState(true); // Autoplay videos must start muted
   const [isVisible, setIsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -449,26 +449,7 @@ function FeaturedCard({ collection, index }: { collection: FeaturedCollection; i
           }}
         >
           {/* ════ IMAGE/VIDÉO FULL-BLEED ════ */}
-          {hasCoverImage ? (
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              overflow: 'hidden', // Cache les parties qui dépassent
-            }}>
-              <img
-                src={collection.coverImage}
-                alt={collection.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover', // Cover pour remplir l'espace sans coupure
-                  objectPosition: 'center',
-                }}
-              />
-            </div>
-          ) : hasVideo ? (
+          {hasVideo ? (
             <video
               ref={videoRef}
               style={{
@@ -476,17 +457,37 @@ function FeaturedCard({ collection, index }: { collection: FeaturedCollection; i
                 inset: 0,
                 width: '100%',
                 height: '100%',
-                objectFit: isFullscreen ? 'contain' : 'cover', // contain en plein écran pour voir tout
+                objectFit: isFullscreen ? 'contain' : 'cover',
                 zIndex: 1,
               }}
               autoPlay
               muted={isMuted}
               loop
               playsInline
-              controls={isFullscreen} // Contrôles natifs en plein écran
+              poster={collection.coverImage}
+              controls={isFullscreen}
             >
               <source src={collection.teaserVideo} type="video/mp4" />
             </video>
+          ) : hasCoverImage ? (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              overflow: 'hidden',
+            }}>
+              <img
+                src={collection.coverImage}
+                alt={collection.name}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                }}
+              />
+            </div>
           ) : hasProductImage ? (
             <div style={{
               position: 'absolute',

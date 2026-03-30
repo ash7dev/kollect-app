@@ -147,6 +147,38 @@ export function BrandGallery({ products, brandName }: BrandGalleryProps) {
           animation: slideInUp 0.6s ease-out forwards;
         }
         
+        .gallery-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 16px;
+          grid-auto-flow: dense;
+          position: relative;
+        }
+        
+        @media (max-width: 1200px) {
+          .gallery-grid {
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          }
+        }
+        
+        @media (max-width: 900px) {
+          .gallery-grid {
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          }
+        }
+        
+        @media (max-width: 600px) {
+          .gallery-grid {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          }
+        }
+        
+        @media (max-width: 400px) {
+          .gallery-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+        
         @media (prefers-reduced-motion: reduce) {
           .gallery-item,
           .gallery-header {
@@ -188,27 +220,7 @@ export function BrandGallery({ products, brandName }: BrandGalleryProps) {
       </div>
 
       {/* Masonry Grid Style Pinterest avec layout aléatoire */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '16px',
-        gridAutoFlow: 'dense',
-        position: 'relative',
-        
-        /* Responsive */
-        '@media (max-width: 1200px)': {
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        },
-        '@media (max-width: 900px)': {
-          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        },
-        '@media (max-width: 600px)': {
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-        },
-        '@media (max-width: 400px)': {
-          gridTemplateColumns: '1fr',
-        },
-      } as React.CSSProperties}>
+      <div className="gallery-grid">
         {galleryItems.map((item, index) => {
           const isHovered = hoveredIndex === index;
           const staggerDelay = 0.1 + (index * 0.05); // Délai progressif

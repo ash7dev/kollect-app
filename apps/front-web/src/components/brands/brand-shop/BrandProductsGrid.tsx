@@ -9,6 +9,7 @@ type BrandProductsGridProps = {
   brandName?: string;
   products: BrandProductCardItem[];
   accent: string;
+  isTeaser?: boolean;
 };
 
 /** Découpe un tableau en rangées de N éléments */
@@ -20,7 +21,7 @@ function chunkBy<T>(arr: T[], size: number): T[][] {
   return rows;
 }
 
-export function BrandProductsGrid({ brandSlug, brandName, products, accent }: BrandProductsGridProps) {
+export function BrandProductsGrid({ brandSlug, brandName, products, accent, isTeaser }: BrandProductsGridProps) {
   const [isVisible, setIsVisible] = useState(false);
   
   // Observer pour détecter quand la grille est visible
@@ -110,7 +111,7 @@ export function BrandProductsGrid({ brandSlug, brandName, products, accent }: Br
                   minWidth: 0,
                 }}
               >
-                <BrandProductCard brandSlug={brandSlug} brandName={brandName} product={p} accent={accent} />
+                <BrandProductCard brandSlug={brandSlug} brandName={brandName} product={p} accent={accent} isTeaser={isTeaser} />
               </div>
             ))}
           </div>

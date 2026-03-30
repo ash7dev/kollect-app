@@ -111,7 +111,6 @@ export class BrandsController {
    * - website, instagram, facebook, twitter, tiktok: string (optional)
    */
   @Post()
-  @Roles('isCEO')
   @UseInterceptors(FileInterceptor('logo'))
   @HttpCode(HttpStatus.CREATED)
   async create(

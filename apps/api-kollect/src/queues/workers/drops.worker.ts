@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   buildLaunchDropJobId,
   buildSyncDropJobId,
+  DEADLETTER_QUEUE,
   DROP_JOB_NAMES,
   DROPS_QUEUE,
   NOTIFICATION_JOB_NAMES,
@@ -28,6 +29,8 @@ export class DropsWorker extends WorkerHost {
     private readonly dropsQueue: Queue,
     @InjectQueue(NOTIFICATIONS_QUEUE)
     private readonly notificationsQueue: Queue,
+    @InjectQueue(DEADLETTER_QUEUE)
+    private readonly deadletterQueue: Queue,
   ) {
     super();
   }
@@ -174,7 +177,7 @@ export class DropsWorker extends WorkerHost {
         NOTIFICATION_JOB_NAMES.SEND_PUSH_BATCH,
         payload,
         {
-          jobId: `drop:${updated.id}:followers:${now.getTime()}`,
+          jobId: `drop-${updated.id}-followers-${now.getTime()}`,
         },
       );
     }
@@ -264,10 +267,24 @@ export class DropsWorker extends WorkerHost {
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: Job | undefined, error: Error) {
+  async onFailed(job: Job | undefined, error: Error) {
     this.logger.error(
-      `DropsWorker failure job=${job?.name ?? 'unknown'} id=${job?.id ?? 'unknown'} reason=${error.message}`,
+      `DropsWorker failure job=${job?.name ?? 'unknown'} id=${job?.id ?? 'unknown'} attempt=${job?.attemptsMade ?? 0} reason=${error.message}`,
       error.stack,
     );
+
+    if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+      await this.deadletterQueue
+        .add('failed-job', {
+          originalQueue: DROPS_QUEUE,
+          jobId: job.id,
+          jobName: job.name,
+          jobData: job.data,
+          error: error.message,
+          failedAt: new Date().toISOString(),
+          attemptsMade: job.attemptsMade,
+        })
+        .catch((e: Error) => this.logger.error(`Deadletter enqueue failed: ${e.message}`));
+    }
   }
 }

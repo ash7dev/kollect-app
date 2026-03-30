@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { env } from '@/config/env';
 import type { PublicCollection } from '@/types/drops';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 type NewCollectionsProps = {
   collections: PublicCollection[];
@@ -11,7 +13,9 @@ type NewCollectionsProps = {
 
 function getMediaUrl(url: string | null | undefined): string | null {
   if (!url) return null;
+  // Utiliser l'URL directe si c'est déjà une URL complète
   if (url.startsWith('http')) return url;
+  // Pour les URLs relatives, utiliser l'URL de l'API
   return `${env.apiBaseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
@@ -21,11 +25,9 @@ function daysAgo(dateStr: string): number {
 }
 
 function NewCard({ collection, index }: { collection: PublicCollection; index: number }) {
-  const [hovered, setHovered] = useState(false);
-  const [isVideoPortrait, setIsVideoPortrait] = useState(false); // Par défaut paysage pour les vidéos
   const [isMuted, setIsMuted] = useState(true);
   const [loaded, setLoaded] = useState(false);
-
+  const [isHovered, setIsHovered] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const userUnmutedRef = useRef(false);
 
@@ -36,8 +38,20 @@ function NewCard({ collection, index }: { collection: PublicCollection; index: n
   const hasCoverImage = !!collection.coverImage;
   const hasProductImage = !!(collection.products?.[0]?.images?.[0]);
 
+  const mediaUrl = hasVideo
+    ? getMediaUrl(collection.teaserVideo)
+    : hasCoverImage
+    ? getMediaUrl(collection.coverImage)
+    : hasProductImage
+    ? getMediaUrl(collection.products?.[0]?.images?.[0])
+    : null;
+  const mediaType: 'video' | 'image' | 'placeholder' = hasVideo ? 'video' : mediaUrl ? 'image' : 'placeholder';
+
+  // Hauteur fixe comme FeaturedCard pour l'impact visuel
+  const cardHeight = '600px';
+
   useEffect(() => {
-    const timer = setTimeout(() => setLoaded(true), index * 80);
+    const timer = setTimeout(() => setLoaded(true), index * 60);
     return () => clearTimeout(timer);
   }, [index]);
 
@@ -66,262 +80,426 @@ function NewCard({ collection, index }: { collection: PublicCollection; index: n
     e.preventDefault();
     e.stopPropagation();
     if (videoRef.current) {
-      const newMutedState = !videoRef.current.muted;
-      videoRef.current.muted = newMutedState;
-      userUnmutedRef.current = !newMutedState;
-      setIsMuted(newMutedState);
+      const next = !videoRef.current.muted;
+      videoRef.current.muted = next;
+      userUnmutedRef.current = !next;
+      setIsMuted(next);
     }
   };
 
-  let mediaUrl: string | null = null;
-  let mediaType: 'image' | 'video' | 'placeholder' = 'placeholder';
-  if (hasVideo) {
-    mediaUrl = getMediaUrl(collection.teaserVideo);
-    mediaType = 'video';
-  } else if (hasCoverImage) {
-    mediaUrl = getMediaUrl(collection.coverImage);
-    mediaType = 'image';
-  } else if (hasProductImage) {
-    mediaUrl = getMediaUrl(collection.products?.[0]?.images?.[0]);
-    mediaType = 'image';
-  }
-
-  // Si c'est une vidéo, on la force en format paysage large (comme demandé), sinon format portrait pour les images
-  const isPortrait = hasVideo ? false : true;
-  const cardAspect = isPortrait ? '3 / 4' : '16 / 9';
-
   return (
-    <a
-      href={`/brand/${collection.brand.slug}/${collection.slug}`}
+    <div
       className="nc-card"
       style={{
         flexShrink: 0,
-        width: isPortrait ? 280 : 400,
-        borderRadius: 4,
+        width: '100%',
+        height: cardHeight, // Hauteur fixe pour la visibilité
+        borderRadius: 24,
         overflow: 'hidden',
-        textDecoration: 'none',
-        display: 'flex',
-        flexDirection: 'column',
-        cursor: 'pointer',
-        opacity: loaded ? 1 : 0,
-        transform: loaded ? 'translateY(0)' : 'translateY(24px)',
-        transition: 'opacity 0.6s cubic-bezier(0.16,1,0.3,1), transform 0.6s cubic-bezier(0.16,1,0.3,1)',
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Media wrapper */}
-      <div style={{
         position: 'relative',
-        aspectRatio: cardAspect,
-        overflow: 'hidden',
-        backgroundColor: '#111',
-      }}>
-        {mediaUrl ? (
-          mediaType === 'video' ? (
-            <>
-              <video
-                ref={videoRef}
-                src={mediaUrl}
-                autoPlay
-                muted={isMuted}
-                loop
-                playsInline
-                onLoadedMetadata={(e) => {
-                  const v = e.currentTarget;
-                  setIsVideoPortrait(v.videoWidth < v.videoHeight);
-                }}
-                style={{
-                  position: 'absolute', inset: 0,
-                  width: '100%', height: '100%',
-                  objectFit: 'cover',
-                  transform: hovered ? 'scale(1.04)' : 'scale(1)',
-                  transition: 'transform 0.8s cubic-bezier(0.16,1,0.3,1)',
-                }}
-              />
-              <button
-                onClick={toggleMute}
-                className="nc-video-btn"
-                style={{
-                  position: 'absolute', bottom: 16, right: 16, zIndex: 10,
-                  background: 'rgba(255,255,255,0.12)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  borderRadius: 2,
-                  width: 36, height: 36,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', color: '#fff',
-                  transition: 'background 0.2s ease',
-                }}
-              >
-                {isMuted ? (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
-                  </svg>
-                ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                  </svg>
-                )}
-              </button>
-            </>
-          ) : (
-            <img
-              src={mediaUrl}
-              alt={collection.name}
-              style={{
-                position: 'absolute', inset: 0,
-                width: '100%', height: '100%',
-                objectFit: 'cover', objectPosition: 'center top',
-                transform: hovered ? 'scale(1.06)' : 'scale(1)',
-                transition: 'transform 0.8s cubic-bezier(0.16,1,0.3,1)',
-              }}
-            />
-          )
+        backgroundColor: '#0A0A0A', // Fond noir pour la visibilité
+        opacity: loaded ? 1 : 0,
+        transform: loaded ? 'translateY(0) scale(1)' : 'translateY(32px) scale(0.95)',
+        transition: 'all 0.6s cubic-bezier(0.16,1,0.3,1)',
+        fontFamily: FONT_FAMILY_INTER,
+        // Shadow premium comme FeaturedCard
+        boxShadow: isHovered 
+          ? '0 24px 48px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,59,48,0.3)' 
+          : '0 16px 32px rgba(0,0,0,0.3)',
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <a
+        href={`/brand/${collection.brand.slug}/${collection.slug}`}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          textDecoration: 'none',
+          color: 'inherit',
+          position: 'relative',
+          // Shadow premium comme FeaturedCard
+          boxShadow: isHovered 
+            ? '0 16px 24px rgba(0,0,0,0.22)' 
+            : '0 16px 24px rgba(0,0,0,0.22)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          backgroundColor: 'transparent',
+          borderRadius: 24,
+          transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        {/* ════ IMAGE/VIDÉO FULL-BLEED ════ */}
+        {mediaType === 'video' ? (
+          <video
+            ref={videoRef}
+            src={mediaUrl!}
+            autoPlay
+            muted={isMuted}
+            loop
+            playsInline
+            poster={hasCoverImage ? getMediaUrl(collection.coverImage)! : undefined}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              zIndex: 1,
+            }}
+          />
+        ) : mediaUrl ? (
+          <img
+            src={mediaUrl}
+            alt={collection.name}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center',
+              zIndex: 1,
+            }}
+          />
         ) : (
           <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(160deg, #1c1c1c 0%, #0a0a0a 100%)',
-          }} />
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(135deg, #FF3B30 0%, #FF9500 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1,
+          }}>
+            <div style={{
+              fontSize: '48px',
+              fontWeight: 900,
+              color: 'rgba(255,255,255,0.2)',
+              letterSpacing: '-2px',
+            }}>
+              {collection.brand.name.charAt(0).toUpperCase()}
+            </div>
+          </div>
         )}
 
-        {/* Gradient overlay — bottom scrim léger */}
+        {/* ════ GRADIENT TOP (pour lire le brand) ════ */}
         <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.55) 100%)',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '140px',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)',
+          zIndex: 2,
           pointerEvents: 'none',
         }} />
 
-        {/* Coin supérieur gauche — badge NOUVEAU */}
+        {/* ════ GRADIENT BOTTOM (pour lire le titre/CTA) ════ */}
         <div style={{
-          position: 'absolute', top: 14, left: 14,
-          display: 'flex', flexDirection: 'column', gap: 6,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '220px',
+          background: 'linear-gradient(to top, rgba(0,0,0,0.82), transparent)',
+          zIndex: 2,
+          pointerEvents: 'none',
+        }} />
+
+        {/* ════ OVERLAY TOP: Brand + Nouveau badge ════ */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '18px 18px 8px',
+          zIndex: 3,
         }}>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '5px 11px',
-            backgroundColor: '#C8FF00',
-            borderRadius: 2,
-          }} className="nc-badge-new">
+          {/* Brand pill - Glassmorphism comme FeaturedCard */}
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              window.location.href = `/brand/${collection.brand.slug}`;
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 10px',
+              borderRadius: '20px',
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.25)',
+              textDecoration: 'none',
+              transition: 'all 200ms ease',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
+            }}
+          >
+            {collection.brand.logo ? (
+              <img
+                src={getMediaUrl(collection.brand.logo)!}
+                alt={collection.brand.name}
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '14px',
+                  objectFit: 'cover',
+                }}
+              />
+            ) : (
+              <div style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '14px',
+                backgroundColor: '#FF3B30',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <span style={{
+                  color: '#fff',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                }}>
+                  {collection.brand.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
             <span style={{
-              width: 5, height: 5, borderRadius: '50%',
-              backgroundColor: '#000', display: 'inline-block', flexShrink: 0,
+              color: '#FFFFFF',
+              fontSize: '13px',
+              fontWeight: 700,
+              letterSpacing: '0.2px',
+            }}>
+              {collection.brand.name}
+            </span>
+          </div>
+
+          {/* Nouveau badge amélioré */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            borderRadius: '20px',
+            background: isHovered 
+              ? 'linear-gradient(135deg, #FF3B30 0%, #FF9500 100%)'
+              : 'linear-gradient(135deg, #FF3B30 0%, #FF6B35 100%)',
+            boxShadow: isHovered 
+              ? '0 8px 24px rgba(255,59,48,0.6)' 
+              : '0 4px 16px rgba(255,59,48,0.4)',
+            transform: isHovered ? 'scale(1.05)' : 'scale(1)',
+            transition: 'all 0.3s cubic-bezier(0.16,1,0.3,1)',
+          }}>
+            <div style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              backgroundColor: '#fff',
+              animation: 'newPing 2s ease-in-out infinite',
             }} />
             <span style={{
-              fontSize: 9, fontWeight: 800, letterSpacing: '2px',
-              textTransform: 'uppercase', color: '#000', fontFamily: "'DM Mono', monospace",
+              fontSize: '10px',
+              fontWeight: 800,
+              color: '#fff',
+              letterSpacing: '1.5px',
+              textTransform: 'uppercase',
+              textShadow: '0 1px 2px rgba(0,0,0,0.3)',
             }}>
-              NEW
+              Nouveau
             </span>
           </div>
         </div>
 
-        {/* Coin supérieur droit — logo brand */}
-        {collection.brand.logo && (
-          <div style={{
-            position: 'absolute', top: 14, right: 14,
-            width: 36, height: 36,
-            backgroundColor: 'rgba(255,255,255,0.95)',
-            borderRadius: 2,
-            padding: 6,
-          }}>
-            <img
-              src={getMediaUrl(collection.brand.logo) ?? ''}
-              alt={collection.brand.name}
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-            />
+        {/* ════ OVERLAY BOTTOM: Contenu principal ════ */}
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '20px',
+          zIndex: 3,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          height: '220px',
+        }}>
+          {/* Timing indicator */}
+          <div>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '12px',
+              backgroundColor: days === 0 
+                ? 'rgba(52,199,89,0.15)' 
+                : 'rgba(255,149,0,0.15)',
+              border: days === 0 
+                ? '1px solid rgba(52,199,89,0.3)' 
+                : '1px solid rgba(255,149,0,0.3)',
+            }}>
+              <div style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: days === 0 ? '#34C759' : '#FF9500',
+                boxShadow: days === 0 
+                  ? '0 0 8px rgba(52,199,89,0.6)' 
+                  : '0 0 8px rgba(255,149,0,0.6)',
+              }} />
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: days === 0 ? '#34C759' : '#FF9500',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+              }}>
+                {days === 0 ? "Aujourd'hui" : `-${days}j`}
+              </span>
+            </div>
           </div>
+
+          {/* Titre et actions */}
+          <div>
+            <h3 style={{
+              fontSize: '24px',
+              fontWeight: 900,
+              color: '#fff',
+              margin: '0 0 16px',
+              letterSpacing: '-0.8px',
+              lineHeight: 1.1,
+              textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+            }}>
+              {collection.name}
+            </h3>
+
+            {/* Actions */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                borderRadius: '16px',
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.12)',
+              }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                  <line x1="15" y1="3" x2="15" y2="21" />
+                </svg>
+                <span style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: 'rgba(255,255,255,0.9)',
+                  letterSpacing: '0.2px',
+                }}>
+                  {productCount} pièce{productCount > 1 ? 's' : ''}
+                </span>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 16px',
+                borderRadius: '16px',
+                background: isHovered 
+                  ? 'linear-gradient(135deg, #FF3B30 0%, #FF9500 100%)'
+                  : 'linear-gradient(135deg, #FF3B30 0%, #FF6B35 100%)',
+                boxShadow: isHovered 
+                  ? '0 8px 24px rgba(255,59,48,0.5)' 
+                  : '0 4px 16px rgba(255,59,48,0.3)',
+                transform: isHovered ? 'translateX(4px)' : 'translateX(0)',
+                transition: 'all 0.3s cubic-bezier(0.16,1,0.3,1)',
+              }}>
+                <span style={{
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  color: '#fff',
+                  letterSpacing: '0.3px',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                }}>Explorer</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ════ BOUTON AUDIO (si vidéo) ════ */}
+        {hasVideo && (
+          <button
+            onClick={toggleMute}
+            style={{
+              position: 'absolute',
+              bottom: '140px',
+              right: '18px',
+              zIndex: 4,
+              width: '32px',
+              height: '32px',
+              borderRadius: '16px',
+              backgroundColor: isHovered ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#fff',
+              transform: isHovered ? 'scale(1)' : 'scale(0.9)',
+              transition: 'all 0.3s cubic-bezier(0.16,1,0.3,1)',
+            }}
+            aria-label={isMuted ? 'Activer le son' : 'Couper le son'}
+          >
+            {isMuted ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16.5 12.5h-2.5" />
+                <path d="M7 7l10 10" />
+                <path d="M17 17l-10-10" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 5 9 1 5 13 1 9 2 18 9 13 5" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            )}
+          </button>
         )}
-
-        {/* Bas de l'image — jours */}
-        <div style={{
-          position: 'absolute', bottom: 14, left: 14,
-          fontSize: 10, fontWeight: 500,
-          color: 'rgba(255,255,255,0.6)',
-          fontFamily: "'DM Mono', monospace",
-          letterSpacing: '1px',
-          textTransform: 'uppercase',
-        }}>
-          Il y a {days} jour{days > 1 ? 's' : ''}
-        </div>
-      </div>
-
-      {/* Footer texte */}
-      <div style={{
-        padding: '16px 18px 18px',
-        backgroundColor: '#0a0a0a',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: 12,
-      }}>
-        <div style={{ minWidth: 0 }}>
-          <p style={{
-            fontSize: 10, fontWeight: 700,
-            letterSpacing: '2.5px', textTransform: 'uppercase',
-            color: 'rgba(255,255,255,0.35)',
-            margin: '0 0 4px',
-            fontFamily: "'DM Mono', monospace",
-          }}>
-            {collection.brand.name}
-          </p>
-          <h3 style={{
-            fontSize: 15, fontWeight: 800,
-            letterSpacing: '-0.3px',
-            textTransform: 'uppercase',
-            color: '#fff',
-            margin: 0,
-            lineHeight: 1.15,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
-            {collection.name}
-          </h3>
-        </div>
-
-        {/* Compte produits + flèche */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          flexShrink: 0,
-          marginTop: 2,
-        }}>
-          <span style={{
-            fontSize: 10, fontWeight: 600,
-            color: 'rgba(255,255,255,0.3)',
-            fontFamily: "'DM Mono', monospace",
-            letterSpacing: '1px',
-            whiteSpace: 'nowrap',
-          }}>
-            {productCount} pcs
-          </span>
-          <div style={{
-            width: 28, height: 28,
-            borderRadius: 2,
-            border: '1px solid rgba(255,255,255,0.12)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transform: hovered ? 'translateX(3px)' : 'translateX(0)',
-            transition: 'transform 0.3s ease, border-color 0.3s ease',
-            borderColor: hovered ? 'rgba(200,255,0,0.5)' : 'rgba(255,255,255,0.12)',
-          }} className="nc-arrow">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke={hovered ? '#C8FF00' : 'rgba(255,255,255,0.4)'}
-              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-              style={{ transition: 'stroke 0.3s ease' }}>
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
-          </div>
-        </div>
-      </div>
-    </a>
+      </a>
+    </div>
   );
 }
 
 export function NewCollections({ collections }: NewCollectionsProps) {
+  console.log('NewCollections received:', collections.length, collections);
+  console.log('Collections with dates:', collections.map(c => ({
+    name: c.name,
+    launchedAt: c.launchedAt,
+    daysAgo: c.launchedAt ? Math.floor((Date.now() - new Date(c.launchedAt).getTime()) / (1000 * 60 * 60 * 24)) : 'no date'
+  })));
+  
   const [isVisible, setIsVisible] = useState(false);
   const railRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -350,196 +528,157 @@ export function NewCollections({ collections }: NewCollectionsProps) {
   }, []);
 
   const scroll = (dir: 'left' | 'right') => {
-    railRef.current?.scrollBy({ left: dir === 'right' ? 320 : -320, behavior: 'smooth' });
+    railRef.current?.scrollBy({ left: dir === 'right' ? 364 : -364, behavior: 'smooth' });
   };
 
   if (collections.length === 0) return null;
 
-  const oldestDays = collections.reduce((max, c) => {
-    const d = c.launchedAt ? daysAgo(c.launchedAt) : 0;
-    return Math.max(max, d);
-  }, 0);
-  const daysLeft = Math.max(0, 15 - oldestDays);
+  // Déterminer la mise en page selon le nombre de collections
+  const isCenteredLayout = collections.length <= 3;
+  const gridCols = isCenteredLayout ? 1 : 4;
 
   return (
     <section
       id="new-collections"
       style={{
-        padding: '96px 0 80px',
-        backgroundColor: '#050505',
+        padding: isCenteredLayout ? '80px 0' : '80px 24px',
+        backgroundColor: 'transparent', // Plus de fond noir
+        borderRadius: 'var(--radius-xxxl)',
+        margin: '0 12px',
+        overflow: 'hidden',
         opacity: isVisible ? 1 : 0,
-        transform: isVisible ? 'translateY(0)' : 'translateY(32px)',
-        transition: 'opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1)',
+        transform: isVisible ? 'translateY(0)' : 'translateY(40px)',
+        transition: 'opacity 1s cubic-bezier(0.16,1,0.3,1), transform 1s cubic-bezier(0.16,1,0.3,1)',
+        fontFamily: FONT_FAMILY_INTER,
+        position: 'relative',
       }}
     >
+
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;700&family=Bebas+Neue&display=swap');
-
-        #new-collections-rail {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
+        #new-collections-rail { scrollbar-width: none; -ms-overflow-style: none; }
         #new-collections-rail::-webkit-scrollbar { display: none; }
-
-        .nc-card {
-          transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+        .nc-card:hover { 
+          transform: translateY(-8px) scale(1.02) !important; 
+          box-shadow: 0 40px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,59,48,0.3) !important; 
         }
-        .nc-card:hover {
-          transform: translateY(-8px) scale(1.02) !important;
-          box-shadow: 0 32px 64px rgba(200,255,0,0.15), 0 16px 32px rgba(0,0,0,0.4) !important;
+        .nc-scroll-btn { 
+          transition: all 0.3s cubic-bezier(0.16,1,0.3,1); 
+          backdrop-filter: blur(12px);
         }
-        .nc-card:hover .nc-arrow {
-          transform: translateX(6px) rotate(-5deg) !important;
-          border-color: #C8FF00 !important;
-        }
-        .nc-card:hover .nc-arrow svg {
-          stroke: #C8FF00 !important;
-        }
-
-        .nc-scroll-btn {
-          transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
-        }
-        .nc-scroll-btn:hover:not(:disabled) {
-          background: rgba(200,255,0,0.12) !important;
-          border-color: rgba(200,255,0,0.5) !important;
+        .nc-scroll-btn:hover:not(:disabled) { 
+          background: rgba(255,255,255,0.12) !important; 
+          border-color: rgba(255,255,255,0.25) !important;
           transform: scale(1.05);
         }
-        .nc-scroll-btn:active:not(:disabled) {
+        .nc-scroll-btn:disabled { 
+          opacity: 0.3 !important; 
+          cursor: not-allowed;
           transform: scale(0.95);
         }
-        .nc-scroll-btn:disabled {
-          opacity: 0.2 !important;
-          cursor: not-allowed;
-        }
-
-        .nc-video-btn {
-          transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
-        }
-        .nc-video-btn:hover {
-          background: rgba(200,255,0,0.2) !important;
-          border-color: #C8FF00 !important;
-          transform: scale(1.1);
-        }
-
-        @keyframes ncGlow {
-          0%, 100% { box-shadow: 0 0 20px rgba(200,255,0,0.3); }
-          50% { box-shadow: 0 0 30px rgba(200,255,0,0.5); }
-        }
-        .nc-badge-new {
-          animation: ncGlow 3s ease-in-out infinite;
-        }
-
-        @keyframes ncSlideIn {
-          from { 
-            opacity: 0; 
-            transform: translateY(32px) scale(0.95); 
-          }
-          to { 
+        @keyframes newPing {
+          0%, 100% { 
             opacity: 1; 
-            transform: translateY(0) scale(1); 
+            transform: scale(1); 
+            box-shadow: 0 0 0 0 rgba(255,255,255,0.8);
           }
-        }
-        .nc-card {
-          animation: ncSlideIn 0.6s cubic-bezier(0.16,1,0.3,1) forwards;
-        }
-
-        @media (max-width: 768px) {
-          .nc-card:hover {
-            transform: translateY(-4px) scale(1.01) !important;
+          50% { 
+            opacity: 0.6; 
+            transform: scale(1.2); 
+            box-shadow: 0 0 0 4px rgba(255,255,255,0);
           }
         }
       `}</style>
 
-      {/* Header */}
+      {/* Header amélioré avec fond pour lisibilité */}
       <div style={{
-        maxWidth: 1360,
+        maxWidth: 1400,
         margin: '0 auto',
-        padding: '0 48px',
-        marginBottom: 40,
+        padding: isCenteredLayout ? '24px' : '24px 48px',
+        marginBottom: isCenteredLayout ? 32 : 40,
+        backgroundColor: 'rgba(0,0,0,0.95)', // Fond noir pour lisibilité
+        backdropFilter: 'blur(20px)',
+        borderRadius: 24,
+        border: '1px solid rgba(255,255,255,0.1)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
         display: 'flex',
-        alignItems: 'flex-end',
+        alignItems: isCenteredLayout ? 'center' : 'flex-end',
         justifyContent: 'space-between',
-        gap: 24,
+        gap: 32,
       }}>
-        <div>
-          {/* Label mono */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            marginBottom: 16,
+        <div style={{ 
+          textAlign: isCenteredLayout ? 'center' : 'left',
+          width: isCenteredLayout ? '100%' : 'auto',
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 12, 
+            marginBottom: 20,
+            justifyContent: isCenteredLayout ? 'center' : 'flex-start',
           }}>
             <div style={{
-              width: 28, height: 1,
-              backgroundColor: '#C8FF00',
+              width: 10, height: 10, borderRadius: '50%',
+              background: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)',
+              boxShadow: '0 0 20px rgba(255,149,0,0.8)',
+              animation: 'newPing 2s ease-in-out infinite',
             }} />
             <span style={{
-              fontSize: 10, fontWeight: 700,
+              fontSize: 12, fontWeight: 800,
               letterSpacing: '3px', textTransform: 'uppercase',
-              color: '#C8FF00',
-              fontFamily: "'DM Mono', monospace",
+              color: '#FF9500',
+              textShadow: '0 2px 4px rgba(255,149,0,0.3)',
             }}>
               Nouveautés
             </span>
           </div>
-
-          {/* Titre principal Bebas Neue */}
           <h2 style={{
-            fontFamily: "'Bebas Neue', sans-serif",
-            fontSize: 'clamp(3.5rem, 6vw, 5.5rem)',
-            fontWeight: 400,
-            letterSpacing: '1px',
+            fontSize: isCenteredLayout 
+              ? 'clamp(1.8rem, 3vw, 2.4rem)' 
+              : 'clamp(2.2rem, 4vw, 3.2rem)',
+            fontWeight: 900,
+            letterSpacing: '-2px',
             color: '#fff',
             margin: 0,
-            lineHeight: 0.9,
-            position: 'relative',
-            zIndex: 1,
+            lineHeight: 1.05,
+            textShadow: '0 4px 8px rgba(0,0,0,0.3)',
           }}>
-            Sorties<br />
+            Dernières{' '}
             <span style={{ 
-              color: '#C8FF00',
+              color: 'rgba(255,149,0,0.9)', // Orange plus visible
               position: 'relative',
-              display: 'inline-block',
+              textShadow: '0 2px 8px rgba(255,149,0,0.4)',
             }}>
-              Récentes
-              <span style={{
+              sorties.
+              <div style={{
                 position: 'absolute',
-                bottom: '-4px',
+                bottom: -2,
                 left: 0,
                 right: 0,
-                height: '2px',
-                background: 'linear-gradient(90deg, transparent, #C8FF00, transparent)',
-                animation: 'ncGlow 2s ease-in-out infinite',
+                height: '3px',
+                background: 'linear-gradient(90deg, #FF9500 0%, #FF3B30 100%)',
+                borderRadius: 2,
+                opacity: 1, // Plus visible
+                boxShadow: '0 2px 8px rgba(255,149,0,0.5)',
               }} />
             </span>
           </h2>
+          {!isCenteredLayout && (
+            <p style={{
+              fontSize: 16,
+              color: 'rgba(255,255,255,0.5)',
+              margin: '12px 0 0',
+              lineHeight: 1.5,
+              fontWeight: 500,
+              maxWidth: 400,
+            }}>
+              Découvre les collections les plus récentes, disponibles maintenant.
+            </p>
+          )}
         </div>
 
-        {/* Droite : countdown + nav */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 16 }}>
-          {daysLeft > 0 && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '7px 14px',
-              border: '1px solid rgba(200,255,0,0.25)',
-              borderRadius: 2,
-              backgroundColor: 'rgba(200,255,0,0.05)',
-            }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C8FF00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-              </svg>
-              <span style={{
-                fontSize: 10, fontWeight: 700,
-                color: '#C8FF00', whiteSpace: 'nowrap',
-                fontFamily: "'DM Mono', monospace",
-                letterSpacing: '1px',
-                textTransform: 'uppercase',
-              }}>
-                Expire dans {daysLeft}j
-              </span>
-            </div>
-          )}
-
-          {/* Boutons nav */}
-          <div style={{ display: 'flex', gap: 8 }}>
+        {/* Nav arrows améliorées - seulement si pas en mode centré */}
+        {!isCenteredLayout && (
+          <div style={{ display: 'flex', gap: 12 }}>
             {(['left', 'right'] as const).map((dir) => (
               <button
                 key={dir}
@@ -547,16 +686,17 @@ export function NewCollections({ collections }: NewCollectionsProps) {
                 onClick={() => scroll(dir)}
                 disabled={dir === 'left' ? !canScrollLeft : !canScrollRight}
                 style={{
-                  width: 40, height: 40,
+                  width: 48, height: 48,
                   border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: 2,
-                  backgroundColor: 'transparent',
+                  borderRadius: 16,
+                  backgroundColor: 'rgba(255,255,255,0.06)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', color: '#fff',
+                  cursor: 'pointer', 
+                  color: 'rgba(255,255,255,0.8)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   {dir === 'left'
                     ? <><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></>
                     : <><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>
@@ -565,41 +705,62 @@ export function NewCollections({ collections }: NewCollectionsProps) {
               </button>
             ))}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Rail */}
-      <div
-        id="new-collections-rail"
-        ref={railRef}
-        style={{
-          display: 'flex',
-          gap: 12,
-          overflowX: 'auto',
-          paddingLeft: 'max(48px, calc((100vw - 1360px) / 2 + 48px))',
-          paddingRight: 48,
-          paddingBottom: 4,
-          scrollSnapType: 'x mandatory',
-          alignItems: 'stretch',
-        }}
-      >
-        {collections.map((collection, i) => (
-          <div key={collection.id} style={{ scrollSnapAlign: 'start' }}>
-            <NewCard collection={collection} index={i} />
-          </div>
-        ))}
-      </div>
-
-      {/* Ligne de séparation bas */}
-      <div style={{
-        maxWidth: 1360, margin: '56px auto 0',
-        padding: '0 48px',
-      }}>
+      {/* Conteneur adaptatif : centré ou grille */}
+      {isCenteredLayout ? (
+        // Layout centré pour 1-2-3 collections
         <div style={{
-          height: 1,
-          background: 'linear-gradient(to right, rgba(200,255,0,0.3), rgba(255,255,255,0.05) 60%, transparent)',
-        }} />
-      </div>
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 32,
+          flexWrap: 'wrap',
+          maxWidth: 1200,
+          margin: '0 auto',
+          padding: '0 24px',
+        }}>
+          {collections.map((collection, i) => (
+            <div key={collection.id} style={{ 
+              flex: collections.length === 1 ? '0 0 auto' : '0 0 calc(50% - 16px)',
+              minWidth: collections.length === 1 ? 'auto' : '300px',
+              maxWidth: collections.length === 1 ? '400px' : '380px',
+              display: 'flex',
+              justifyContent: 'center',
+            }}>
+              <NewCard collection={collection} index={i} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        // Layout horizontal avec scroll pour 4+ collections
+        <div
+          id="new-collections-rail"
+          ref={railRef}
+          style={{
+            display: 'flex',
+            gap: 24,
+            overflowX: 'auto',
+            paddingLeft: 'max(48px, calc((100vw - 1400px) / 2 + 48px))',
+            paddingRight: 48,
+            paddingBottom: 16,
+            scrollSnapType: 'x mandatory',
+            alignItems: 'stretch',
+          }}
+        >
+          {collections.map((collection, i) => (
+            <div key={collection.id} style={{ 
+              scrollSnapAlign: 'start',
+              flexShrink: 0,
+              width: '380px', // Largeur fixe pour les cartes en mode scroll
+              maxWidth: '380px',
+            }}>
+              <NewCard collection={collection} index={i} />
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

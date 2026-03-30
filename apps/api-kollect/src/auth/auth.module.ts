@@ -17,11 +17,15 @@ import { MetricsModule } from '../metrics/metrics.module';
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
+      global: true,
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '7d' },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error('JWT_SECRET environment variable is required');
+        }
+        return { secret, signOptions: { expiresIn: '7d' } };
+      },
       inject: [ConfigService],
     }),
     PrismaModule,

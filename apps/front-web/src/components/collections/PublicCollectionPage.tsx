@@ -14,7 +14,8 @@ type PublicCollectionPageProps = {
 };
 
 export function PublicCollectionPage({ collection, products }: PublicCollectionPageProps) {
-  const canShowGrid = collection.status === 'DISPONIBLE' && products.length > 0;
+  const isTeaser = collection.status === 'TEASER';
+  const canShowGrid = (collection.status === 'DISPONIBLE' || isTeaser) && products.length > 0;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fff', fontFamily: FONT_FAMILY_INTER }}>
@@ -50,6 +51,7 @@ export function PublicCollectionPage({ collection, products }: PublicCollectionP
               brandSlug={collection.brand.slug}
               products={products}
               accent="#FF3B30"
+              isTeaser={isTeaser}
             />
           </>
         ) : (
@@ -60,7 +62,7 @@ export function PublicCollectionPage({ collection, products }: PublicCollectionP
               color: 'rgba(0,0,0,0.3)',
               letterSpacing: '-0.3px',
             }}>
-              {collection.status === 'TEASER'
+              {isTeaser
                 ? 'Les produits sont déjà prêts, mais seront révélés au lancement.'
                 : 'Aucun produit disponible pour l\'instant.'}
             </p>

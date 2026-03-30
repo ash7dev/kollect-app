@@ -35,6 +35,64 @@ const COLORS: { value: string; name: string }[] = [
   { value: '#F4E9D8', name: 'Crème' },
 ];
 
+const PRODUCT_TYPES = [
+  { value: 'TSHIRT', label: 'T-shirt / Top' },
+  { value: 'BONNET', label: 'Bonnet / Casquette' },
+  { value: 'SAC', label: 'Sac' },
+  { value: 'ENSEMBLE', label: 'Ensemble' },
+  { value: 'ACCESSOIRE', label: 'Accessoire' },
+];
+
+const PRODUCT_GENDERS = [
+  { value: 'HOMME', label: 'Homme' },
+  { value: 'FEMME', label: 'Femme' },
+  { value: 'UNISEXE', label: 'Unisex' },
+];
+
+// Configuration des champs selon le type de produit
+const PRODUCT_TYPE_FIELDS = {
+  TSHIRT: {
+    showSizes: true,
+    showColors: true,
+    showWeight: false,
+    showDescription: true,
+    sizeLabel: 'Tailles disponibles',
+    colorLabel: 'Couleurs disponibles',
+  },
+  BONNET: {
+    showSizes: false,
+    showColors: true,
+    showWeight: false,
+    showDescription: true,
+    sizeLabel: 'Taille unique',
+    colorLabel: 'Couleur principale',
+  },
+  SAC: {
+    showSizes: false,
+    showColors: true,
+    showWeight: true,
+    showDescription: true,
+    sizeLabel: 'Dimensions',
+    colorLabel: 'Couleurs',
+  },
+  ENSEMBLE: {
+    showSizes: true,
+    showColors: true,
+    showWeight: false,
+    showDescription: true,
+    sizeLabel: 'Tailles (ex: Haut S + Bas M)',
+    colorLabel: 'Couleurs dominantes',
+  },
+  ACCESSOIRE: {
+    showSizes: false,
+    showColors: true,
+    showWeight: false,
+    showDescription: true,
+    sizeLabel: 'Taille',
+    colorLabel: 'Couleurs',
+  },
+} as const;
+
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
 function Ic({ d, size = 16, stroke = 'currentColor', sw = 1.5 }: {
@@ -86,7 +144,19 @@ function FullPageSpinner({ message }: { message?: string }) {
 }
 
 function emptyProduct(): WizardProductDraft {
-  return { name: '', description: '', price: 0, stock: 10, sku: '', sizes: [], colors: [], images: [] };
+  return { 
+    name: '', 
+    description: '', 
+    price: 0, 
+    stock: 10, 
+    sku: '', 
+    sizes: [], 
+    colors: [], 
+    images: [],
+    productType: '',
+    gender: '',
+    weight: undefined
+  };
 }
 
 function initDraft(): WizardDraft {
@@ -189,6 +259,33 @@ function ProductFormCard({
     return () => previews.forEach(u => URL.revokeObjectURL(u));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reset conditional fields when product type changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!product.productType) return;
+    
+    const fields = PRODUCT_TYPE_FIELDS[product.productType as keyof typeof PRODUCT_TYPE_FIELDS];
+    if (!fields) return;
+
+    // Create a copy of product to avoid dependency issues
+    const currentProduct = { ...product };
+
+    // Reset sizes if not shown for this product type
+    if (!fields.showSizes && currentProduct.sizes.length > 0) {
+      onChange({ ...currentProduct, sizes: [] });
+    }
+    
+    // Reset colors if not shown for this product type
+    if (!fields.showColors && currentProduct.colors.length > 0) {
+      onChange({ ...currentProduct, colors: [] });
+    }
+    
+    // Reset weight if not shown for this product type
+    if (!fields.showWeight && currentProduct.weight !== undefined) {
+      onChange({ ...currentProduct, weight: undefined });
+    }
+  }, [product.productType]);
 
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
@@ -343,6 +440,35 @@ function ProductFormCard({
                   />
                 </Field>
 
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Field label="Type de produit" required>
+                    <select
+                      className="wz2-input"
+                      style={baseInput}
+                      value={product.productType || ''}
+                      onChange={e => onChange({ ...product, productType: e.target.value })}
+                    >
+                      <option value="">Choisir un type</option>
+                      {PRODUCT_TYPES.map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Genre" required>
+                    <select
+                      className="wz2-input"
+                      style={baseInput}
+                      value={product.gender || ''}
+                      onChange={e => onChange({ ...product, gender: e.target.value })}
+                    >
+                      <option value="">Choisir un genre</option>
+                      {PRODUCT_GENDERS.map(gender => (
+                        <option key={gender.value} value={gender.value}>{gender.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
                 <Field label="SKU" hint="Optionnel — généré automatiquement si vide">
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input type="text" className="wz2-input" placeholder="DK01-TEE-BLK"
@@ -359,33 +485,58 @@ function ProductFormCard({
             </div>
 
             {/* Variantes */}
-            <div style={{ padding: '20px', background: '#FAFAFA', borderRadius: 14, border: '1px solid #F0F0F0' }}>
-              <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: '#9CA3AF', margin: '0 0 18px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 3, height: 12, borderRadius: 2, background: '#6366F1', display: 'inline-block' }} />
-                Variantes
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <Field label="Tailles" required hint="Obligatoire — sélectionne au moins une taille">
-                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 2 }}>
-                    {SIZES.map(s => {
-                      const sel = product.sizes.includes(s);
-                      return (
-                        <button key={s} type="button" className="wz2-size-chip"
-                          data-active={sel ? 'true' : 'false'}
-                          onClick={() => toggleSize(s)}>
-                          {s}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </Field>
-                <Field label="Couleurs" required hint="Obligatoire — sélectionne au moins une couleur">
-                  <div style={{ marginTop: 4 }}>
-                    <ColorSwatches selected={product.colors} onChange={c => onChange({ ...product, colors: c })} />
-                  </div>
-                </Field>
+            {product.productType && (
+              <div style={{ padding: '20px', background: '#FAFAFA', borderRadius: 14, border: '1px solid #F0F0F0' }}>
+                <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: '#9CA3AF', margin: '0 0 18px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 3, height: 12, borderRadius: 2, background: '#6366F1', display: 'inline-block' }} />
+                  Variantes
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {(() => {
+                    const fields = PRODUCT_TYPE_FIELDS[product.productType as keyof typeof PRODUCT_TYPE_FIELDS];
+                    if (!fields) return null;
+
+                    return (
+                      <>
+                        {fields.showSizes && (
+                          <Field label={fields.sizeLabel} required hint="Obligatoire — sélectionne au moins une taille">
+                            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 2 }}>
+                              {SIZES.map(s => {
+                                const sel = product.sizes.includes(s);
+                                return (
+                                  <button key={s} type="button" className="wz2-size-chip"
+                                    data-active={sel ? 'true' : 'false'}
+                                    onClick={() => toggleSize(s)}>
+                                    {s}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </Field>
+                        )}
+                        
+                        {fields.showColors && (
+                          <Field label={fields.colorLabel} required hint="Obligatoire — sélectionne au moins une couleur">
+                            <div style={{ marginTop: 4 }}>
+                              <ColorSwatches selected={product.colors} onChange={c => onChange({ ...product, colors: c })} />
+                            </div>
+                          </Field>
+                        )}
+
+                        {fields.showWeight && (
+                          <Field label="Poids (g)" required hint="Obligatoire pour ce type de produit">
+                            <input type="number" min={0} className="wz2-input" placeholder="250"
+                              style={baseInput} value={product.weight || ''}
+                              onChange={e => onChange({ ...product, weight: +e.target.value })}
+                            />
+                          </Field>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right: photos */}
@@ -890,7 +1041,18 @@ export function DropsWizardPage() {
 
   const canProceed = () => {
     if (step === 1) return draft.products.length > 0 && draft.products.every(
-      p => p.name.trim() && p.price > 0 && p.images.length > 0 && p.sizes.length > 0 && p.colors.length > 0
+      p => {
+        if (!p.name.trim() || !p.productType || !p.gender || p.price <= 0 || p.images.length === 0) return false;
+        
+        const fields = PRODUCT_TYPE_FIELDS[p.productType as keyof typeof PRODUCT_TYPE_FIELDS];
+        if (!fields) return false;
+        
+        if (fields.showSizes && p.sizes.length === 0) return false;
+        if (fields.showColors && p.colors.length === 0) return false;
+        if (fields.showWeight && (!p.weight || p.weight <= 0)) return false;
+        
+        return true;
+      }
     );
     if (step === 2) {
       const base = !!draft.name.trim() && !!draft.description.trim();

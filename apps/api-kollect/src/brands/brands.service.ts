@@ -159,10 +159,7 @@ export class BrandsService {
     userId: string,
     createBrandDto: CreateBrandDto,
   ): Promise<CreateBrandResponse> {
-    // 1. Vérifier que l'utilisateur est CEO
-    await this.verifyCEORole(userId);
-
-    // 2. Vérifier qu'il n'a pas déjà une boutique
+    // 1. Vérifier qu'il n'a pas déjà une boutique
     const existingBrand = await this.prisma.marque.findUnique({
       where: { userId },
     });
@@ -185,32 +182,45 @@ export class BrandsService {
       logoUrl = await this.uploadService.uploadBrandLogo(createBrandDto.logo);
     }
 
-    // 5. Créer la boutique
-    const brand = await this.prisma.marque.create({
-      data: {
-        name: createBrandDto.name,
-        slug: createBrandDto.slug,
-        bio: createBrandDto.bio,
-        logo: logoUrl,
-        website: createBrandDto.website,
-        instagram: createBrandDto.instagram,
-        userId,
-        isActive: true,
-        isVerified: true,
-        followerCount: 0,
-        productCount: 0,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+    // 5. Créer la boutique et upgrader l'utilisateur au rôle CEO (1 profil max par utilisateur)
+    const [brand] = await this.prisma.$transaction([
+      this.prisma.marque.create({
+        data: {
+          name: createBrandDto.name,
+          slug: createBrandDto.slug,
+          bio: createBrandDto.bio,
+          logo: logoUrl,
+          website: createBrandDto.website,
+          instagram: createBrandDto.instagram,
+          userId,
+          isActive: true,
+          isVerified: true,
+          followerCount: 0,
+          productCount: 0,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
           },
         },
-      },
-    });
+      }),
+      this.prisma.utilisateur.update({
+        where: { id: userId },
+        data: {
+          isCEO: true,
+          isClient: false,
+          has_seen_creator_prompt: true,
+        },
+      }),
+      // Cleanup des données spécifiques au rôle "Client" pour assurer la séparation stricte
+      this.prisma.favori.deleteMany({ where: { userId } }),
+      this.prisma.notification.deleteMany({ where: { userId } }),
+    ]);
 
     this.logger.log('✅ [Brands] Boutique créée:', {
       id: brand.id,
@@ -333,6 +343,15 @@ export class BrandsService {
           ],
           take: 20,
           include: {
+            brand: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                logo: true,
+                isVerified: true,
+              },
+            },
             _count: {
               select: {
                 products: true,
@@ -347,6 +366,25 @@ export class BrandsService {
             { createdAt: 'desc' },
           ],
           take: 22,
+          include: {
+            brand: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                logo: true,
+                isVerified: true,
+              },
+            },
+            collection: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                status: true,
+              },
+            },
+          },
         },
         _count: {
           select: {
@@ -409,6 +447,25 @@ export class BrandsService {
             { createdAt: 'desc' },
           ],
           take: 22,
+          include: {
+            brand: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                logo: true,
+                isVerified: true,
+              },
+            },
+            collection: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                status: true,
+              },
+            },
+          },
         },
         _count: {
           select: {

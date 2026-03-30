@@ -37,6 +37,7 @@ export interface PublicCollectionDto {
   brandId: string;
   brand: PublicCollectionBrandDto;
   products?: PublicCollectionProductPreviewDto[];
+  createdAt?: Date | string | null;
   _count: {
     products: number;
   };

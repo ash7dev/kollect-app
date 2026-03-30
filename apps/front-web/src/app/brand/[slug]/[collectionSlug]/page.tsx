@@ -8,7 +8,7 @@ import type { PublicCollection } from '@/types/drops';
 
 async function getCollection(slug: string): Promise<PublicCollection | null> {
   try {
-    return await fetchAPI<PublicCollection>(`/collections/public/slug/${slug}`, { revalidate: 300 });
+    return await fetchAPI<PublicCollection>(`/collections/public/slug/${slug}`, { revalidate: 0 });
   } catch {
     return null;
   }
@@ -40,7 +40,7 @@ export default async function CollectionDetailPage({
   if (!collection) notFound();
 
   const products = (collection.products ?? [])
-    .filter((product) => product.slug && product.name && typeof product.price === 'number')
+    .filter((product) => product.slug && product.name && typeof product.price === 'number' && (product.isVisible || collection.status === 'TEASER'))
     .map((product) => ({
       id: product.id,
       slug: product.slug!,

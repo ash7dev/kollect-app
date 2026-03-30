@@ -9,25 +9,20 @@ import {
   ExecutionContext,
   HttpException,
   HttpStatus,
+  Inject,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request, Response } from 'express';
+import type Redis from 'ioredis';
 import { AppLogger } from '../logger/logger.service';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
 interface RateLimitOptions {
-  windowMs: number; // fenêtre de temps en ms
-  max: number; // nombre max de requêtes
+  windowMs: number;
+  max: number;
   skipSuccessfulRequests?: boolean;
   message?: string;
 }
-
-interface RateLimitInfo {
-  count: number;
-  resetTime: number;
-}
-
-// Store en mémoire pour le développement (à remplacer par Redis en production)
-const rateLimitStore = new Map<string, RateLimitInfo>();
 
 export const RATE_LIMIT_KEY = 'rateLimit';
 
@@ -36,6 +31,7 @@ export class RateLimitGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly logger: AppLogger,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -50,40 +46,39 @@ export class RateLimitGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
-
     const identifier = this.getIdentifier(request);
-    const now = Date.now();
+    const key = `rate-limit:${identifier}`;
 
-    // Nettoyer les entrées expirées
-    this.cleanupExpiredEntries(now);
+    let count: number;
+    let ttlMs: number;
 
-    // Récupérer ou créer l'entrée de rate limiting
-    let rateLimitInfo = rateLimitStore.get(identifier);
-    
-    if (!rateLimitInfo || now > rateLimitInfo.resetTime) {
-      rateLimitInfo = {
-        count: 0,
-        resetTime: now + options.windowMs,
-      };
-      rateLimitStore.set(identifier, rateLimitInfo);
+    try {
+      count = await this.redis.incr(key);
+      if (count === 1) {
+        await this.redis.pexpire(key, options.windowMs);
+      }
+      ttlMs = await this.redis.pttl(key);
+    } catch (err) {
+      this.logger.warn('Rate limit Redis unavailable, allowing request', {
+        module: 'RATE_LIMIT',
+        error: err instanceof Error ? err.message : 'unknown',
+      });
+      return true;
     }
 
-    // Incrémenter le compteur
-    rateLimitInfo.count++;
+    const resetTime = new Date(Date.now() + ttlMs).toISOString();
 
-    // Headers de rate limiting
     response.set({
       'X-RateLimit-Limit': options.max.toString(),
-      'X-RateLimit-Remaining': Math.max(0, options.max - rateLimitInfo.count).toString(),
-      'X-RateLimit-Reset': new Date(rateLimitInfo.resetTime).toISOString(),
+      'X-RateLimit-Remaining': Math.max(0, options.max - count).toString(),
+      'X-RateLimit-Reset': resetTime,
     });
 
-    // Vérifier si la limite est dépassée
-    if (rateLimitInfo.count > options.max) {
+    if (count > options.max) {
       this.logger.warn('Rate limit exceeded', {
         module: 'RATE_LIMIT',
         identifier,
-        count: rateLimitInfo.count,
+        count,
         limit: options.max,
         ip: request.ip,
         userAgent: request.get('User-Agent'),
@@ -94,7 +89,7 @@ export class RateLimitGuard implements CanActivate {
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
           message: options.message || 'Too many requests',
-          retryAfter: Math.ceil((rateLimitInfo.resetTime - now) / 1000),
+          retryAfter: Math.ceil(ttlMs / 1000),
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );
@@ -104,26 +99,15 @@ export class RateLimitGuard implements CanActivate {
   }
 
   private getIdentifier(request: Request): string {
-    // Priorité: API key > User ID > IP
     const apiKey = request.headers['x-api-key'] as string;
-    if (apiKey) {
-      return `api-key:${apiKey}`;
-    }
+    if (apiKey) return `api-key:${apiKey}`;
 
     const user = (request as any).user;
-    if (user?.id) {
-      return `user:${user.id}`;
-    }
+    if (user?.id) return `user:${user.id}`;
 
-    return `ip:${request.ip}`;
-  }
-
-  private cleanupExpiredEntries(now: number): void {
-    for (const [key, info] of rateLimitStore.entries()) {
-      if (now > info.resetTime) {
-        rateLimitStore.delete(key);
-      }
-    }
+    const forwarded = request.headers['x-forwarded-for'] as string;
+    const ip = forwarded ? forwarded.split(',')[0].trim() : request.ip;
+    return `ip:${ip}`;
   }
 }
 
@@ -131,10 +115,8 @@ export class RateLimitGuard implements CanActivate {
 export const RateLimit = (options: RateLimitOptions) => {
   return (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) => {
     if (propertyKey && descriptor) {
-      // Méthode
       Reflect.defineMetadata(RATE_LIMIT_KEY, options, descriptor.value);
     } else {
-      // Classe
       Reflect.defineMetadata(RATE_LIMIT_KEY, options, target);
     }
   };

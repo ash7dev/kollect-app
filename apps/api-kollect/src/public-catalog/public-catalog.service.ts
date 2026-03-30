@@ -77,16 +77,21 @@ export class PublicCatalogService {
       price: product.price,
       images: product.images ?? [],
       stock: product.stock ?? 0,
+      sizes: product.sizes ?? [],
+      colors: product.colors ?? [],
+      sku: product.sku ?? null,
+      material: product.material ?? null,
+      weight: product.weight ?? null,
       isFeatured: product.isFeatured ?? false,
       brandId: product.brandId,
       collectionId: product.collectionId,
-      brand: {
+      brand: product.brand ? {
         id: product.brand.id,
         name: product.brand.name,
         slug: product.brand.slug,
         logo: product.brand.logo ?? null,
         isVerified: product.brand.isVerified,
-      },
+      } : null,
       collection: {
         id: product.collection.id,
         name: product.collection.name,
@@ -132,6 +137,7 @@ export class PublicCatalogService {
       isFeatured: collection.isFeatured ?? false,
       coverImage: collection.coverImage ?? null,
       teaserVideo: collection.teaserVideo ?? null,
+      createdAt: collection.createdAt ?? null,
       brandId: collection.brandId,
       brand: {
         id: collection.brand.id,
