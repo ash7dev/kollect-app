@@ -299,7 +299,7 @@ export default function ProfileScreen() {
           </Text>
         </TouchableOpacity>
 
-        <View style={{ height: 20 }} />
+        <View style={{ height: 100 }} />
       </View>
     </ScrollView>
   );

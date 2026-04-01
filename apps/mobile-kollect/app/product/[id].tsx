@@ -19,6 +19,7 @@ import { useDeleteProduct } from '@/features/produits/hooks/useProductMutations'
 import { useCollectionsStore } from '@/features/collections/store/collectionStore';
 import { formatPrice } from '@/features/commandes/types/commande.types';
 import { PRODUCT_COLORS } from '@/constants/productColors';
+import { PRODUCT_TYPES, GENDER_OPTIONS } from '@/constants/productOptions';
 
 const { width } = Dimensions.get('window');
 
@@ -244,18 +245,53 @@ export default function ProductDetailScreen() {
           </View>
 
           {collection && (
-            <View style={[
-              styles.collectionBadge,
-              {
-                backgroundColor: isDark ? theme.colors.highlightDark : theme.colors.highlight,
-                borderWidth: 1,
-                borderColor: theme.colors.accent,
-              }
-            ]}>
-              <Ionicons name="folder-outline" size={16} color={theme.colors.accent} />
-              <Text style={[styles.collectionText, { color: theme.colors.accent }]}>
-                {collection.name}
-              </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              <View style={[
+                styles.collectionBadge,
+                {
+                  backgroundColor: isDark ? theme.colors.highlightDark : theme.colors.highlight,
+                  borderWidth: 1,
+                  borderColor: theme.colors.accent,
+                  marginBottom: 0,
+                }
+              ]}>
+                <Ionicons name="folder-outline" size={14} color={theme.colors.accent} />
+                <Text style={[styles.collectionText, { color: theme.colors.accent }]}>
+                  {collection.name}
+                </Text>
+              </View>
+
+              {product.productType && (
+                <View style={[
+                  styles.attributeBadge,
+                  { backgroundColor: isDark ? theme.colors.cardDark : theme.colors.surface }
+                ]}>
+                  <Ionicons 
+                    name={(PRODUCT_TYPES.find(t => t.id === product.productType)?.icon as any) || 'cube-outline'} 
+                    size={14} 
+                    color={theme.colors.textSecondary} 
+                  />
+                  <Text style={[styles.attributeText, { color: theme.colors.textSecondary }]}>
+                    {PRODUCT_TYPES.find(t => t.id === product.productType)?.label || product.productType}
+                  </Text>
+                </View>
+              )}
+
+              {product.gender && (
+                <View style={[
+                  styles.attributeBadge,
+                  { backgroundColor: isDark ? theme.colors.cardDark : theme.colors.surface }
+                ]}>
+                  <Ionicons 
+                    name={(GENDER_OPTIONS.find(g => g.id === product.gender)?.icon as any) || 'people-outline'} 
+                    size={14} 
+                    color={theme.colors.textSecondary} 
+                  />
+                  <Text style={[styles.attributeText, { color: theme.colors.textSecondary }]}>
+                    {GENDER_OPTIONS.find(g => g.id === product.gender)?.label || product.gender}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -378,18 +414,24 @@ export default function ProductDetailScreen() {
                         const mapped = PRODUCT_COLORS.find((c) => c.value === colorValue);
                         const label = mapped?.name ?? colorValue;
                         return (
-                          <View
-                            key={`${colorValue}-${index}`}
-                            style={[
-                              styles.colorChip,
-                              {
-                                backgroundColor: isDark ? theme.colors.surfaceDark : theme.colors.surface,
-                                borderWidth: 1,
-                                borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
-                              }
-                            ]}
-                          >
-                            <Text style={[styles.colorText, { color: isDark ? theme.colors.textDark : theme.colors.text }]}>
+                          <View key={`${colorValue}-${index}`} style={styles.colorRow}>
+                            <View
+                              style={[
+                                styles.colorCircle,
+                                {
+                                  backgroundColor: colorValue,
+                                  borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+                                  borderWidth: 1,
+                                  // BOOM shadow
+                                  shadowColor: colorValue,
+                                  shadowOffset: { width: 0, height: 4 },
+                                  shadowOpacity: 0.4,
+                                  shadowRadius: 6,
+                                  elevation: 4,
+                                }
+                              ]}
+                            />
+                            <Text style={[styles.colorLabel, { color: isDark ? theme.colors.textDark : theme.colors.text }]}>
                               {label}
                             </Text>
                           </View>
@@ -679,9 +721,33 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
-  colorText: {
+  colorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginRight: 16,
+    marginBottom: 8,
+  },
+  colorCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  colorLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  attributeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 6,
+  },
+  attributeText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   sizesContainer: {
     flexDirection: 'row',

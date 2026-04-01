@@ -320,7 +320,7 @@ export const ModernSalesChart = ({ refreshing=false, onRefresh }: ModernSalesCha
       from={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'timing', duration: 400 }}
-      style={[styles.container, { backgroundColor: theme.colors.card }]}
+      style={[styles.container, { backgroundColor: theme.colors.card, minHeight: 300 }]}
     >
       {/* En-tête avec titre et contrôles */}
       <View style={styles.header}>
@@ -496,8 +496,9 @@ export const ModernSalesChart = ({ refreshing=false, onRefresh }: ModernSalesCha
 
           {/* Points */}
           {data.map((point, index) => {
-            const x = (index / (data.length - 1)) * CHART_WIDTH;
-            const y = CHART_HEIGHT - ((point.value - minValue) / range) * (CHART_HEIGHT - 30);
+            const denom = Math.max(1, data.length - 1);
+            const x = (index / denom) * CHART_WIDTH;
+            const y = CHART_HEIGHT - ((point.value - minValue) / Math.max(1, range)) * (CHART_HEIGHT - 30);
             return (
               <Circle 
                 key={index} 
@@ -514,7 +515,7 @@ export const ModernSalesChart = ({ refreshing=false, onRefresh }: ModernSalesCha
 
         {/* Labels X */}
         <View style={styles.xAxis}>
-          {data.map((point: { label: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; }, i: React.Key | null | undefined) => (
+          {data.map((point, i) => (
             <Text key={i} style={[styles.xLabel, { color: theme.colors.textSecondary }]}>
               {point.label}
             </Text>

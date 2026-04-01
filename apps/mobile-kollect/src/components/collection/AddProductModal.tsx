@@ -14,8 +14,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { MotiView, AnimatePresence } from 'moti';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { CurvedTransition } from 'react-native-reanimated';
 
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -36,6 +38,7 @@ import { useTheme } from '../../../app/context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { storage, ProductDraft } from '../../utils/storage';
 import { PRODUCT_COLORS } from '../../constants/productColors';
+import { PRODUCT_TYPES, GENDER_OPTIONS, PRODUCT_TYPE_CONFIG } from '../../constants/productOptions';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -68,6 +71,9 @@ export function AddProductModal({
   const [images, setImages] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [productType, setProductType] = useState<string>('');
+  const [gender, setGender] = useState<string>('UNISEXE');
+  const [weight, setWeight] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const slideAnim = useState(new Animated.Value(SCREEN_HEIGHT))[0];
 
@@ -149,8 +155,15 @@ export function AddProductModal({
     if (!Number.isInteger(Number(price))) return 'Le prix doit être un entier';
     if (images.length === 0) return 'Ajoute au moins 1 image';
     if (!stock || parseInt(stock, 10) < 0) return 'Le stock doit être positif';
-    if (selectedSizes.length === 0) return 'Sélectionne au moins une taille';
-    if (selectedColors.length === 0) return 'Sélectionne au moins une couleur';
+    
+    // Dynamic Validation
+    const config = productType ? PRODUCT_TYPE_CONFIG[productType] : null;
+    if (config?.showSizes && selectedSizes.length === 0) return 'Sélectionne au moins une taille';
+    if (config?.showColors && selectedColors.length === 0) return 'Sélectionne au moins une couleur';
+    if (config?.showWeight && (!weight || parseFloat(weight) <= 0)) return 'Le poids est requis (supérieur à 0)';
+
+    if (!productType) return 'Sélectionne un type de produit';
+    if (!gender) return 'Sélectionne un genre';
     return null;
   };
 
@@ -189,6 +202,9 @@ export function AddProductModal({
         images,
         sizes: selectedSizes,
         colors: selectedColors,
+        productType,
+        gender,
+        weight: weight ? parseFloat(weight) : undefined,
       };
 
       console.log('📦 Produit créé:', {
@@ -244,6 +260,9 @@ export function AddProductModal({
     setImages([]);
     setSelectedSizes([]);
     setSelectedColors([]);
+    setProductType('');
+    setGender('UNISEXE');
+    setWeight('');
   };
 
   const handleClose = () => {
@@ -266,6 +285,15 @@ export function AddProductModal({
     } else {
       onClose();
     }
+  };
+
+  const setAsMain = (index: number) => {
+    if (index === 0) return;
+    const newImages = [...images];
+    const [movedItem] = newImages.splice(index, 1);
+    newImages.unshift(movedItem);
+    setImages(newImages);
+    // Petit feedback haptique si dispo (optionnel)
   };
 
   const modalBody = (
@@ -375,8 +403,91 @@ export function AddProductModal({
                 </Text>
               </View>
 
+              {/* Type de produit (BOOM Modern) */}
+              <View style={styles.field}>
+                <Text style={[styles.label, { color: theme.colors.text }]}>Type de produit *</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={{ gap: 10, paddingVertical: 4 }}
+                >
+                  {PRODUCT_TYPES.map((item) => {
+                    const isSelected = productType === item.id;
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        onPress={() => setProductType(item.id)}
+                        style={[
+                          styles.typeCard,
+                          {
+                            backgroundColor: isSelected ? theme.colors.accent : theme.colors.surface,
+                            borderColor: isSelected ? theme.colors.accent : theme.colors.borderLight,
+                            // BOOM: Ombre si selected
+                            shadowColor: isSelected ? theme.colors.accent : 'transparent',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: isSelected ? 0.3 : 0,
+                            shadowRadius: 8,
+                            elevation: isSelected ? 4 : 0,
+                          }
+                        ]}
+                      >
+                        <Ionicons 
+                          name={item.icon as any} 
+                          size={22} 
+                          color={isSelected ? '#FFFFFF' : theme.colors.textSecondary} 
+                        />
+                        <Text style={[
+                          styles.typeLabel, 
+                          { color: isSelected ? '#FFFFFF' : theme.colors.text }
+                        ]}>
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* Genre (BOOM Modern) */}
+              <View style={styles.field}>
+                <Text style={[styles.label, { color: theme.colors.text }]}>Genre *</Text>
+                <View style={[
+                  styles.genderContainer,
+                  { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderLight }
+                ]}>
+                  {GENDER_OPTIONS.map((item) => {
+                    const isSelected = gender === item.id;
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        onPress={() => setGender(item.id)}
+                        style={[
+                          styles.genderOption,
+                          {
+                            backgroundColor: isSelected ? theme.colors.accent : 'transparent',
+                          }
+                        ]}
+                      >
+                        <Ionicons 
+                          name={item.icon as any} 
+                          size={18} 
+                          color={isSelected ? '#FFFFFF' : theme.colors.textSecondary} 
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={[
+                          styles.genderLabel,
+                          { color: isSelected ? '#FFFFFF' : theme.colors.text }
+                        ]}>
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
               {/* Prix & Stock */}
-              <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.label, { color: theme.colors.text }]}>Prix (FCFA) *</Text>
                   <View style={[
@@ -422,6 +533,31 @@ export function AddProductModal({
                 </View>
               </View>
 
+              {/* Poids conditionnel */}
+              {productType && PRODUCT_TYPE_CONFIG[productType]?.showWeight && (
+                <View style={styles.field}>
+                  <Text style={[styles.label, { color: theme.colors.text }]}>Poids (kg) *</Text>
+                  <View style={[
+                    styles.inputWrapper, 
+                    { 
+                      borderColor: weight ? theme.colors.accent : theme.colors.borderLight,
+                      backgroundColor: theme.colors.surface,
+                      borderWidth: 1,
+                    }
+                  ]}>
+                    <Ionicons name="barbell-outline" size={20} color={theme.colors.textSecondary} />
+                    <TextInput
+                      style={[styles.input, { color: theme.colors.text }]}
+                      placeholder="0.5"
+                      placeholderTextColor={theme.colors.textDisabled}
+                      value={weight}
+                      onChangeText={setWeight}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+              )}
+
               {/* Images avec BOOM */}
               <View style={styles.field}>
                 <Text style={[styles.label, { color: theme.colors.text }]}>Photos *</Text>
@@ -429,37 +565,54 @@ export function AddProductModal({
                   {images.length}/5 images • La première sera l&apos;image principale
                 </Text>
                 <View style={styles.imageGrid}>
-                  {images.map((uri, i) => (
-                    <View 
-                      key={i} 
-                      style={[
-                        styles.imageItem,
-                        {
-                          borderWidth: 1,
-                          borderColor: theme.colors.borderLight,
-                          // BOOM: Mini ombre
-                          shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.8,
-                          shadowRadius: 4,
-                          elevation: 2,
-                        }
-                      ]}
-                    >
-                      <Image source={{ uri }} style={styles.image} />
-                      <TouchableOpacity
-                        style={[styles.removeBtn, { backgroundColor: theme.colors.error }]}
-                        onPress={() => removeImage(i)}
+                  <AnimatePresence>
+                    {images.map((uri, i) => (
+                      <MotiView 
+                        key={uri} 
+                        from={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ type: 'spring' }}
+                        layout={CurvedTransition}
+                        style={[
+                          styles.imageItem,
+                          {
+                            borderWidth: 1,
+                            borderColor: theme.colors.borderLight,
+                            // BOOM: Mini ombre
+                            shadowColor: isDark ? theme.colors.shadowDark : theme.colors.shadowLight,
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.8,
+                            shadowRadius: 4,
+                            elevation: 2,
+                          }
+                        ]}
                       >
-                        <Ionicons name="close" size={16} color="#fff" />
-                      </TouchableOpacity>
-                      {i === 0 && (
-                        <View style={[styles.mainBadge, { backgroundColor: theme.colors.success }]}>
-                          <Text style={styles.mainText}>Principal</Text>
-                        </View>
-                      )}
-                    </View>
-                  ))}
+                        <Image source={{ uri }} style={styles.image} />
+                        <TouchableOpacity
+                          style={[styles.removeBtn, { backgroundColor: theme.colors.error }]}
+                          onPress={() => removeImage(i)}
+                        >
+                          <Ionicons name="close" size={16} color="#fff" />
+                        </TouchableOpacity>
+
+                        {i > 0 && (
+                          <TouchableOpacity
+                            style={[styles.starBtn, { backgroundColor: 'rgba(0,0,0,0.4)', borderColor: theme.colors.borderLight }]}
+                            onPress={() => setAsMain(i)}
+                          >
+                            <Ionicons name="star-outline" size={16} color="#FFD700" />
+                          </TouchableOpacity>
+                        )}
+
+                        {i === 0 && (
+                          <View style={[styles.mainBadge, { backgroundColor: theme.colors.success }]}>
+                            <Text style={styles.mainText}>Principal</Text>
+                          </View>
+                        )}
+                      </MotiView>
+                    ))}
+                  </AnimatePresence>
                   {images.length < 5 && (
                     <TouchableOpacity 
                       style={[
@@ -481,11 +634,12 @@ export function AddProductModal({
               </View>
 
               {/* Tailles avec BOOM */}
-              <View style={styles.field}>
-                <Text style={[styles.label, { color: theme.colors.text }]}>
-                  Tailles disponibles *
-                </Text>
-                <View style={styles.optionsContainer}>
+              {productType && PRODUCT_TYPE_CONFIG[productType]?.showSizes && (
+                <View style={styles.field}>
+                  <Text style={[styles.label, { color: theme.colors.text }]}>
+                    {PRODUCT_TYPE_CONFIG[productType].sizeLabel} *
+                  </Text>
+                  <View style={styles.optionsContainer}>
                   {AVAILABLE_SIZES.map(size => {
                     const isSelected = selectedSizes.includes(size);
                     return (
@@ -521,13 +675,14 @@ export function AddProductModal({
                       </TouchableOpacity>
                     );
                   })}
+                  </View>
                 </View>
-              </View>
+              )}
 
               {/* Couleurs avec BOOM */}
               <View style={styles.field}>
                 <Text style={[styles.label, { color: theme.colors.text }]}>
-                  Couleurs disponibles *
+                  {productType && PRODUCT_TYPE_CONFIG[productType]?.colorLabel ? PRODUCT_TYPE_CONFIG[productType].colorLabel : 'Couleurs disponibles'} *
                 </Text>
                 <View style={styles.optionsContainer}>
                   {PRODUCT_COLORS.map(color => {
@@ -723,6 +878,19 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
+  },
+  starBtn: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 1,
   },
   mainBadge: {
     position: 'absolute',
@@ -772,6 +940,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 22,
+  },
+  // Nouveaux styles BOOM
+  typeCard: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 110,
+    justifyContent: 'center',
+  },
+  typeLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  genderContainer: {
+    flexDirection: 'row',
+    borderRadius: 16,
+    padding: 6,
+    borderWidth: 1,
+    gap: 6,
+  },
+  genderOption: {
+    flex: 1,
+    flexDirection: 'row',
+    height: 42,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  genderLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   footer: {
     flexDirection: 'row',

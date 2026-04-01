@@ -12,6 +12,9 @@ export interface ProductDraft {
   sku: string;
   images: string[];
   sizes: string[];
+  productType?: string;
+  gender?: string;
+  weight?: number;
 }
 
 export interface CollectionDraft {

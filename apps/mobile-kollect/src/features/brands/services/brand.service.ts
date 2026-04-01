@@ -78,14 +78,17 @@ export interface CreateBrandFormData {
   whatsapp?: string;
   website?: string;
   logo?: ImagePicker.ImagePickerAsset;
+  coverImage?: ImagePicker.ImagePickerAsset;
 }
 
 export interface UpdateBrandDto extends Partial<CreateBrandDto> {
   removeLogo?: boolean; // Flag pour supprimer le logo
+  removeCoverImage?: boolean; // Flag pour supprimer la bannière
 }
 
 export interface UpdateBrandFormData extends UpdateBrandDto {
-  logo?: ImagePicker.ImagePickerAsset; // Nouvelle image
+  logo?: ImagePicker.ImagePickerAsset; // Nouvelle image pour le logo
+  coverImage?: ImagePicker.ImagePickerAsset; // Nouvelle image pour la bannière
 }
 
 export interface BrandStats {
@@ -296,7 +299,8 @@ class BrandService {
   try {
     console.log('🏪 [Brand Service] Création de la marque...', { 
       name: createBrandDto.name,
-      hasLogo: !!createBrandDto.logo 
+      hasLogo: !!createBrandDto.logo,
+      hasCover: !!createBrandDto.coverImage
     });
     
     const token = await this.getToken();
@@ -321,6 +325,20 @@ class BrandService {
       } as any);
       
       console.log('✅ Logo ajouté au FormData');
+      
+      // Ajouter la bannière si présente
+      if (createBrandDto.coverImage) {
+        const coverUriParts = createBrandDto.coverImage.uri.split('.');
+        const coverFileType = coverUriParts[coverUriParts.length - 1];
+        const coverFileName = `cover-${Date.now()}.${coverFileType}`;
+        
+        formData.append('coverImage', {
+          uri: createBrandDto.coverImage.uri,
+          name: coverFileName,
+          type: `image/${coverFileType}`,
+        } as any);
+        console.log('✅ CoverImage ajouté au FormData');
+      }
       
       // Ajouter uniquement les champs autorisés et non vides
       allowedFields.forEach(field => {
@@ -465,16 +483,26 @@ async getSalesData(
 
     // Gestion du logo
     if (removeLogo) {
-      // Demander la suppression du logo
       formData.append('logo', '');
     } else if (logo?.uri) {
-      // Upload d'un nouveau logo
       const uriParts = logo.uri.split('.');
       const fileType = uriParts[uriParts.length - 1];
-
       formData.append('logo', {
         uri: logo.uri,
         name: `logo.${fileType}`,
+        type: `image/${fileType}`,
+      } as any);
+    }
+
+    // Gestion de la coverImage (bannière)
+    if (data.removeCoverImage) {
+      formData.append('coverImage', '');
+    } else if (data.coverImage?.uri) {
+      const uriParts = data.coverImage.uri.split('.');
+      const fileType = uriParts[uriParts.length - 1];
+      formData.append('coverImage', {
+        uri: data.coverImage.uri,
+        name: `coverImage.${fileType}`,
         type: `image/${fileType}`,
       } as any);
     }

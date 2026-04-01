@@ -14,7 +14,7 @@ export function useProduits(params?: { collectionId?: string }) {
     queryFn: () =>
       produitsService
         .listForCEO({ collectionId: params?.collectionId })
-        .then((r) => (r.data as any)?.data as ProduitDto[]),
+        .then((r) => r.data || []),
     staleTime: STALE_TIME,
     refetchInterval: REFRESH_INTERVAL,
   });
@@ -34,7 +34,7 @@ export function useDeletedProduits(params?: { collectionId?: string }) {
     queryFn: () =>
       produitsService
         .listDeletedForCEO({ collectionId: params?.collectionId })
-        .then((r) => (r.data as any)?.data as ProduitDto[]),
+        .then((r) => r.data || []),
     staleTime: STALE_TIME,
     refetchInterval: REFRESH_INTERVAL,
   });

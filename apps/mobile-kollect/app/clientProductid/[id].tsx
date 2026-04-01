@@ -20,6 +20,7 @@ import { produitsService, type ProduitDto } from '../../src/features/produits/se
 import { useCartStore } from '../../src/store/cartStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { PRODUCT_COLORS } from '@/constants/productColors';
+import { PRODUCT_TYPES, GENDER_OPTIONS } from '@/constants/productOptions';
 import { formatPrice } from '@/features/commandes/types/commande.types';
 
 const { width } = Dimensions.get('window');
@@ -376,11 +377,39 @@ export default function ClientProductDetailScreen() {
           {/* Card: Info principale */}
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder, shadowOpacity: colors.shadowOpacity }]}>
             {product.brand && (
-              <View style={[styles.brandBadge, { backgroundColor: colors.brandBadgeBg }]}>
-                <Ionicons name="star" size={14} color={isDark ? theme.colors.accent : theme.colors.primary} />
-                <Text style={[styles.brandName, { color: isDark ? theme.colors.accent : theme.colors.primary }]}>
-                  {product.brand.name}
-                </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                <View style={[styles.brandBadge, { backgroundColor: colors.brandBadgeBg, marginBottom: 0 }]}>
+                  <Ionicons name="star" size={14} color={isDark ? theme.colors.accent : theme.colors.primary} />
+                  <Text style={[styles.brandName, { color: isDark ? theme.colors.accent : theme.colors.primary }]}>
+                    {product.brand.name}
+                  </Text>
+                </View>
+
+                {product.productType && (
+                  <View style={[styles.attributeBadge, { backgroundColor: colors.chipBg }]}>
+                    <Ionicons 
+                      name={(PRODUCT_TYPES.find(t => t.id === product.productType)?.icon as any) || 'cube-outline'} 
+                      size={14} 
+                      color={colors.textSecondary} 
+                    />
+                    <Text style={[styles.attributeText, { color: colors.textSecondary }]}>
+                      {PRODUCT_TYPES.find(t => t.id === product.productType)?.label || product.productType}
+                    </Text>
+                  </View>
+                )}
+
+                {product.gender && (
+                  <View style={[styles.attributeBadge, { backgroundColor: colors.chipBg }]}>
+                    <Ionicons 
+                      name={(GENDER_OPTIONS.find(g => g.id === product.gender)?.icon as any) || 'people-outline'} 
+                      size={14} 
+                      color={colors.textSecondary} 
+                    />
+                    <Text style={[styles.attributeText, { color: colors.textSecondary }]}>
+                      {GENDER_OPTIONS.find(g => g.id === product.gender)?.label || product.gender}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -419,29 +448,43 @@ export default function ClientProductDetailScreen() {
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder, shadowOpacity: colors.shadowOpacity }]}>
               <View style={styles.cardHeader}>
                 <Ionicons name="color-palette" size={20} color={isDark ? theme.colors.accent : theme.colors.primary} />
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Couleur</Text>
+                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Couleur</Text>
+                  {selectedColor && (
+                    <Text style={[styles.selectedOptionLabel, { color: colors.textSecondary }]}>
+                      {PRODUCT_COLORS.find(c => c.value === selectedColor)?.name || selectedColor}
+                    </Text>
+                  )}
+                </View>
               </View>
               <View style={styles.chipRow}>
                 {product.colors.map((colorValue, index) => {
                   const isActive = colorValue === selectedColor;
-                  const mapped = PRODUCT_COLORS.find((c) => c.value === colorValue);
-                  const label = mapped?.name ?? colorValue;
                   return (
                     <TouchableOpacity
                       key={`${colorValue}-${index}`}
                       style={[
-                        styles.chip,
-                        styles.colorChip,
+                        styles.colorStick,
                         {
-                          backgroundColor: isActive ? theme.colors.accent : colors.chipBg,
-                          borderColor: isActive ? theme.colors.accent : colors.chipBorder,
+                          backgroundColor: colorValue,
+                          borderColor: isActive ? theme.colors.accent : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
+                          borderWidth: isActive ? 3 : 1,
+                          // BOOM shadow
+                          shadowColor: isActive ? colorValue : 'transparent',
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: isActive ? 0.6 : 0,
+                          shadowRadius: 8,
+                          elevation: isActive ? 6 : 0,
                         },
                       ]}
                       onPress={() => setSelectedColor(colorValue)}
-                      activeOpacity={0.8}
+                      activeOpacity={0.9}
                     >
-                      <Text style={[styles.chipText, { color: isActive ? 'white' : colors.text }]}>{label}</Text>
-                      {isActive && <Ionicons name="checkmark-circle" size={16} color="white" style={{ marginLeft: 4 }} />}
+                      {isActive && (
+                        <View style={styles.checkmarkContainer}>
+                          <Ionicons name="checkmark" size={18} color="white" />
+                        </View>
+                      )}
                     </TouchableOpacity>
                   );
                 })}
@@ -579,4 +622,37 @@ const styles = StyleSheet.create({
   secondaryButtonText: { fontSize: 15, fontWeight: '700' },
   primaryButton: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
   primaryButtonText: { fontSize: 15, fontWeight: '700', color: 'white' },
+  // Nouveaux styles BOOM
+  attributeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    gap: 4,
+  },
+  attributeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  colorStick: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkmarkContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 22,
+  },
+  selectedOptionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
 });

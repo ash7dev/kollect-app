@@ -25,6 +25,7 @@ import {
 } from '../../src/features/brands/hooks/useBrandQueries';
 import type { UpdateBrandFormData } from '../../src/features/brands/services/brand.service';
 import { BrandLogoEditor } from '../../src/features/brands/screen/BrandLogoEditor';
+import { BrandBannerEditor } from '../../src/features/brands/screen/BrandBannerEditor';
 
 export default function SettingBrandScreen() {
   const router = useRouter();
@@ -45,6 +46,8 @@ export default function SettingBrandScreen() {
   });
   const [newLogo, setNewLogo] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [shouldRemoveLogo, setShouldRemoveLogo] = useState(false);
+  const [newCoverImage, setNewCoverImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [shouldRemoveCoverImage, setShouldRemoveCoverImage] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -61,6 +64,8 @@ export default function SettingBrandScreen() {
       });
       setNewLogo(null);
       setShouldRemoveLogo(false);
+      setNewCoverImage(null);
+      setShouldRemoveCoverImage(false);
     }
   }, [myBrand, loadMyBrand]);
 
@@ -74,7 +79,9 @@ export default function SettingBrandScreen() {
       formData.instagram !== (myBrand.instagram || '') ||
       formData.website !== (myBrand.website || '') ||
       !!newLogo ||
-      shouldRemoveLogo;
+      shouldRemoveLogo ||
+      !!newCoverImage ||
+      shouldRemoveCoverImage;
 
     setHasChanges(changed);
   }, [formData, myBrand, newLogo, shouldRemoveLogo]);
@@ -137,6 +144,8 @@ export default function SettingBrandScreen() {
       website: formData.website || undefined,
       logo: newLogo || undefined,
       removeLogo: shouldRemoveLogo || undefined,
+      coverImage: newCoverImage || undefined,
+      removeCoverImage: shouldRemoveCoverImage || undefined,
     };
 
     updateBrand(
@@ -238,7 +247,7 @@ export default function SettingBrandScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo Editor */}
+          {/* Logo & Banner Section */}
           <View style={styles.logoSection}>
             <BrandLogoEditor
               currentLogo={myBrand.logo}
@@ -246,6 +255,17 @@ export default function SettingBrandScreen() {
               shouldRemove={shouldRemoveLogo}
               onLogoSelected={handleLogoSelected}
               onLogoRemoved={handleLogoRemoved}
+            />
+
+            <BrandBannerEditor
+              currentBanner={myBrand.coverImage}
+              newBanner={newCoverImage}
+              shouldRemove={shouldRemoveCoverImage}
+              onBannerSelected={setNewCoverImage}
+              onBannerRemoved={() => {
+                setNewCoverImage(null);
+                setShouldRemoveCoverImage(true);
+              }}
             />
           </View>
 

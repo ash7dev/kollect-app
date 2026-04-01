@@ -1,8 +1,8 @@
 /* eslint-disable import/no-duplicates */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { 
-  View, 
+import {
+  View,
   Text,
   StyleSheet,
   ScrollView,
@@ -19,12 +19,14 @@ import { MotiView } from 'moti';
 import { BottomSheetModal, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Image } from 'react-native';
 
-import { 
-  NotificationButton, 
+import {
+  NotificationButton,
   ModernSalesChart,
   PrimaryActionButton,
   QuickActionCard,
   OrderCard,
+  StockAlertSection,
+  TopProductsSection,
 } from '../../src/components/dashboard-ceo';
 import { CheckCommandeModal } from '../../src/components/dashboard-ceo/check-commande-modal';
 import { useAuthStore } from '@/store/authStore';
@@ -37,6 +39,10 @@ import { usePendingOrderCount } from '@/features/commandes/store/commandeStore';
 import { Commande } from '@/features/commandes/services/commande.service';
 import { mapApiStatusToFrontend } from '@/features/commandes/services/commande.service';
 import { useNotificationsStore } from '@/features/notifications/services/notificationsStore';
+import { CeoDashboardLoading } from '@/components/ui/CeoDashboardLoading';
+import { useProduits } from '@/features/produits/hooks/useProduits';
+import { produitsService } from '@/features/produits/services/produits.service';
+import { useQuery } from '@tanstack/react-query';
 
 // Type pour les commandes
 type Order = {
@@ -60,7 +66,7 @@ export default function CeoDashboardScreen() {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['50%', '75%'], []);
   const { user } = useAuthStore();
-  
+
   const { myBrand, loadMyBrand, isLoading: isLoadingBrand } = useBrandStore();
   const pendingOrderCount = usePendingOrderCount();
   const { unreadCount, fetchMyNotifications } = useNotificationsStore();
@@ -101,11 +107,28 @@ export default function CeoDashboardScreen() {
     address: commande.address || 'Adresse non fournie',
   });
 
+  // 📦 Alerte Stocks : Produits avec stock entre 1 et 5
+  const { data: allProducts, refetch: refetchProducts } = useProduits();
+  const lowStockProducts = useMemo(() => {
+    return (allProducts ?? []).filter(p => p.stock > 0 && p.stock <= 5);
+  }, [allProducts]);
+
+  // 🏆 Top Produits : Produits de la marque triés par viewCount (comme la version web)
+  const { data: popularProducts, isLoading: isPopularLoading, refetch: refetchPopular } = useQuery({
+    queryKey: ['popular-products-ceo'],
+    queryFn: async () => {
+      const res = await produitsService.listForCEO({ limit: 20 });
+      const list = res.data ?? [];
+      return [...list].sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0)).slice(0, 5);
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
     loadMyBrand();
     void fetchMyNotifications();
   }, [loadMyBrand, fetchMyNotifications]);
-  
+
   // Fonction de rafraîchissement (pull-to-refresh)
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -115,6 +138,8 @@ export default function CeoDashboardScreen() {
         refetchStats(),         // Statistiques ventes
         refetch(),              // Commandes récentes
         fetchMyNotifications(), // Notifications CEO
+        refetchProducts(),      // Produits (pour alertes)
+        refetchPopular(),       // Produits populaires
       ]);
     } catch (error) {
       console.error('Erreur lors du rafraîchissement:', error);
@@ -147,11 +172,11 @@ export default function CeoDashboardScreen() {
     },
     [],
   );
-  
+
   // Fonction pour confirmer la commande
   const handleConfirmOrder = useCallback((orderId: string) => {
     confirmerCommande({ id: orderId }, {
-      onSuccess: () => {},
+      onSuccess: () => { },
       onError: (error) => {
         console.error('Erreur lors de la confirmation de la commande:', error);
       }
@@ -186,26 +211,17 @@ export default function CeoDashboardScreen() {
   }
 
   if (showInitialLoading) {
-    return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-            Chargement de votre espace...
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <CeoDashboardLoading />;
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}> 
-      <ScrollView 
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
+      <ScrollView
         style={styles.container}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             colors={[theme.colors.accent]}
             tintColor={theme.colors.accent}
           />
@@ -236,10 +252,10 @@ export default function CeoDashboardScreen() {
                 </Text>
               </View>
             </MotiView>
-            
-            <NotificationButton 
-              count={unreadCount} 
-              onPress={() => router.push('/ceoNotifications')} 
+
+            <NotificationButton
+              count={unreadCount}
+              onPress={() => router.push('/ceoNotifications')}
             />
           </View>
 
@@ -248,14 +264,14 @@ export default function CeoDashboardScreen() {
             <View style={styles.brandHeader}>
               <View style={styles.brandLeft}>
                 {myBrand?.logo ? (
-                  <Image 
-                    source={{ uri: myBrand.logo }} 
+                  <Image
+                    source={{ uri: myBrand.logo }}
                     style={styles.brandLogo}
                     resizeMode="cover"
                   />
                 ) : (
                   <View style={[
-                    styles.brandLogo, 
+                    styles.brandLogo,
                     styles.brandLogoPlaceholder,
                     { borderColor: theme.colors.border }
                   ]}>
@@ -271,7 +287,7 @@ export default function CeoDashboardScreen() {
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.shareButton, { backgroundColor: theme.colors.surface }]}
                 onPress={() => {
                   if (myBrand?.slug) {
@@ -294,20 +310,23 @@ export default function CeoDashboardScreen() {
         <View style={styles.content}>
 
           {/* Graphique des Ventes Moderne */}
-          <ModernSalesChart 
+          <ModernSalesChart
             refreshing={refreshing || isLoadingBrand || isStatsLoading}
             onRefresh={onRefresh}
           />
 
+          {/* ⚡️ Alertes Stocks */}
+          <StockAlertSection products={lowStockProducts} />
+
           {/* Actions Rapides */}
-          <View style={[styles.section, { 
+          <View style={[styles.section, {
             backgroundColor: theme.colors.card,
             marginTop: 27,  // Augmentation de la marge supérieure
-          }]}> 
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}> 
+          }]}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Actions rapides
             </Text>
-            
+
             <View style={styles.quickActionsGrid}>
               <QuickActionCard
                 title="Commandes à traiter"
@@ -316,7 +335,7 @@ export default function CeoDashboardScreen() {
                     ? '...'
                     : pendingOrderCount.toString()
                 }
-                iconName="cube-outline"
+                iconName="basket-outline"
                 onPress={() => router.push('/(ceo)/orders')}
               />
               <QuickActionCard
@@ -331,33 +350,36 @@ export default function CeoDashboardScreen() {
               />
             </View>
 
+            {/* 🔝 Top Produits */}
+            <TopProductsSection products={popularProducts} isLoading={isPopularLoading} />
+
             <MotiView
               from={{ opacity: 0, translateY: 10 }}
               animate={{ opacity: 1, translateY: 0 }}
               transition={{ type: 'timing', duration: 400, delay: 150 }}
             >
               <View style={styles.primaryActionsContainer}>
-                <View style={styles.primaryActionsRow}> 
-                  <View style={styles.primaryActionHalf}> 
+                <View style={styles.primaryActionsRow}>
+                  <View style={styles.primaryActionHalf}>
                     <PrimaryActionButton
-                      label="Nouvelle Drop"
-                      iconName="add-circle-outline"
-                      onPress={() => console.log('Nouvelle collection')}
+                      label="Lancer un drop"
+                      iconName="rocket-outline"
+                      onPress={() => router.push('/(ceo)/collections')}
                     />
                   </View>
                   <View style={styles.primaryActionHalf}>
                     <PrimaryActionButton
-                      label="Lancer un Teaser"
-                      iconName="add-circle-outline"
-                      onPress={() => console.log('Nouveau produit')}
+                      label="Voir commandes"
+                      iconName="list-outline"
+                      onPress={() => router.push('/(ceo)/orders')}
                     />
                   </View>
                 </View>
                 <View style={[styles.primaryActionFull, { marginTop: 6 }]}>
                   <PrimaryActionButton
-                    label="Ajouter un produit"
+                    label="Ajouter produits"
                     iconName="add-circle-outline"
-                    onPress={() => console.log('Nouveau produit')}
+                    onPress={() => router.push('/(ceo)/products')}
                   />
                 </View>
               </View>
@@ -365,11 +387,11 @@ export default function CeoDashboardScreen() {
           </View>
 
           {/* Commandes Récentes */}
-          <View style={[styles.section, { backgroundColor: theme.colors.card }]}> 
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}> 
+          <View style={[styles.section, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
               Commandes récentes
             </Text>
-            
+
             <FlatList
               data={isLoadingOrders ? [] : data?.data || []}
               keyExtractor={(item) => item.id}
@@ -424,6 +446,9 @@ export default function CeoDashboardScreen() {
               © 2025 Kollect. Tous droits réservés.
             </Text>
           </View>
+
+          {/* Espacement pour la bottom navigation */}
+          <View style={{ height: 100 }} />
         </View>
       </ScrollView>
 
@@ -469,7 +494,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  
+
   // Carte combinée
   combinedCard: {
     borderRadius: 16,
@@ -482,7 +507,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     overflow: 'hidden',
   },
-  
+
   // Header Greeting
   headerGreeting: {
     padding: 16,
@@ -611,23 +636,36 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
   },
 
   // Quick Actions
   quickActionsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 16,
   },
 
   // Primary Actions
   primaryActionsContainer: {
+    marginTop:15,
     gap: 8,
   },
   primaryActionsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   primaryActionHalf: {

@@ -6,6 +6,10 @@ import { ProductPostCard } from '../../src/components/clients/ProductPostCard';
 import { brandService } from '../../src/features/brands/services/brand.service';
 import { produitsService, type ProduitDto } from '../../src/features/produits/services/produits.service';
 import { useProduitsStore } from '../../src/features/produits/store/produitsStore';
+import BrandSpotlight from '../../src/components/clients/BrandSpotlight';
+// Composants pour les drops
+import JustLaunchedDrop from '../../src/components/clients/JustLaunchedDrop';
+import BrandDropCountdown from '../../src/components/clients/BrandDropCountdown';
 
 export default function BrandPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -19,6 +23,7 @@ export default function BrandPage() {
   const [error, setError] = useState<string | null>(null);
   const [brand, setBrand] = useState<any | null>(null);
   const [products, setProducts] = useState<any[]>([]);
+  const [upcomingDrops, setUpcomingDrops] = useState<any[]>([]);
 
   useEffect(() => {
     if (!slug) return;
@@ -34,11 +39,44 @@ export default function BrandPage() {
         if (mounted) {
           setBrand(brandRes);
           const productList: ProduitDto[] =
-            (prodRes as any)?.data ?? (Array.isArray(prodRes) ? prodRes : prodRes?.products ?? []);
+            (prodRes as any)?.data ?? (Array.isArray(prodRes) ? prodRes : []);
           setProducts(productList);
           if (productList?.length) {
             setProduits(productList);
           }
+          
+          // Simuler des drops à venir (à remplacer avec vrai appel API)
+          const mockUpcomingDrops = [
+            {
+              id: '1',
+              name: 'Summer Collection 2024',
+              description: 'La nouvelle collection été avec des pièces exclusives',
+              coverImage: brandRes.coverImage,
+              launchDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Dans 3 jours
+              brand: {
+                id: brandRes.id,
+                name: brandRes.name,
+                logo: brandRes.logo,
+              },
+              _count: { products: 12 },
+              priceRange: { min: 29, max: 129 },
+            },
+            {
+              id: '2',
+              name: 'Limited Edition Drop',
+              description: 'Édition limitée en collaboration avec un artiste',
+              coverImage: brandRes.coverImage,
+              launchDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Dans 7 jours
+              brand: {
+                id: brandRes.id,
+                name: brandRes.name,
+                logo: brandRes.logo,
+              },
+              _count: { products: 8 },
+              priceRange: { min: 49, max: 199 },
+            },
+          ];
+          setUpcomingDrops(mockUpcomingDrops);
         }
       } catch (e: any) {
         setError(e?.message || 'Erreur de chargement');
@@ -53,29 +91,69 @@ export default function BrandPage() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      {/* Header brand */}
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <View style={styles.headerRow}>
-          {brand?.logo ? (
-            <Image source={{ uri: brand.logo }} style={styles.logo} />
-          ) : (
-            <View style={[styles.logoFallback, { backgroundColor: theme.colors.overlayLight }]} />
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.brandName, { color: theme.colors.text }]}>{brand?.name || slug}</Text>
-            {!!brand?.bio && (
-              <Text style={[styles.brandBio, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-                {brand.bio}
-              </Text>
-            )}
-          </View>
-        </View>
-        <View style={styles.statsRow}>
-          <Stat label="Produits" value={brand?._count?.products ?? 0} color={theme.colors.text} />
-          <Stat label="Collections" value={brand?._count?.collections ?? 0} color={theme.colors.text} />
-          <Stat label="Followers" value={brand?._count?.favoris ?? 0} color={theme.colors.text} />
-        </View>
+      {/* Titre de la page */}
+      <View style={[styles.pageHeader, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.pageTitle, { color: theme.colors.text }]}>
+          {brand?.name || slug}
+        </Text>
       </View>
+
+      {/* BrandSpotlight - Header riche avec logo, cover, stats, follow */}
+      {brand && (
+        <BrandSpotlight
+          brand={{
+            id: brand.id,
+            name: brand.name,
+            slug: brand.slug,
+            logo: brand.logo || '',
+            coverImage: brand.coverImage || '',
+            description: brand.bio || brand.description || '',
+            stats: {
+              followers: brand._count?.favoris || 0,
+              collections: brand._count?.collections || 0,
+              products: brand._count?.products || 0,
+            },
+            tags: [], // À ajouter si disponible dans l'API
+            verified: brand.isVerified,
+            instagram: brand.instagram,
+            website: brand.website,
+            whatsapp: brand.whatsapp,
+          }}
+          onVisit={() => {
+            // Navigation vers les produits ou autre action
+            setTab('products');
+          }}
+          showSocialLinks={true}
+        />
+      )}
+
+      {/* Section Drops à venir */}
+      {upcomingDrops.length > 0 && (
+        <View style={{ marginBottom: 24 }}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Drops à venir
+          </Text>
+          {upcomingDrops.map((drop) => (
+            <BrandDropCountdown
+              key={drop.id}
+              drop={drop}
+              variant="featured"
+              brandTheme={{
+                primary: theme.colors.primary,
+                accent: theme.colors.accent,
+              }}
+              onPress={(id) => {
+                console.log('Navigation vers drop:', id);
+                // Navigation vers la page du drop
+              }}
+              onAlert={(id) => {
+                console.log('Alerte pour drop:', id);
+                // Activer les notifications pour ce drop
+              }}
+            />
+          ))}
+        </View>
+      )}
 
       {/* Tabs */}
       <View style={[styles.tabs, { borderBottomColor: theme.colors.border }]}>
@@ -128,20 +206,48 @@ export default function BrandPage() {
         )}
 
         {tab === 'collections' && (
-          <View style={styles.grid}>
-            {(brand?.collections || []).map((c: any, idx: number) => (
-              <View key={idx} style={styles.gridItem}>
-                <ProductPostCard
-                  product={{
-                    id: c.id,
-                    name: c.name,
-                    price: 0,
-                    images: c.coverImage ? [c.coverImage] : [],
-                    brand: { id: brand?.id, name: brand?.name, logo: brand?.logo, slug: brand?.slug },
+          <View style={{ gap: 16 }}>
+            {/* Collections récentes avec JustLaunchedDrop */}
+            {(brand?.collections || []).map((collection: any) => {
+              const isRecent = collection.launchedAt && 
+                new Date(collection.launchedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+              
+              return isRecent ? (
+                <JustLaunchedDrop
+                  key={collection.id}
+                  collection={{
+                    id: collection.id,
+                    name: collection.name,
+                    description: collection.description,
+                    coverImage: collection.coverImage,
+                    teaserVideo: collection.teaserVideo,
+                    launchedAt: collection.launchedAt,
+                    brand: {
+                      id: brand?.id,
+                      name: brand?.name,
+                      logo: brand?.logo,
+                    },
+                    _count: { products: collection._count?.products },
+                  }}
+                  onPress={(id) => {
+                    // Navigation vers la collection
+                    console.log('Navigation vers collection:', id);
                   }}
                 />
-              </View>
-            ))}
+              ) : (
+                <View key={collection.id} style={styles.gridItem}>
+                  <ProductPostCard
+                    product={{
+                      id: collection.id,
+                      name: collection.name,
+                      price: 0,
+                      images: collection.coverImage ? [collection.coverImage] : [],
+                      brand: { id: brand?.id, name: brand?.name, logo: brand?.logo, slug: brand?.slug },
+                    }}
+                  />
+                </View>
+              );
+            })}
           </View>
         )}
       </View>
@@ -240,6 +346,22 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     width: '48%',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  pageHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -0.5,
   },
 });
 

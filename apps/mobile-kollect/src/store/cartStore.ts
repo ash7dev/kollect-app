@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 
+// Import web fallback
+import { getItemAsync as webGetItemAsync, setItemAsync as webSetItemAsync } from '../../secureStore.web';
+
 export type CartItem = {
   productId: string;
   name: string;
@@ -58,22 +61,41 @@ const storage = {
       const value = await SecureStore.getItemAsync(name);
       return value ? JSON.parse(value) : null;
     } catch (e) {
-      console.error('Error getting item from storage', e);
-      return null;
+      console.error('Error getting item from storage, falling back to web storage', e);
+      try {
+        const value = await webGetItemAsync(name);
+        return value ? JSON.parse(value) : null;
+      } catch (webError) {
+        console.error('Error getting item from web storage', webError);
+        return null;
+      }
     }
   },
   setItem: async (name: string, value: any) => {
     try {
       await SecureStore.setItemAsync(name, JSON.stringify(value));
     } catch (e) {
-      console.error('Error setting item in storage', e);
+      console.error('Error setting item in storage, falling back to web storage', e);
+      try {
+        await webSetItemAsync(name, JSON.stringify(value));
+      } catch (webError) {
+        console.error('Error setting item in web storage', webError);
+      }
     }
   },
   removeItem: async (name: string) => {
     try {
       await SecureStore.deleteItemAsync(name);
     } catch (e) {
-      console.error('Error removing item from storage', e);
+      console.error('Error removing item from storage, falling back to web storage', e);
+      try {
+        // Web fallback implementation
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.removeItem(name);
+        }
+      } catch (webError) {
+        console.error('Error removing item from web storage', webError);
+      }
     }
   },
 };

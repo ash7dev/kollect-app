@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing, Image, Dimensions, Platform } from 'react-native';
+import { View, StyleSheet, Animated, Easing, Dimensions, Platform } from 'react-native';
 import { useTheme } from '../../../app/context/ThemeContext';
+import { Logo } from '../../components/ui/Logo';
 
 const { width, height } = Dimensions.get('window');
 
-const LOGO_BASE_SIZE = Math.min(width * 1.75, 520);
-const LOGO_FINAL_SIZE = Math.min(width * 0.25, 120);
+const LOGO_SIZE = Math.min(width * 0.3, 120);
 
 interface SplashScreenProps {
   onAnimationComplete: () => void;
@@ -316,10 +316,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete,
           ]}
         >
           {/* Glow effect avec highlight */}
-          <View 
+          <View
             style={[
               styles.logoGlow,
-              { 
+              {
                 backgroundColor: forceDarkMode ? 'rgba(255, 59, 48, 0.2)' : (isDark ? theme.colors.highlightDark : theme.colors.highlight),
                 shadowColor: theme.colors.accent,
                 shadowOffset: { width: 0, height: 0 },
@@ -327,14 +327,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onAnimationComplete,
                 shadowRadius: 30,
                 elevation: 5,
               }
-            ]} 
+            ]}
           />
-          
-          <Image
-            source={require('../../../assets/images/LOGO-KOLLECT.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+
+          <Logo size={LOGO_SIZE} />
         </Animated.View>
 
         {/* Texte "Kollect" - Bold selon les règles BOOM */}
@@ -435,18 +431,13 @@ const styles = StyleSheet.create({
   },
   logoGlow: {
     position: 'absolute',
-    width: LOGO_BASE_SIZE * 1.3,
-    height: LOGO_BASE_SIZE * 1.3,
-    borderRadius: LOGO_BASE_SIZE * 0.65,
+    width: LOGO_SIZE * 1.8,
+    height: LOGO_SIZE * 1.8,
+    borderRadius: LOGO_SIZE * 0.9,
     top: '50%',
     left: '50%',
-    marginTop: -(LOGO_BASE_SIZE * 0.65),
-    marginLeft: -(LOGO_BASE_SIZE * 0.65),
-  },
-  logo: {
-    width: LOGO_BASE_SIZE,
-    height: LOGO_BASE_SIZE,
-    tintColor: undefined,
+    marginTop: -(LOGO_SIZE * 0.9),
+    marginLeft: -(LOGO_SIZE * 0.9),
   },
   particle: {
     position: 'absolute',
@@ -463,7 +454,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive',
     textAlign: 'center',
-    marginTop: -234,
+    marginTop: 20,
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,

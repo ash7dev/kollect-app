@@ -9,11 +9,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../app/context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
-interface CreateCollectionFABProps {
+interface CreateProductFABProps {
   onPress: () => void;
 }
 
-export function CreateCollectionFAB({ onPress }: CreateCollectionFABProps) {
+export function CreateProductFAB({ onPress }: CreateProductFABProps) {
   const { theme } = useTheme();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;

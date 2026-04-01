@@ -14,8 +14,12 @@ export interface ProduitDto {
   sku?: string | null;
   collectionId: string;
   brandId: string;
+  productType?: string | null;
+  gender?: string | null;
+  weight?: number | null;
   createdAt?: string;
   updatedAt?: string; 
+  viewCount?: number;
   isVisible?: boolean;
   isDeleted?: boolean;
   collection?: {
@@ -39,10 +43,11 @@ export interface CreateProduitPayload {
   sizes?: string[];
   colors?: string[];
   sku?: string;
-  material?: string;
-  weight?: number;
   isFeatured?: boolean;
   isVisible?: boolean;
+  productType?: string;
+  gender?: string;
+  weight?: number;
 }
 
 export interface UpdateProduitPayload {
@@ -54,10 +59,11 @@ export interface UpdateProduitPayload {
   sizes?: string[];
   colors?: string[];
   sku?: string | null;
-  material?: string | null;
-  weight?: number | null;
   isFeatured?: boolean;
   isVisible?: boolean;
+  productType?: string;
+  gender?: string;
+  weight?: number;
 }
 
 export interface SearchParams {

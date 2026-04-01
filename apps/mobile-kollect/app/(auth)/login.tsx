@@ -6,9 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Image,
   Animated,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,10 +15,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '@/store/authStore';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import logo from '../../assets/images/LOGO-KOLLECT.png';
-
-const { width, height } = Dimensions.get('window');
-const LOGO_SIZE = Math.min(width * 0.2, 88);
+import { Logo } from '@/components/ui/Logo';
 
 export default function LoginScreen() {
   const { theme, isDark } = useTheme();
@@ -119,21 +114,7 @@ export default function LoginScreen() {
 
           {/* Header */}
           <View style={styles.header}>
-            <View style={[styles.logoWrap, {
-              backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#fff',
-              borderWidth: 1,
-              borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)',
-              width: LOGO_SIZE + 8,
-              height: LOGO_SIZE + 8,
-              borderRadius: (LOGO_SIZE + 8) / 2,
-              shadowColor: theme.colors.accent,
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: isDark ? 0.25 : 0.12,
-              shadowRadius: 20,
-              elevation: 10,
-            }]}>
-              <Image source={logo} style={{ width: LOGO_SIZE, height: LOGO_SIZE }} resizeMode="contain" />
-            </View>
+            <Logo size={64} />
 
             <Text style={[styles.title, { color: theme.colors.text }]}>Bon retour !</Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
@@ -319,8 +300,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     zIndex: 10,
   },
-  header: { alignItems: 'center', marginBottom: 36 },
-  logoWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: 24, overflow: 'hidden' },
+  header: { alignItems: 'center', marginBottom: 36, gap: 20 },
   title: { fontSize: 28, fontWeight: '800', marginBottom: 6, letterSpacing: -0.7 },
   subtitle: { fontSize: 15, fontWeight: '500' },
   errorBox: {

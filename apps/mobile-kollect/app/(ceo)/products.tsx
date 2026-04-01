@@ -1,11 +1,12 @@
 /* eslint-disable react-hooks/exhaustive-deps */
- 
-import { View, Text, StyleSheet, TextInput, ActivityIndicator, FlatList, TouchableOpacity, Image, RefreshControl } from 'react-native';
+
+import { View, Text, StyleSheet, TextInput, ActivityIndicator, FlatList, SectionList, TouchableOpacity, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { CreateProductModalStepper } from '@/components/product/CreateProductModalStepper';
+import { CreateProductFAB } from '@/components/product/CreateProductFAB';
 import { useState, useEffect, useMemo } from 'react';
 import { ProductDraft } from '@/utils/storage';
 import { useAuthStore } from '@/store/authStore';
@@ -24,7 +25,7 @@ export default function ProductsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [groupBy, setGroupBy] = useState<GroupByOption>('none');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>('all');
-  
+
   const { user } = useAuthStore();
   const { collections, loading: loadingCollections, error: collectionsError, fetchCollections } = useCollectionsStore();
   const brandId = user?.brand?.id;
@@ -91,7 +92,7 @@ export default function ProductsScreen() {
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((p: ProduitDto) => 
+      filtered = filtered.filter((p: ProduitDto) =>
         p.name.toLowerCase().includes(query) ||
         p.description?.toLowerCase().includes(query) ||
         p.sku?.toLowerCase().includes(query)
@@ -101,13 +102,29 @@ export default function ProductsScreen() {
     if (groupBy === 'collection') {
       const grouped: Record<string, ProduitDto[]> = {};
       filtered.forEach((product: ProduitDto) => {
-        const collectionId = product.collectionId || 'sans-collection';
+        const collectionId = product.collectionId || product.collection?.id || 'sans-collection';
         if (!grouped[collectionId]) {
           grouped[collectionId] = [];
         }
         grouped[collectionId].push(product);
       });
-      return grouped;
+
+      // Format for SectionList with grouped rows of 2
+      const sections: any[] = [];
+      Object.entries(grouped).forEach(([collectionId, items]) => {
+        const rows: ProduitDto[][] = [];
+        for (let i = 0; i < items.length; i += 2) {
+          rows.push(items.slice(i, i + 2));
+        }
+
+        sections.push({
+          collectionId,
+          count: items.length,
+          totalStock: items.reduce((sum, p) => sum + p.stock, 0),
+          data: rows
+        });
+      });
+      return sections;
     }
 
     return filtered;
@@ -143,9 +160,10 @@ export default function ProductsScreen() {
     const isHidden = (item as any).isVisible === false;
     const isOutOfStock = item.stock === 0;
     const isLowStock = item.stock > 0 && item.stock <= 5;
-    
+
     return (
       <TouchableOpacity
+        key={item.id}
         style={[
           styles.productCard,
           {
@@ -158,8 +176,8 @@ export default function ProductsScreen() {
       >
         <View style={styles.imageContainer}>
           {item.images && item.images.length > 0 ? (
-            <Image 
-              source={{ uri: item.images[0] }} 
+            <Image
+              source={{ uri: item.images[0] }}
               style={[styles.productImage, isOutOfStock && styles.imageOutOfStock]}
               resizeMode="cover"
             />
@@ -168,7 +186,7 @@ export default function ProductsScreen() {
               <Ionicons name="image-outline" size={40} color={theme.colors.textDisabled} />
             </View>
           )}
-          
+
           {isOutOfStock && (
             <View style={styles.outOfStockOverlay}>
               <View style={styles.outOfStockBadge}>
@@ -193,8 +211,8 @@ export default function ProductsScreen() {
             </View>
           )}
 
-          <View style={[styles.visibilityIndicator, { 
-            backgroundColor: isHidden ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.9)' 
+          <View style={[styles.visibilityIndicator, {
+            backgroundColor: isHidden ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.9)'
           }]}>
             <Ionicons
               name={isHidden ? 'eye-off' : 'eye'}
@@ -203,24 +221,24 @@ export default function ProductsScreen() {
             />
           </View>
         </View>
-        
+
         <View style={styles.productInfo}>
           <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={2}>
             {item.name}
           </Text>
-          
+
           {item.sku && (
             <Text style={[styles.productSku, { color: theme.colors.textSecondary }]} numberOfLines={1}>
               {item.sku}
             </Text>
           )}
-          
+
           <View style={styles.productFooter}>
             <Text style={[styles.productPrice, { color: theme.colors.accent }]}>
               {formatPrice(item.price)}
             </Text>
-            
-            <View style={[styles.stockBadge, { 
+
+            <View style={[styles.stockBadge, {
               backgroundColor: `${stockStatus.color}15`,
             }]}>
               <View style={[styles.stockDot, { backgroundColor: stockStatus.color }]} />
@@ -234,41 +252,30 @@ export default function ProductsScreen() {
     );
   };
 
-  const renderGroupedSection = (collectionId: string, items: ProduitDto[]) => {
+  const renderSectionHeader = (collectionId: string, count: number, totalStock: number) => {
     const collection = collections.find(c => c.id === collectionId);
     const collectionName = collection?.name || 'Sans collection';
-    const totalStock = items.reduce((sum, item) => sum + item.stock, 0);
 
     return (
-      <View key={collectionId} style={styles.groupSection}>
-        <View style={styles.groupHeader}>
-          <View style={styles.groupHeaderLeft}>
-            <Text style={[styles.groupTitle, { color: theme.colors.text }]}>
-              {collectionName}
-            </Text>
-            <View style={styles.groupBadgesRow}>
-              <View style={[styles.countBadge, { backgroundColor: theme.colors.surface }]}>
-                <Text style={[styles.countBadgeText, { color: theme.colors.textSecondary }]}>
-                  {items.length} produit{items.length > 1 ? 's' : ''}
-                </Text>
-              </View>
-              <View style={[styles.countBadge, { backgroundColor: theme.colors.surface }]}>
-                <Ionicons name="cube-outline" size={12} color={theme.colors.textSecondary} />
-                <Text style={[styles.countBadgeText, { color: theme.colors.textSecondary }]}>
-                  {totalStock} en stock
-                </Text>
-              </View>
+      <View key={`header-${collectionId}`} style={[styles.groupHeader, { marginTop: 20 }]}>
+        <View style={styles.groupHeaderLeft}>
+          <Text style={[styles.groupTitle, { color: theme.colors.text }]}>
+            {collectionName}
+          </Text>
+          <View style={styles.groupBadgesRow}>
+            <View style={[styles.countBadge, { backgroundColor: theme.colors.surface }]}>
+              <Text style={[styles.countBadgeText, { color: theme.colors.textSecondary }]}>
+                {count} produit{count > 1 ? 's' : ''}
+              </Text>
+            </View>
+            <View style={[styles.countBadge, { backgroundColor: theme.colors.surface }]}>
+              <Ionicons name="cube-outline" size={12} color={theme.colors.textSecondary} />
+              <Text style={[styles.countBadgeText, { color: theme.colors.textSecondary }]}>
+                {totalStock} en stock
+              </Text>
             </View>
           </View>
         </View>
-        <FlatList
-          data={items}
-          renderItem={renderProductCard}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalList}
-        />
       </View>
     );
   };
@@ -282,7 +289,7 @@ export default function ProductsScreen() {
         {searchQuery ? 'Aucun résultat' : 'Aucun produit'}
       </Text>
       <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-        {searchQuery 
+        {searchQuery
           ? 'Essayez avec d\'autres mots-clés'
           : 'Commencez par créer votre premier produit'
         }
@@ -312,9 +319,9 @@ export default function ProductsScreen() {
           {baseProducts.length} produit{baseProducts.length > 1 ? 's' : ''} • Gérez votre catalogue
         </Text>
       </View>
-      
+
       <View style={styles.controlsContainer}>
-        <View style={[styles.searchContainer, { 
+        <View style={[styles.searchContainer, {
           backgroundColor: theme.colors.card,
           borderColor: theme.colors.borderLight,
         }]}>
@@ -346,10 +353,10 @@ export default function ProductsScreen() {
               ]}
               onPress={() => setGroupBy('none')}
             >
-              <Ionicons 
-                name="grid-outline" 
-                size={16} 
-                color={groupBy === 'none' ? '#FFF' : theme.colors.textSecondary} 
+              <Ionicons
+                name="grid-outline"
+                size={16}
+                color={groupBy === 'none' ? '#FFF' : theme.colors.textSecondary}
               />
               <Text style={[
                 styles.filterChipText,
@@ -358,7 +365,7 @@ export default function ProductsScreen() {
                 Grille
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[
                 styles.filterChip,
@@ -370,10 +377,10 @@ export default function ProductsScreen() {
               ]}
               onPress={() => setGroupBy('collection')}
             >
-              <Ionicons 
-                name="albums-outline" 
-                size={16} 
-                color={groupBy === 'collection' ? '#FFF' : theme.colors.textSecondary} 
+              <Ionicons
+                name="albums-outline"
+                size={16}
+                color={groupBy === 'collection' ? '#FFF' : theme.colors.textSecondary}
               />
               <Text style={[
                 styles.filterChipText,
@@ -401,7 +408,7 @@ export default function ProductsScreen() {
                 <Ionicons
                   name={
                     filter === 'all' ? 'layers-outline' :
-                    filter === 'visible' ? 'eye-outline' : 'eye-off-outline'
+                      filter === 'visible' ? 'eye-outline' : 'eye-off-outline'
                   }
                   size={16}
                   color={visibilityFilter === filter ? '#FFF' : theme.colors.textSecondary}
@@ -427,12 +434,19 @@ export default function ProductsScreen() {
         )}
       </View>
 
-      {isGrouped ? (
-        <FlatList
-          key="flatlist-grouped"
-          data={Object.entries(filteredAndGroupedProducts as Record<string, ProduitDto[]>)}
-          renderItem={({ item: [collectionId, items] }) => renderGroupedSection(collectionId, items)}
-          keyExtractor={([collectionId]) => collectionId}
+      {groupBy === 'collection' ? (
+        <SectionList
+          sections={filteredAndGroupedProducts as any[]}
+          renderItem={({ item: rowItems }) => (
+            <View style={styles.row}>
+              {rowItems.map((p: ProduitDto) => renderProductCard({ item: p }))}
+              {rowItems.length === 1 && <View style={{ flex: 1, maxWidth: '48%' }} />}
+            </View>
+          )}
+          renderSectionHeader={({ section }) => (
+            renderSectionHeader(section.collectionId, section.count, section.totalStock)
+          )}
+          keyExtractor={(item, index) => (item[0] as ProduitDto).id + index}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={renderEmptyState}
@@ -446,8 +460,8 @@ export default function ProductsScreen() {
         />
       ) : (
         <FlatList
-          key="flatlist-grid-2"
-          data={flatProducts}
+          key="grid-list-2"
+          data={filteredAndGroupedProducts as ProduitDto[]}
           renderItem={renderProductCard}
           keyExtractor={(item) => item.id}
           numColumns={2}
@@ -465,20 +479,17 @@ export default function ProductsScreen() {
         />
       )}
 
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        onPress={() => setModalVisible(true)}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={24} color="#FFF" />
-      </TouchableOpacity>
-      
+      <CreateProductFAB onPress={() => setModalVisible(true)} />
+
       <CreateProductModalStepper
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         collections={collections}
         onSubmit={handleAddProduct}
       />
+
+      {/* Espacement pour la bottom navigation */}
+      <View style={{ height: 100 }} />
     </SafeAreaView>
   );
 }
@@ -581,8 +592,10 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   row: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
+    marginBottom: 0,
   },
   productCard: {
     flex: 1,
@@ -798,7 +811,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 24,
+    bottom: 120, // Éviter la bottom navigation
     width: 56,
     height: 56,
     borderRadius: 28,

@@ -1,12 +1,18 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Dimensions,
+  Animated,
+  StyleSheet,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Video, ResizeMode } from 'expo-av';
-import { useTheme } from '../../../app/context/ThemeContext';
 import { BlurView } from 'expo-blur';
+import { useTheme } from '../../../app/context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -23,9 +29,7 @@ interface JustLaunchedDropProps {
       name: string;
       logo?: string | null;
     } | null;
-    _count?: {
-      products?: number;
-    };
+    _count?: { products?: number };
   };
   onPress?: (id: string) => void;
 }
@@ -34,51 +38,77 @@ function getTimeAgo(input?: string | Date | null): string | null {
   if (!input) return null;
   const date = input instanceof Date ? input : new Date(input);
   if (Number.isNaN(date.getTime())) return null;
-
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
+  const diffMs = Date.now() - date.getTime();
   if (diffMs < 0) return 'quelques instants';
+  const mins = Math.floor(diffMs / 60000);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+  if (mins < 1) return 'à l\'instant';
+  if (mins < 60) return `${mins} min`;
+  if (hours < 24) return `${hours} h`;
+  if (days < 7) return `${days} j`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks} sem`;
+  return `${Math.floor(days / 30)} mois`;
+}
 
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMinutes < 1) return 'quelques secondes';
-  if (diffMinutes < 60) return `${diffMinutes} min`;
-  if (diffHours < 24) return `${diffHours} h`;
-  if (diffDays < 7) return `${diffDays} j`;
-  const diffWeeks = Math.floor(diffDays / 7);
-  if (diffWeeks < 5) return `${diffWeeks} sem`;
-  const diffMonths = Math.floor(diffDays / 30);
-  return `${diffMonths} mois`;
+// Dot pulsant pour le badge live
+function PulseDot({ color }: { color: string }) {
+  const anim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 0.3, duration: 700, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [anim]);
+  return (
+    <View style={{ width: 8, height: 8, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: color,
+          opacity: anim,
+          transform: [{ scale: anim }],
+        }}
+      />
+      <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: color }} />
+    </View>
+  );
 }
 
 export default function JustLaunchedDrop({ collection, onPress }: JustLaunchedDropProps) {
   const { theme, isDark } = useTheme();
 
-  const productCount = (collection as any).visibleProductCount ?? collection._count?.products ?? 0;
+  const productCount =
+    (collection as any).visibleProductCount ?? collection._count?.products ?? 0;
   const launchedLabel = getTimeAgo(collection.launchedAt);
+  const accent = theme.colors.accent; // #FF3B30
+
+  const handlePress = () => onPress?.(collection.id);
 
   return (
     <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={() => onPress?.(collection.id)}
+      activeOpacity={0.93}
+      onPress={handlePress}
       style={[
-        styles.container,
+        styles.card,
         {
-          backgroundColor: theme.colors.card,
-          borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
-          shadowColor: isDark ? '#000' : theme.colors.shadowLight,
+          backgroundColor: isDark ? '#0A0A0A' : '#FFFFFF',
+          shadowColor: isDark ? accent : '#000',
         },
       ]}
     >
-      {/* Image / Vidéo principale */}
-      <View style={styles.imageContainer}>
+      {/* ── MEDIA ── */}
+      <View style={styles.mediaWrap}>
         {collection.teaserVideo ? (
           <Video
-            source={{ uri: collection.teaserVideo as string }}
-            style={styles.coverImage}
+            source={{ uri: collection.teaserVideo }}
+            style={StyleSheet.absoluteFill}
             resizeMode={ResizeMode.COVER}
             shouldPlay
             isLooping
@@ -86,382 +116,279 @@ export default function JustLaunchedDrop({ collection, onPress }: JustLaunchedDr
             volume={0}
           />
         ) : collection.coverImage ? (
-          <>
-            <Image
-              source={{ uri: collection.coverImage }}
-              style={styles.coverImage}
-              contentFit="cover"
-            />
-            {/* Dégradé simple pour lisibilité des badges */}
-            <LinearGradient
-              colors={['rgba(0, 0, 0, 0.4)', 'transparent', 'transparent', 'rgba(0, 0, 0, 0.3)']}
-              locations={[0, 0.25, 0.75, 1]}
-              style={styles.imageOverlay}
-            />
-          </>
+          <Image
+            source={{ uri: collection.coverImage }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+          />
         ) : (
-          <View
-            style={[styles.coverImage, styles.noMediaPlaceholder]}
-          >
-            <Ionicons
-              name="image"
-              size={40}
-              color="#FFFFFF"
-            />
+          <View style={[StyleSheet.absoluteFill, styles.noMedia]}>
+            <Ionicons name="image-outline" size={36} color="rgba(255,255,255,0.3)" />
           </View>
         )}
-        
-        {/* Badge "NOUVEAU DROP" - Style streetwear */}
-        <View style={styles.newBadge}>
-          <View style={[styles.newBadgeInner, { backgroundColor: theme.colors.accent }]}>
-            <Ionicons name="flash" size={14} color="#FFFFFF" />
-            <Text style={styles.newBadgeText}>NOUVEAU DROP</Text>
-          </View>
+
+        {/* Gradient overlay — du bas vers le haut */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.18)', 'rgba(0,0,0,0.72)']}
+          locations={[0, 0.45, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {/* ── TOP ROW : badge DROP + timer ── */}
+        <View style={styles.topRow}>
+          {/* Badge DROP */}
+          <BlurView
+            intensity={isDark ? 50 : 70}
+            tint="dark"
+            style={styles.dropBadge}
+          >
+            <PulseDot color={accent} />
+            <Text style={styles.dropBadgeText}>NEW DROP</Text>
+          </BlurView>
+
+          {/* Timer */}
+          {launchedLabel && (
+            <BlurView intensity={50} tint="dark" style={styles.timerPill}>
+              <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.75)" />
+              <Text style={styles.timerText}>{launchedLabel}</Text>
+            </BlurView>
+          )}
         </View>
 
-        {/* Timer - Coin supérieur droit */}
-        {launchedLabel && (
-          <View style={[styles.timerBadge, { 
-            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.4)' 
-          }]}>
-            <Ionicons name="time-outline" size={12} color="#FFFFFF" />
-            <Text style={styles.timerText}>il y a {launchedLabel}</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Barre accent rouge */}
-      <View style={[styles.accentBar, { backgroundColor: theme.colors.accent }]} />
-
-      {/* Contenu */}
-      <View style={styles.content}>
-        {/* Brand + Titre */}
-        <View style={styles.header}>
+        {/* ── BOTTOM OVERLAY : brand + nom ── */}
+        <View style={styles.mediaBottom}>
           {collection.brand && (
             <View style={styles.brandRow}>
               {collection.brand.logo && (
-                <View style={[styles.brandLogoContainer, {
-                  borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
-                }]}>
-                  <Image
-                    source={{ uri: collection.brand.logo }}
-                    style={styles.brandLogo}
-                    contentFit="cover"
-                  />
-                </View>
+                <Image
+                  source={{ uri: collection.brand.logo }}
+                  style={styles.brandLogo}
+                  contentFit="cover"
+                />
               )}
-              <View style={styles.brandInfo}>
-                <Text style={[styles.brandLabel, { color: theme.colors.textSecondary }]}>
-                  BY
-                </Text>
-                <Text style={[styles.brandName, { color: theme.colors.text }]} numberOfLines={1}>
-                  {collection.brand.name}
-                </Text>
-              </View>
+              <Text style={styles.brandName}>
+                {collection.brand.name.toUpperCase()}
+              </Text>
             </View>
           )}
-          
-          <Text style={[styles.collectionName, { color: theme.colors.text }]} numberOfLines={2}>
+
+          <Text style={styles.collectionName} numberOfLines={2}>
             {collection.name}
           </Text>
         </View>
+      </View>
 
-        {/* Description */}
-        {collection.description && (
-          <Text
-            style={[styles.description, { color: theme.colors.textSecondary }]}
-            numberOfLines={2}
-          >
-            {collection.description}
-          </Text>
-        )}
+      {/* ── BARRE ACCENT ── */}
+      <View style={[styles.accentLine, { backgroundColor: accent }]} />
 
-        {/* Stats avec cube glow en arrière-plan */}
+      {/* ── FOOTER ── */}
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: isDark ? '#0A0A0A' : '#FFFFFF' },
+        ]}
+      >
+        {/* Stats */}
         <View style={styles.stats}>
-          <View style={styles.statItem}>
-            {/* Glow effect en arrière-plan */}
-            <View style={styles.statIconContainer}>
-              <View style={[styles.glowBackground, {
-                backgroundColor: isDark 
-                  ? theme.colors.primary + '40'
-                  : theme.colors.primary + '20',
-              }]} />
-              <View style={[styles.statIcon, {
-                backgroundColor: isDark 
-                  ? 'rgba(255, 255, 255, 0.1)' 
-                  : 'rgba(0, 0, 0, 0.05)',
-              }]}>
-                <Ionicons 
-                  name="cube-outline" 
-                  size={18} 
-                  color={theme.colors.text} 
-                />
-              </View>
-            </View>
-            <Text style={[styles.statText, { color: theme.colors.text }]}>
-              {productCount} produit{productCount > 1 ? 's' : ''}
+          {/* Produits */}
+          <View style={styles.statChip}>
+            <Ionicons
+              name="layers-outline"
+              size={14}
+              color={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'}
+            />
+            <Text style={[styles.statLabel, { color: isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)' }]}>
+              {productCount} pièce{productCount > 1 ? 's' : ''}
             </Text>
           </View>
 
-          <View style={[styles.statDivider, {
-            backgroundColor: isDark 
-              ? theme.colors.borderDarkSubtle 
-              : theme.colors.borderLight,
-          }]} />
+          {/* Séparateur */}
+          <View style={[styles.sep, { backgroundColor: isDark ? '#2A2A2A' : '#E8E8E8' }]} />
 
-          <View style={styles.statItem}>
-            {/* Glow effect en arrière-plan */}
-            <View style={styles.statIconContainer}>
-              <View style={[styles.glowBackground, {
-                backgroundColor: theme.colors.accent + '30',
-              }]} />
-              <View style={[styles.statIcon, {
-                 backgroundColor: isDark 
-                  ? 'rgba(255, 255, 255, 0.1)' 
-                  : 'rgba(0, 0, 0, 0.05)',
-              }]}>
-                <Ionicons 
-                  name="flame" 
-                  size={18} 
-                  color={theme.colors.text}
-                />
-              </View>
-            </View>
-            <Text style={[styles.statText, { color: theme.colors.text }]}>
+          {/* Exclusif */}
+          <View style={styles.statChip}>
+            <Ionicons
+              name="ribbon-outline"
+              size={14}
+              color={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'}
+            />
+            <Text style={[styles.statLabel, { color: isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)' }]}>
               Exclusif
             </Text>
           </View>
         </View>
 
-        {/* CTA Button - Mix Noir/Rouge pour le HYPE */}
+        {/* CTA */}
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => onPress?.(collection.id)}
-          style={styles.ctaWrapper}
+          onPress={handlePress}
+          style={[styles.cta, { backgroundColor: accent }]}
         >
-          <View
-            style={[
-              styles.ctaButton,
-              {
-                backgroundColor: theme.colors.accent,
-              },
-            ]}
-          >
-            <Text style={[styles.ctaText, { color: '#FFFFFF' }]}>DÉCOUVRIR LA COLLECTION</Text>
-            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-          </View>
+          <Text style={styles.ctaText}>VOIR LA COLLECTION</Text>
+          <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
-
-      {/* Bordure subtile */}
-      <View style={[styles.borderOverlay, {
-        borderColor: isDark ? theme.colors.borderDarkSubtle : theme.colors.borderLight,
-      }]} />
     </TouchableOpacity>
   );
 }
 
+const CARD_RADIUS = 22;
+const MEDIA_HEIGHT = width * 0.62;
+
 const styles = StyleSheet.create({
-  container: {
+  card: {
     marginHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: 'hidden',
     marginBottom: 24,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    borderRadius: CARD_RADIUS,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  imageContainer: {
+
+  /* MEDIA */
+  mediaWrap: {
     width: '100%',
-    height: width * 0.5,
+    height: MEDIA_HEIGHT,
+    backgroundColor: '#111',
     position: 'relative',
   },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  videoPlaceholder: {
-    justifyContent: 'center',
+  noMedia: {
+    backgroundColor: '#1A1A1A',
     alignItems: 'center',
-    backgroundColor: '#111827',
-  },
-  noMediaPlaceholder: {
     justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1F2933',
   },
-  imageOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  newBadge: {
+
+  /* TOP ROW */
+  topRow: {
     position: 'absolute',
     top: 16,
     left: 16,
-  },
-  newBadgeInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 100,
-    gap: 5,
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  newBadgeText: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
-  },
-  timerBadge: {
-    position: 'absolute',
-    top: 16,
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    justifyContent: 'space-between',
+  },
+  dropBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 7,
+    paddingHorizontal: 13,
     borderRadius: 100,
-    gap: 4,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  dropBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 1.2,
+  },
+  timerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 100,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
   },
   timerText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.82)',
   },
-  accentBar: {
-    height: 3,
-    width: '100%',
-  },
-  content: {
-    padding: 20,
-    gap: 14,
-  },
-  header: {
-    gap: 8,
+
+  /* BOTTOM MEDIA */
+  mediaBottom: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+    gap: 6,
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 2,
-  },
-  brandLogoContainer: {
-    borderWidth: 2,
-    borderRadius: 14,
-    padding: 2,
+    gap: 8,
   },
   brandLogo: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-  },
-  brandInfo: {
-    gap: -2,
-  },
-  brandLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
   brandName: {
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '700',
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 2,
   },
   collectionName: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FFFFFF',
     letterSpacing: -0.5,
-    lineHeight: 26,
+    lineHeight: 28,
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
-  description: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '400',
+
+  /* ACCENT LINE */
+  accentLine: {
+    height: 2,
+    width: '100%',
+  },
+
+  /* FOOTER */
+  footer: {
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    gap: 14,
   },
   stats: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 2,
   },
-  statItem: {
+  statChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flex: 1,
+    gap: 6,
   },
-  statIconContainer: {
-    position: 'relative',
-    width: 32,
-    height: 32,
+  statLabel: {
+    fontSize: 13,
+    fontWeight: '500',
   },
-  glowBackground: {
-    position: 'absolute',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    top: -4,
-    left: -4,
-    opacity: 0.6,
-  },
-  statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statText: {
-    fontSize: 14,
-    fontWeight: '600',
-    flex: 1,
-  },
-  statDivider: {
+  sep: {
     width: 1,
-    height: 24,
+    height: 16,
   },
-  ctaWrapper: {
-    marginTop: 2,
-  },
-  ctaButton: {
+
+  /* CTA */
+  cta: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: 15,
+    borderRadius: 14,
     gap: 8,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 5,
   },
   ctaText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  borderOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
-    borderWidth: 1,
-    pointerEvents: 'none',
+    letterSpacing: 0.8,
   },
 });

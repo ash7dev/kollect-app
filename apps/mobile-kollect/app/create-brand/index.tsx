@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCreateBrand } from '../../src/features/brands/hooks/useBrandQueries';
 import { BrandFormInput } from '../../src/features/brands/components/BrandFormInput';
 import { BrandLogoUploader } from '../../src/features/brands/components/BrandLogoUploader';
+import { BrandBannerEditor } from '../../src/features/brands/screen/BrandBannerEditor';
 import { PrimaryButton } from '../../src/features/brands/components/common/PrimaryButton';
 import { CreateBrandFormData } from '../../src/features/brands/services/brand.service';
 import { useTheme } from '../../app/context/ThemeContext';
@@ -47,6 +48,7 @@ export const CreateBrandScreen = () => {
   };
 
   const [logo, setLogo] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [banner, setBanner] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ========================================
@@ -174,6 +176,10 @@ export const CreateBrandScreen = () => {
       brandData.logo = logo;
     }
 
+    if (banner) {
+      brandData.coverImage = banner;
+    }
+
     console.log('🔍 [CreateBrand] Données à envoyer:', Object.keys(brandData));
 
     try {
@@ -278,6 +284,16 @@ export const CreateBrandScreen = () => {
             onLogoRemoved={handleLogoRemoved}
             error={errors.logo}
           />
+
+          {/* Banner Selector */}
+          <View style={{ marginTop: 10 }}>
+            <BrandBannerEditor
+              newBanner={banner}
+              shouldRemove={false}
+              onBannerSelected={setBanner}
+              onBannerRemoved={() => setBanner(null)}
+            />
+          </View>
 
           {/* Formulaire avec séparation visuelle */}
           <View style={styles.form}>

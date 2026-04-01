@@ -710,7 +710,6 @@ export default function CollectionScreen() {
       />
 
       <CreateCollectionFAB onPress={() => setModalVisible(true)} />
-
       <CreateCollectionStepperModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
@@ -738,6 +737,9 @@ export default function CollectionScreen() {
           </View>
         </View>
       )}
+
+      {/* Espacement pour la bottom navigation */}
+      <View style={{ height: 100 }} />
     </SafeAreaView>
   );
 }

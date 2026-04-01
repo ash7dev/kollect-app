@@ -42,19 +42,28 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
       activeOpacity={0.8}
     >
       <View style={styles.content}>
-        <View>
-          <Text style={[styles.count, { color: theme.colors.text }]}>
+        <View style={styles.textContainer}>
+          <Text 
+            style={[styles.count, { color: theme.colors.text }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
             {count}
           </Text>
-          <Text style={[styles.title, { color: theme.colors.textSecondary }]}>
+          <Text 
+            style={[styles.title, { color: theme.colors.textSecondary }]}
+            numberOfLines={2}
+          >
             {title}
           </Text>
         </View>
-        <Ionicons 
-          name={iconName} 
-          size={24} 
-          color={theme.colors.textSecondary} 
-        />
+        <View style={styles.iconContainer}>
+          <Ionicons 
+            name={iconName} 
+            size={22} 
+            color={theme.colors.textSecondary} 
+          />
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -62,28 +71,49 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
-    borderWidth: 1,
     flex: 1,
+    minHeight: 115,
+    backgroundColor: 'white',
+    overflow: 'hidden', // Empêcher le débordement
+    // BOOM shadow
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 15,
+    elevation: 4,
   },
   content: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    flex: 1,
+  },
+  textContainer: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    flexShrink: 0, // Ne jamais rétrécir l'icône
   },
   count: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     marginBottom: 4,
+    letterSpacing: -1,
   },
   title: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    opacity: 0.7,
+    letterSpacing: 0.1,
   },
 });

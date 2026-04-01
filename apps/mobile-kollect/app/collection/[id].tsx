@@ -464,7 +464,15 @@ export default function CollectionDetailScreen() {
                 scrollEnabled={false}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <View 
+                  <TouchableOpacity 
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      if (isModifying) {
+                        router.push(`/product/${item.id}/edit`);
+                      } else {
+                        router.push(`/product/${item.id}`);
+                      }
+                    }}
                     style={[
                       styles.productCard, 
                       { 
@@ -561,7 +569,7 @@ export default function CollectionDetailScreen() {
                         <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
                       </TouchableOpacity>
                     )}
-                  </View>
+                  </TouchableOpacity>
                 )}
               />
             )}

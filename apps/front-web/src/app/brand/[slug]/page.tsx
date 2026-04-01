@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { fetchAPI } from '@/lib/api';
+import { getMediaUrl, resolveBrandImage } from '@/lib/brand-utils';
 import { Navbar } from '@/components/landing/Navbar';
 import { BrandShopPage } from '@/components/brands/brand-shop/BrandShopPage';
 
@@ -76,6 +77,18 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     };
   }
 
+  // Fallback d'image pour le SEO (OpenGraph / Twitter)
+  const productsRes = await getBrandProducts(brand.slug, 1, 1, 'recent');
+  const firstProductImg = productsRes?.data?.[0]?.images?.[0] ?? null;
+
+  const representativeImage = resolveBrandImage({
+    coverImage: brand.coverImage,
+    collections: brand.collections,
+    firstProductImage: firstProductImg,
+  });
+
+  const finalImageUrl = representativeImage || '/kollect.png';
+
   return {
     title: `${brand.name} — Marque streetwear sénégalaise | Kollect`,
     description: brand.bio ?? `Découvre ${brand.name}, marque streetwear sénégalaise sur Kollect. Collections exclusives et pièces uniques made in Sénégal.`,
@@ -85,16 +98,11 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       type: 'profile',
       title: `${brand.name} — Marque streetwear sénégalaise`,
       description: brand.bio ?? `Découvre la marque ${brand.name} sur Kollect. Streetwear authentique made in Sénégal.`,
-      images: brand.coverImage ? [{ 
-        url: brand.coverImage, 
+      images: [{ 
+        url: finalImageUrl, 
         width: 1200, 
         height: 630,
         alt: `${brand.name} - Streetwear sénégalais`
-      }] : [{ 
-        url: '/kollect.png', 
-        width: 1200, 
-        height: 630,
-        alt: `${brand.name} - Kollect`
       }],
       locale: 'fr_SN',
       siteName: 'Kollect',
@@ -103,7 +111,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       card: 'summary_large_image',
       title: `${brand.name} — Streetwear sénégalais`,
       description: brand.bio ?? `Découvre ${brand.name} sur Kollect. Marque streetwear made in Sénégal.`,
-      images: brand.coverImage ? [brand.coverImage] : ['/kollect.png'],
+      images: [finalImageUrl],
     },
   };
 }

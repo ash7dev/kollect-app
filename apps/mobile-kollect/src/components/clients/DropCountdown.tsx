@@ -48,7 +48,7 @@ export default function DropCountdown({
   const [hypeCount] = useState(() => Math.floor(Math.random() * 5000) + 1000);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const videoRef = useRef<Video>(null);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
 
   // 🔥 Couleurs dynamiques
   const colors = {
@@ -330,6 +330,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  soundButton: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // Brand

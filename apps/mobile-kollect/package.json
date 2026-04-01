@@ -9,6 +9,8 @@
     "android": "NODE_OPTIONS='--import tsx' expo run:android",
     "ios": "NODE_OPTIONS='--import tsx' expo run:ios",
     "web": "NODE_OPTIONS='--import tsx' expo start --web",
+    "build": "expo export",
+    "build:web": "expo export --platform web",
     "lint": "expo lint"
   },
   "dependencies": {

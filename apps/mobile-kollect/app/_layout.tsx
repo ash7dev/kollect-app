@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // app/_layout.tsx - Version avec SplashScreen personnalisé uniquement
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Animated, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
@@ -20,6 +20,7 @@ WebBrowser.maybeCompleteAuthSession();
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { queryClient } from '../src/config/queryClient';
 import { useAuthStore } from '../src/store/authStore';
+import { CreateBrandScreen } from '../src/screen/CreateBrandScreen';
 import { CreatorPromptScreen } from '../src/screen/CreatorPromptScreen';
 
 // Composants/écrans
@@ -52,9 +53,11 @@ function RootLayoutContent() {
   const { theme, isDark } = useTheme();
 
   // États
-  const [showCustomSplash, setShowCustomSplash] = useState(true);
+  const [splashVisible, setSplashVisible] = useState(true);
+  const [animDone, setAnimDone] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
+  const splashOpacity = useRef(new Animated.Value(1)).current;
 
   const { isAuthenticated, isLoading, user, initAuth, _setAuth, token } = useAuthStore();
 
@@ -199,169 +202,141 @@ function RootLayoutContent() {
   }, [checkOnboarding, initAuth, _setAuth]);
 
   // ============================================
-  // GESTION DU SPLASH PERSONNALISÉ
+  // GESTION DU SPLASH — deux conditions indépendantes
   // ============================================
-  const handleSplashComplete = useCallback(() => {
-    console.log('[Splash] Animation terminée');
-    // Attendre que l'initialisation soit prête
-    if (isReady) {
-      setShowCustomSplash(false);
-      console.log('👋 [Splash] Splash caché');
-    }
-  }, [isReady]);
 
-  // Cacher le splash quand l'init est prête ET l'animation est terminée
+  // Quand les deux conditions sont remplies → fade out puis unmount
   useEffect(() => {
-    if (isReady && !showCustomSplash) {
-      console.log('✅ [Splash] Transition vers l\'app terminée');
+    if (animDone && isReady) {
+      Animated.timing(splashOpacity, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }).start(() => setSplashVisible(false));
     }
-  }, [isReady, showCustomSplash]);
+  }, [animDone, isReady, splashOpacity]);
 
   // ============================================
-  // LOG CHANGEMENTS USER (DEBUG)
+  // RENDU DU CONTENU (sous le splash)
   // ============================================
-  useEffect(() => {
-    console.log('🎯 [Navigation] État actuel:', {
-      isReady,
-      hasSeenOnboarding,
-      isLoading,
-      isAuthenticated,
-      hasToken: !!token,
-      hasUser: !!user,
-      userEmail: user?.email,
-      isCEO: user?.isCEO,
-      hasBrand: !!user?.brand,
-    });
-  }, [isReady, hasSeenOnboarding, isLoading, isAuthenticated, token, user]);
-
-  // ============================================
-  // RENDU CONDITIONNEL
-  // ============================================
-
-  // 1. Splash personnalisé (toujours affiché au lancement jusqu'à la fin de l'animation + init)
-  if (showCustomSplash) {
-    return <SplashScreen onAnimationComplete={handleSplashComplete} />;
-  }
-
-  // 2. Loader si pas prêt (uniquement pendant l'init, pas pendant les opérations auth)
-  if (!isReady || hasSeenOnboarding === null) {
-    return (
-      <View style={{
-        flex: 1,
-        backgroundColor: theme.colors.background,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
-
-  // 3. Onboarding
-  if (hasSeenOnboarding === false) {
-    return (
-      <OnboardingScreen
-        onFinish={async () => {
-          try {
-            await AsyncStorage.setItem('@hasSeenOnboarding', 'true');
-            setHasSeenOnboarding(true);
-            console.log('✅ [Onboarding] Complété');
-          } catch (err) {
-            console.error('[Onboarding] Erreur sauvegarde', err);
-          }
-        }}
-      />
-    );
-  }
-
-  // 4. Non authentifié → Mode client public + auth accessible
-  if (!isAuthenticated || !token) {
-    return (
-      <>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            gestureEnabled: false,
-          }}
-          initialRouteName="(client)"
-        >
-          <Stack.Screen name="(client)" />
-          <Stack.Screen name="(auth)" options={{ animation: 'slide_from_bottom' }} />
-        </Stack>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-      </>
-    );
-  }
-
-  // 5. Authentifié mais user pas chargé (défensif)
-  if (isAuthenticated && !user) {
-    return (
-      <View style={{
-        flex: 1,
-        backgroundColor: theme.colors.background,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
-
-  // 6. CreatorPrompt (sélection de rôle — aussi pour les comptes sans historique, null ou false)
-  if (isAuthenticated && token && user && user.has_seen_creator_prompt != true) {
-    return (
-      <View style={{ flex: 1, backgroundColor: 'white' }}>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-        <CreatorPromptScreen />
-      </View>
-    );
-  }
-
-  // 7. CEO sans marque → CreateBrand (avant d'entrer dans les stacks principales)
-  if (isAuthenticated && token && user && user.isCEO && !user.brand) {
-    try {
-      const { CreateBrandScreen } = require('../src/screen/CreateBrandScreen');
+  const renderContent = () => {
+    // Loader si l'init n'est pas terminée
+    if (!isReady || hasSeenOnboarding === null) {
       return (
-        <View style={{ flex: 1, backgroundColor: 'white' }}>
-          <StatusBar style={isDark ? 'light' : 'dark'} />
-          <CreateBrandScreen />
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       );
-    } catch (err) {
-      console.error('[Layout] CreateBrandScreen import échoué', err);
+    }
+
+    // Onboarding — une seule fois, puis pousse vers login
+    if (hasSeenOnboarding === false) {
+      return (
+        <OnboardingScreen
+          onFinish={async () => {
+            try {
+              await AsyncStorage.setItem('@hasSeenOnboarding', 'true');
+              setHasSeenOnboarding(true);
+              // Le layout re-rend le stack auth, on navigue vers login
+              router.push('/(auth)/login');
+            } catch (err) {
+              console.error('[Onboarding] Erreur sauvegarde', err);
+              setHasSeenOnboarding(true);
+            }
+          }}
+        />
+      );
+    }
+
+    // Non authentifié → client public + auth accessible
+    if (!isAuthenticated || !token) {
       return (
         <>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" />
+          <Stack
+            screenOptions={{ headerShown: false, gestureEnabled: false }}
+            initialRouteName="(client)"
+          >
+            <Stack.Screen name="(client)" />
+            <Stack.Screen name="(auth)" options={{ animation: 'slide_from_bottom' }} />
           </Stack>
           <StatusBar style={isDark ? 'light' : 'dark'} />
         </>
       );
     }
-  }
 
-  // 8. CEO avec marque → Stack CEO (le layout CEO garde son propre guard interne)
-  if (isAuthenticated && token && user?.isCEO && !!user?.brand) {
+    // Authentifié mais user pas encore chargé
+    if (!user) {
+      return (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      );
+    }
+
+    // Choix du rôle — une seule fois après le premier login
+    if (user.has_seen_creator_prompt !== true) {
+      return (
+        <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <CreatorPromptScreen />
+        </View>
+      );
+    }
+
+    // CEO sans marque → création de marque obligatoire avant d'accéder au dashboard
+    if (user.isCEO && !user.brand) {
+      return (
+        <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <CreateBrandScreen />
+        </View>
+      );
+    }
+
+    // CEO avec marque → dashboard CEO
+    if (user.isCEO && !!user.brand) {
+      return (
+        <>
+          <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
+            <Stack.Screen name="(ceo)" />
+          </Stack>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+        </>
+      );
+    }
+
+    // Client (authentifié ou non-CEO)
     return (
       <>
         <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
-          <Stack.Screen name="(ceo)" />
+          <Stack.Screen name="(client)" />
         </Stack>
         <StatusBar style={isDark ? 'light' : 'dark'} />
       </>
     );
-  }
+  };
 
-  // 9. Autres utilisateurs authentifiés → Stack Client
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
-        <Stack.Screen name="(client)" />
-      </Stack>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-    </>
+    <View style={{ flex: 1 }}>
+      {renderContent()}
+
+      {/* Splash overlay — reste au-dessus jusqu'au fade out complet */}
+      {splashVisible && (
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: splashOpacity }]}>
+          <SplashScreen onAnimationComplete={() => setAnimDone(true)} />
+        </Animated.View>
+      )}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
 
 function ThemedApp() {
   return (

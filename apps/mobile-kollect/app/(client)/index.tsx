@@ -17,7 +17,7 @@ import { collectionsApi, type CollectionDto } from '../../src/features/collectio
 import { brandService, type Brand } from '../../src/features/brands/services/brand.service';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import DepthCarousel from '../../src/components/clients/DepthCarousel';
 import CartModal from '../../src/components/clients/CartModal';
 import CheckoutModal from '../../src/components/clients/CheckoutModal';
@@ -28,10 +28,12 @@ import DropCountdown from '../../src/components/clients/DropCountdown';
 import TrendingGrid from '../../src/components/clients/TrendingGrid';
 import BrandSpotlight from '../../src/components/clients/BrandSpotlight';
 import JustLaunchedDrop from '../../src/components/clients/JustLaunchedDrop';
+import StoryBanner from '../../src/components/clients/StoryBanner';
+import LiveDropIndicator from '../../src/components/clients/LiveDropIndicator';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { IsLoading } from '../../src/components/ui/IsLoading';
 import { apiBaseUrl } from '@/config/env';
+import { ClientHomeLoading } from '@/components/ui/ClientHomeLoading';
 
 const API_URL = apiBaseUrl;
 
@@ -184,9 +186,9 @@ export default function ClientHomeScreen() {
   }, [openCart]);
   
   if (loading && !refreshing) {
-    return <IsLoading />;
+    return <ClientHomeLoading />;
   }
-  
+
   if (error) {
     return (
       <View style={[styles.errorContainer, { backgroundColor: theme.colors.background }]}>
@@ -267,6 +269,32 @@ export default function ClientHomeScreen() {
       }
     : null;
 
+  // Live Drop logic: si une 'newCollections' a été lancée il y a moins de 24h
+  const liveCollection = newCollections.find(c => {
+    if (!c.launchDate) return false;
+    const launchTime = new Date(c.launchDate as unknown as string).getTime();
+    const now = new Date().getTime();
+    const hoursSinceLaunch = (now - launchTime) / (1000 * 60 * 60);
+    return hoursSinceLaunch >= 0 && hoursSinceLaunch <= 24;
+  });
+
+  const liveDropData = liveCollection?.brand
+    ? {
+        id: liveCollection.id,
+        collectionName: liveCollection.name,
+        brandName: liveCollection.brand.name,
+        brandLogo: liveCollection.brand.logo
+          ? liveCollection.brand.logo.startsWith('http')
+            ? liveCollection.brand.logo
+            : `${API_URL}${liveCollection.brand.logo.startsWith('/') ? '' : '/'}${liveCollection.brand.logo}`
+          : '',
+        viewers: Math.floor(Math.random() * 500) + 1200, // Simuler des viewers live
+        stockRemaining: 15,
+        totalStock: 50,
+        startTime: new Date(liveCollection.launchDate as unknown as string),
+      }
+    : null;
+
   // Fonction helper pour obtenir l'image d'une collection
   const getCollectionImage = (collection: any) => {
     // 1. Utiliser coverImage si disponible
@@ -286,17 +314,53 @@ export default function ClientHomeScreen() {
     return `https://via.placeholder.com/400x300/1a1a1a/ffffff?text=${encodeURIComponent(collection.name || 'Collection')}`;
   };
 
-  // Déterminer la collection de référence pour le "Créateur en vedette"
-  // On part toujours d'une collection en vedette, pour éviter de mélanger
-  // une marque avec l'image/les produits d'une autre marque.
-  const spotlightCollection = featuredCollections[0];
+  // Génération des stories à partir des produits tendance ou marques (groupées par marque)
+  const stories = Object.values(
+    trendingProducts.slice(0, 15).reduce((acc: any, product) => {
+      const brand = product.brand as any;
+      if (!brand) return acc;
+      
+      const brandId = brand.id;
+      if (!acc[brandId]) {
+        const logo = brand.logo 
+          ? (brand.logo.startsWith('http') ? brand.logo : `${API_URL}${brand.logo.startsWith('/') ? '' : '/'}${brand.logo}`)
+          : 'https://via.placeholder.com/150';
+          
+        acc[brandId] = {
+          id: brandId,
+          brandName: brand.name || 'Créateur',
+          brandSlug: brand.slug,
+          brandLogo: logo,
+          items: [],
+          type: 'drop' as const,
+          viewed: Object.keys(acc).length > 2 // Les 3 premières marques sont "non vues"
+        };
+      }
+      
+      // Limiter à 4 "stories" (produits) par marque
+      if (acc[brandId].items.length < 4) {
+        acc[brandId].items.push({
+          id: product.id,
+          coverImage: product.images?.[0] || `https://via.placeholder.com/400x800/1a1a1a/ffffff?text=Produit`
+        });
+      }
+      
+      return acc;
+    }, {})
+  ) as any[];
 
-  // Trouver la marque correspondante à cette collection parmi les marques vérifiées,
-  // ou à défaut utiliser la marque attachée à la collection.
-  const spotlightSource =
-    spotlightCollection?.brand &&
-    (verifiedBrands.find((b) => b.id === spotlightCollection.brand?.id) ||
-      (spotlightCollection.brand as any));
+  // Déterminer la collection de référence pour le "Créateur en vedette"
+  const spotlightSource = (() => {
+    if (verifiedBrands.length === 0) return null;
+    // Sélectionner aléatoirement une marque parmi les vérifiées (ou changer la logique métier si on veut la mettre en avant manuellement)
+    const seed = new Date().getDay(); // Change tous les jours ou on peut laisser random pur
+    return verifiedBrands[seed % verifiedBrands.length];
+  })();
+
+  const spotlightCollection = (() => {
+    if (!spotlightSource) return featuredCollections[0];
+    return featuredCollections.find(c => c.brand?.id === spotlightSource.id) || featuredCollections[0];
+  })();
 
   const totalProductsForBrand = spotlightSource
     ? featuredCollections
@@ -304,14 +368,16 @@ export default function ClientHomeScreen() {
         .reduce((sum, c) => sum + (c._count?.products || 0), 0)
     : 0;
 
+  const spotlightTags = Array.isArray((spotlightSource as any)?.tags) && (spotlightSource as any).tags.length > 0 
+    ? (spotlightSource as any).tags 
+    : ['sénégal', 'créateur', 'streetwear'];
+
   const spotlightBrand = spotlightSource && spotlightCollection
     ? {
         id: spotlightSource.id,
         name: spotlightSource.name,
         slug: spotlightSource.slug,
         logo: spotlightSource.logo || '',
-        // L'image de couverture vient toujours de la collection en vedette,
-        // pour rester cohérent avec ce qui est affiché dans le carrousel.
         coverImage: getCollectionImage(spotlightCollection),
         description:
           (spotlightSource as any).description ||
@@ -326,7 +392,7 @@ export default function ClientHomeScreen() {
             totalProductsForBrand ??
             0,
         },
-        tags: ['sénégal', 'créateur', 'local'],
+        tags: spotlightTags,
         verified: spotlightSource.isVerified ?? false,
         isFollowing: false,
       }
@@ -386,6 +452,18 @@ export default function ClientHomeScreen() {
         }
       >
         <View style={styles.content}>
+          
+          {/* Stories Banner */}
+          {stories.length > 0 && (
+            <StoryBanner 
+              stories={stories} 
+              onCtaPress={(story: any, item: any) => {
+                // Navigation vers le produit
+                router.push(`/clientProductid/${item.id}`)
+              }} 
+            />
+          )}
+
           {/* Marques vérifiées - Design professionnel */}
           {verifiedBrands.length > 0 && (
             <View style={styles.brandsSection}>
@@ -438,7 +516,7 @@ export default function ClientHomeScreen() {
                           <Ionicons 
                             name="checkmark-circle" 
                             size={12} 
-                            color={theme.colors.primary} 
+                            color="#34C759" 
                           />
                           <Text style={[styles.verifiedText, { color: theme.colors.textSecondary }]}>
                             Vérifié
@@ -452,6 +530,14 @@ export default function ClientHomeScreen() {
             </View>
           )}
 
+          {/* Live Drop Indicator (montré seulement s'il y a un drop Live récent) */}
+          {liveDropData && (
+            <LiveDropIndicator 
+              drop={liveDropData} 
+              onPress={() => router.push(`/clientCollectionid/${liveDropData.id}`)} 
+            />
+          )}
+
           {/* Drop Countdown */}
           {dropData && (
             <View style={styles.section}>
@@ -462,8 +548,8 @@ export default function ClientHomeScreen() {
                     Drop à venir
                   </Text>
                 </View>
-                <TouchableOpacity activeOpacity={0.7}>
-                  <Text style={[styles.sectionLink, { color: theme.colors.primary }]}>Voir tout</Text>
+                <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/orders')}>
+                  <Text style={[styles.sectionLink, { color: theme.colors.accent }]}>Voir tout</Text>
                 </TouchableOpacity>
               </View>
               <DropCountdown 
@@ -475,23 +561,27 @@ export default function ClientHomeScreen() {
             </View>
           )}
 
-          {/* Nouveau drop disponible */}
-          {newCollections.length > 0 && (newCollections[0].coverImage || (newCollections[0] as any).teaserVideo) && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleContainer}>
-                  <View style={[styles.sectionIndicator, { backgroundColor: '#10B981' }]} />
-                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                    Nouveau drop disponible
-                  </Text>
-                </View>
+          {/* Nouveaux drops disponibles */}
+          {newCollections.slice(0, 3).map((collection, index) => (
+            (collection.coverImage || (collection as any).teaserVideo) ? (
+              <View key={collection.id} style={[styles.section, index > 0 && { marginTop: 16 }]}>
+                {index === 0 && (
+                  <View style={styles.sectionHeader}>
+                    <View style={styles.sectionTitleContainer}>
+                      <View style={[styles.sectionIndicator, { backgroundColor: '#10B981' }]} />
+                      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                        Nouveaux drops récents
+                      </Text>
+                    </View>
+                  </View>
+                )}
+                <JustLaunchedDrop
+                  collection={collection}
+                  onPress={(id) => router.push(`/clientCollectionid/${id}`)}
+                />
               </View>
-              <JustLaunchedDrop
-                collection={newCollections[0]}
-                onPress={(id) => router.push(`/clientCollectionid/${id}`)}
-              />
-            </View>
-          )}
+            ) : null
+          ))}
 
           {/* Collections en vedette */}
           {featuredCollections.length > 0 && (
@@ -503,8 +593,8 @@ export default function ClientHomeScreen() {
                     Collections en vedette
                   </Text>
                 </View>
-                <TouchableOpacity activeOpacity={0.7}>
-                  <Text style={[styles.sectionLink, { color: theme.colors.primary }]}>Explorer</Text>
+                <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(client)/search')}>
+                  <Text style={[styles.sectionLink, { color: theme.colors.accent }]}>Explorer</Text>
                 </TouchableOpacity>
               </View>
               <DepthCarousel 
@@ -538,8 +628,9 @@ export default function ClientHomeScreen() {
               </View>
               <BrandSpotlight 
                 brand={spotlightBrand}
+                showHomeButton={true}
+                onHome={() => router.push(`/ClientbrandId/${spotlightBrand.slug}`)}
                 onFollow={() => console.log('Follow brand')}
-                onVisit={() => router.push(`/ClientbrandId/${spotlightBrand.slug}`)}
               />
             </View>
           )}
@@ -554,8 +645,8 @@ export default function ClientHomeScreen() {
                     Tendance du moment
                   </Text>
                 </View>
-                <TouchableOpacity activeOpacity={0.7}>
-                  <Text style={[styles.sectionLink, { color: theme.colors.primary }]}>Voir tout</Text>
+                <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/(client)/search')}>
+                  <Text style={[styles.sectionLink, { color: theme.colors.accent }]}>Voir tout</Text>
                 </TouchableOpacity>
               </View>
               <TrendingGrid 
@@ -588,8 +679,8 @@ export default function ClientHomeScreen() {
             </View>
           )}
 
-          {/* Spacer pour le bas */}
-          <View style={{ height: 40 }} />
+          {/* Espacement pour la bottom navigation */}
+          <View style={styles.bottomNavSpacer} />
         </View>
       </ScrollView>
 
@@ -811,6 +902,11 @@ const styles = StyleSheet.create({
   // Sections
   section: {
     marginBottom: 32,
+  },
+  
+  // Espacement pour bottom navigation
+  bottomNavSpacer: {
+    height: 120,
   },
   sectionHeader: {
     flexDirection: 'row',

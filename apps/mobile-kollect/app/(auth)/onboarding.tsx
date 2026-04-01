@@ -13,7 +13,6 @@ import {
   ViewToken
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import slide1 from '../../assets/images/slide1.png';
@@ -49,8 +48,7 @@ interface OnboardingScreenProps {
 
 const OnboardingScreen = ({ onFinish }: OnboardingScreenProps) => {
   const { theme, isDark } = useTheme();
-  const router = useRouter();
-  const [currentIndex, setCurrentIndex] = useState(0);
+const [currentIndex, setCurrentIndex] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList>(null);
@@ -76,28 +74,18 @@ const OnboardingScreen = ({ onFinish }: OnboardingScreenProps) => {
 
   const handleNavigation = useCallback(async () => {
     if (isNavigating) return;
-    
     try {
       setIsNavigating(true);
-      console.log('✅ [Onboarding] Terminé, sauvegarde...');
       await AsyncStorage.setItem('@hasSeenOnboarding', 'true');
-      console.log('✅ [Onboarding] Sauvegardé');
-      
-      // Call the parent's onFinish first
       await onFinish();
-      
-      // Then navigate to login
-      console.log('🚀 [Navigation] Push vers /(auth)/login');
-      router.push('/(auth)/login');
+      // Le layout principal gère la navigation selon l'état auth
     } catch (error) {
       console.error('❌ [Onboarding] Erreur sauvegarde:', error);
-      // Still try to navigate even if there was an error
       await onFinish();
-      router.push('/(auth)/login');
     } finally {
       setIsNavigating(false);
     }
-  }, [isNavigating, onFinish, router]);
+  }, [isNavigating, onFinish]);
 
   const handleSkip = async () => {
     console.log('⏭️ [Onboarding] Skip cliqué');

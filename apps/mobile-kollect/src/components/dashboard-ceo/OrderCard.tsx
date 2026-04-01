@@ -7,7 +7,7 @@ import { CheckCommandeModal } from './check-commande-modal';
 import { useTheme } from '../../../app/context/ThemeContext';
 
 // Types
-interface Order {
+export interface Order {
   id: string;
   customer: string;
   amount: number;
@@ -18,13 +18,13 @@ interface Order {
   address: string;
 }
 
-interface OrderCardProps {
+export interface OrderCardProps {
   order: Order;
   onPress: (order: Order) => void;
   index: number;
 }
 
-const OrderCard = ({ order, onPress, index }: OrderCardProps) => {
+export const OrderCard = ({ order, onPress, index }: OrderCardProps) => {
   const { theme, isDark } = useTheme();
   
   console.log(`[OrderCard] Rendu de la commande ${order.id}`, {
@@ -282,4 +282,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default OrderCard;
+// suppression de l'export default pour cohérence avec les autres composants

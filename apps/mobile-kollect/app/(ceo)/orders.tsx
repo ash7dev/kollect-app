@@ -410,6 +410,9 @@ export default function OrdersScreen() {
           />
         }
       />
+
+      {/* Espacement pour la bottom navigation */}
+      <View style={{ height: 100 }} />
     </SafeAreaView>
   );
 }

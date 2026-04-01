@@ -1,7 +1,8 @@
 import React, { useRef } from 'react';
-import { TouchableOpacity, Text, StyleSheet, Animated } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, Animated, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../app/context/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface PrimaryActionButtonProps {
   label: string;
@@ -21,86 +22,100 @@ export const PrimaryActionButton: React.FC<PrimaryActionButtonProps> = ({
 
   const handlePressIn = () => {
     Animated.spring(scaleValue, {
-      toValue: 0.98,
+      toValue: 0.96,
       useNativeDriver: true,
+      friction: 8,
+      tension: 100,
     }).start();
   };
 
   const handlePressOut = () => {
     Animated.spring(scaleValue, {
       toValue: 1,
-      friction: 3,
+      friction: 4,
       tension: 40,
       useNativeDriver: true,
     }).start();
   };
 
-  const buttonStyle = {
-    transform: [{ scale: scaleValue }],
-    opacity: disabled ? 0.6 : 1,
-    backgroundColor: disabled ? theme.colors.textDisabled : theme.colors.accent,
-    ...styles.button,
-  };
-
   return (
-    <Animated.View style={[buttonStyle, styles.shadow]}>
+    <Animated.View style={[
+      styles.container,
+      { transform: [{ scale: scaleValue }], opacity: disabled ? 0.6 : 1 }
+    ]}>
       <TouchableOpacity 
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        activeOpacity={0.9}
+        activeOpacity={1}
         disabled={disabled}
         style={styles.touchable}
       >
-        <Ionicons 
-          name={iconName} 
-          size={20} 
-          color="#FFFFFF" 
-          style={styles.icon}
-        />
-        <Text style={[styles.text, { color: '#FFFFFF' }]}>
-          {label}
-        </Text>
+        <LinearGradient
+          colors={[theme.colors.accent, theme.colors.accent]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        >
+          <Ionicons 
+            name={iconName} 
+            size={20} 
+            color="#FFFFFF" 
+            style={styles.icon}
+          />
+          <Text style={[styles.text, { color: '#FFFFFF' }]} numberOfLines={1}>
+            {label}
+          </Text>
+        </LinearGradient>
+        
+        {/* Subtle glow/shadow effect */}
+        {!disabled && (
+          <View style={[styles.glow, { backgroundColor: theme.colors.accent, opacity: 0.2 }]} />
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
-  touchable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0,
-    flex: 1,
+  container: {
+    borderRadius: 14,
+    overflow: 'visible', // To show glow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  button: {
+  touchable: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    minHeight: 52,
+  },
+  gradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 12,
-    minHeight: 48,
+    gap: 10,
+    borderRadius: 14,
   },
   icon: {
-    marginRight: 4,
+    // No margin needed with gap
   },
   text: {
     fontSize: 15,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
-  shadow: {
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
+  glow: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    right: 4,
+    bottom: -4,
+    borderRadius: 14,
+    zIndex: -1,
+  }
 });

@@ -17,20 +17,63 @@ import type { CollectionStatus } from '@/types/drops';
 const PRESET_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'UNIQUE'];
 
 const COLORS: { value: string; name: string }[] = [
-  { value: '#000000', name: 'Noir' },
-  { value: '#FFFFFF', name: 'Blanc' },
-  { value: '#E5E5E5', name: 'Gris clair' },
-  { value: '#888888', name: 'Gris' },
-  { value: '#FF3B30', name: 'Rouge' },
-  { value: '#FF9500', name: 'Orange' },
-  { value: '#FFCC00', name: 'Jaune' },
-  { value: '#34C759', name: 'Vert' },
-  { value: '#007AFF', name: 'Bleu' },
-  { value: '#5856D6', name: 'Violet' },
-  { value: '#FF2D55', name: 'Rose' },
-  { value: '#A2845E', name: 'Marron' },
-  { value: '#1C3D5A', name: 'Marine' },
-  { value: '#F4E9D8', name: 'Crème' },
+  // Nuances de noir / blanc / gris
+  { name: 'Noir', value: '#000000' },
+  { name: 'Noir charbon', value: '#1c1c1c' },
+  { name: 'Gris très foncé', value: '#2f2f2f' },
+  { name: 'Gris', value: '#808080' },
+  { name: 'Gris clair', value: '#c2c2c2' },
+  { name: 'Gris perle', value: '#d9d9d9' },
+  { name: 'Blanc cassé', value: '#f5f5f5' },
+  { name: 'Blanc', value: '#ffffff' },
+
+  // Rouges / roses
+  { name: 'Rouge', value: '#ff0000' },
+  { name: 'Rouge foncé', value: '#8b0000' },
+  { name: 'Bordeaux', value: '#800020' },
+  { name: 'Rouge corail', value: '#ff4040' },
+  { name: 'Rose', value: '#ff69b4' },
+  { name: 'Vieux rose', value: '#c08081' },
+
+  // Oranges / jaunes
+  { name: 'Orange', value: '#ff8c00' },
+  { name: 'Orange brûlé', value: '#cc5500' },
+  { name: 'Saumon', value: '#fa8072' },
+  { name: 'Jaune', value: '#ffff00' },
+  { name: 'Jaune moutarde', value: '#ffdb58' },
+  { name: 'Jaune pâle', value: '#fffacd' },
+
+  // Verts
+  { name: 'Vert', value: '#008000' },
+  { name: 'Vert foncé', value: '#006400' },
+  { name: 'Vert clair', value: '#90ee90' },
+  { name: 'Vert menthe', value: '#98ff98' },
+  { name: 'Kaki', value: '#78866b' },
+  { name: 'Olive', value: '#808000' },
+
+  // Bleus
+  { name: 'Bleu', value: '#0000ff' },
+  { name: 'Bleu ciel', value: '#87ceeb' },
+  { name: 'Bleu clair', value: '#add8e6' },
+  { name: 'Bleu marine', value: '#000080' },
+  { name: 'Bleu pétrole', value: '#004f59' },
+  { name: 'Turquoise', value: '#40e0d0' },
+
+  // Violets
+  { name: 'Violet', value: '#800080' },
+  { name: 'Lavande', value: '#e6e6fa' },
+  { name: 'Prune', value: '#6a0dad' },
+
+  // Marrons / beiges
+  { name: 'Marron', value: '#8b4513' },
+  { name: 'Chocolat', value: '#5c3317' },
+  { name: 'Beige', value: '#f5f5dc' },
+  { name: 'Sable', value: '#f4a460' },
+
+  // Métallisés
+  { name: 'Doré', value: '#d4af37' },
+  { name: 'Or rose', value: '#b76e79' },
+  { name: 'Argent', value: '#c0c0c0' },
 ];
 
 const PRODUCT_TYPES = [
@@ -211,37 +254,49 @@ function ColorSwatches({ selected, onChange }: { selected: string[]; onChange: (
 
   return (
     <div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {COLORS.map(c => {
-          const sel = selected.includes(c.value);
+          const isSelected = selected.includes(c.value);
+          // ombre dynamique
+          const shadowColor = isSelected ? `${c.value}66` : 'rgba(0,0,0,0.1)';
           return (
             <div
               key={c.value}
               title={c.name}
               onClick={() => toggle(c.value)}
+              className="ep-color-swatch"
               style={{
-                width: 32, height: 32, borderRadius: 999,
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
                 background: c.value,
-                border: sel ? '2.5px solid #E63329' : c.value === '#FFFFFF' ? '2px solid rgba(0,0,0,0.15)' : '2px solid transparent',
-                boxShadow: sel ? '0 0 0 3px rgba(230,51,41,0.18)' : '0 1px 3px rgba(0,0,0,0.12)',
                 cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'border-color 0.15s, box-shadow 0.15s, transform 0.12s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                border: isSelected ? '3px solid #E63329' : '2px solid transparent',
+                boxShadow: isSelected 
+                  ? `0 6px 16px ${shadowColor}` 
+                  : '0 2px 4px rgba(0,0,0,0.08)',
+                transform: isSelected ? 'scale(1.1)' : 'scale(1)',
                 flexShrink: 0,
-                transform: sel ? 'scale(1.1)' : 'scale(1)',
+                ...(c.value === '#FFFFFF' && !isSelected ? { border: '1.5px solid #E5E7EB' } : {})
               }}
-              onMouseEnter={e => { if (!sel) (e.currentTarget as HTMLElement).style.transform = 'scale(1.08)'; }}
-              onMouseLeave={e => { if (!sel) (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
             >
-              {sel && (
+              {isSelected && (
                 <div style={{
-                  width: '100%', height: '100%', borderRadius: '50%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'rgba(0,0,0,0.2)',
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(0,0,0,0.25)',
+                  borderRadius: '50%',
+                  color: 'white'
                 }}>
-                  <Ic d={ICONS.check} size={14}
-                    stroke={c.value === '#FFFFFF' || c.value === '#FFCC00' || c.value === '#F4E9D8' ? '#333' : '#fff'}
-                    sw={2.5} />
+                  <Ic d={ICONS.check} size={18} stroke="#fff" sw={3} />
                 </div>
               )}
             </div>
@@ -249,16 +304,22 @@ function ColorSwatches({ selected, onChange }: { selected: string[]; onChange: (
         })}
       </div>
       {selected.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {selected.map(hex => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16, paddingLeft: 4 }}>
+          <div style={{ display: 'flex', gap: -4 }}>
+            {selected.map((hex, i) => (
               <div key={hex} style={{
-                width: 14, height: 14, borderRadius: 999, background: hex,
-                border: hex === '#FFFFFF' ? '1px solid rgba(0,0,0,0.2)' : '1px solid rgba(0,0,0,0.08)',
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                background: hex,
+                border: '2px solid #fff',
+                marginLeft: i === 0 ? 0 : -6,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                zIndex: selected.length - i
               }} />
             ))}
           </div>
-          <p style={{ fontSize: 11.5, color: '#6B7280', margin: 0, fontWeight: 500 }}>
+          <p style={{ fontSize: 12, color: '#6B7280', margin: 0, fontWeight: 600 }}>
             {selected.length} couleur{selected.length > 1 ? 's' : ''} sélectionnée{selected.length > 1 ? 's' : ''}
           </p>
         </div>
@@ -648,6 +709,10 @@ export function EditProductPage({ productId }: { productId: string }) {
           background: rgba(99,102,241,0.85);
           font-size: 9px; font-weight: 800; letter-spacing: 1px;
           text-transform: uppercase; color: #fff;
+        }
+
+        .ep-color-swatch:hover {
+          transform: translateY(-2px) scale(1.05) !important;
         }
 
         .ep-bottombar {

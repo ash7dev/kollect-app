@@ -11,6 +11,7 @@ import { env } from '@/config/env';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
 import type { BrandProductCardItem } from '@/components/brands/brand-shop/BrandProductCard';
 import { BrandTrustBadges } from '@/components/brands/brand-shop/BrandTrustBadges';
+import { getMediaUrl, resolveBrandImage } from '@/lib/brand-utils';
 import { BrandReviews } from '@/components/brands/brand-shop/BrandReviews';
 import { BrandBio } from '@/components/brands/brand-shop/BrandBio';
 import { BrandCollectionCards } from '@/components/brands/brand-shop/BrandCollectionCards';
@@ -66,24 +67,10 @@ type BrandShopPageProps = {
   initialMeta: PaginatedMeta;
 };
 
-function mediaUrl(url?: string | null): string | null {
-  if (!url || typeof url !== 'string') return null;
-  if (url.startsWith('http')) return url;
-  return `${env.apiBaseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
-}
+
 
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-}
-
-function resolveBannerUrl(brand: BrandDetail, products: BrandProductCardItem[]): string | null {
-  const cover = mediaUrl(brand.coverImage);
-  if (cover) return cover;
-  const colCover = brand.collections?.[0]?.coverImage ? mediaUrl(brand.collections[0].coverImage) : null;
-  if (colCover) return colCover;
-  const firstImg = products?.[0]?.images?.[0] ?? null;
-  if (firstImg) return mediaUrl(firstImg);
-  return null;
 }
 
 function groupProductsByCollection(
@@ -122,7 +109,11 @@ export function BrandShopPage({ brand, initialProducts, initialMeta }: BrandShop
   const [loading, setLoading] = useState(false);
 
   const accent = useMemo(() => brandAccentCss(brand.id), [brand.id]);
-  const bannerUrl = useMemo(() => resolveBannerUrl(brand, initialProducts), [brand, initialProducts]);
+  const bannerUrl = useMemo(() => resolveBrandImage({
+    coverImage: brand.coverImage,
+    collections: brand.collections,
+    firstProductImage: initialProducts?.[0]?.images?.[0]
+  }), [brand, initialProducts]);
   const logoUrl = useMemo(() => brandMediaUrl(brand.logo), [brand.logo]);
   const collections = useMemo(() => brand.collections ?? [], [brand.collections]);
   const groupedProducts = useMemo(
