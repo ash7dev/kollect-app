@@ -340,6 +340,65 @@ export function ProductDetailPage({ product }: { product: PublicProduct }) {
               <span style={{ fontSize: 13, fontWeight: 800, color: '#16a34a', letterSpacing: '0.5px' }}>FCFA</span>
             </div>
 
+            {/* Product Type and Gender */}
+            <div style={{ marginBottom: 22, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+              {product.productType && (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  backgroundColor: 'rgba(0,0,0,0.05)',
+                  border: '1px solid rgba(0,0,0,0.1)',
+                }}>
+                  {/* Icône type */}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'rgba(0,0,0,0.7)' }}>
+                    <path d="M20.38 8.57l-1.23 1.85a8 8 0 0 1-.86 1.09l-.58.73a4.5 4.5 0 0 0-.7 1.3l-.36 1.01a2 2 0 0 1-1.7 1.21H10.05a2 2 0 0 1-1.7-1.21l-.36-1.01a4.5 4.5 0 0 0-.7-1.3l-.58-.73a8 8 0 0 1-.86-1.09L4.62 8.57a2 2 0 0 1 .05-2.35l.8-1.2a8 8 0 0 1 1.05-1.22l.58-.73a4.5 4.5 0 0 0 .7-1.3l.36-1.01A2 2 0 0 1 9.86 1h4.28a2 2 0 0 1 1.7 1.21l.36 1.01a4.5 4.5 0 0 0 .7 1.3l.58.73a8 8 0 0 1 1.05 1.22l.8 1.2a2 2 0 0 1 .05 2.35z"/>
+                    <line x1="12" y1="4" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <span style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: 'rgba(0,0,0,0.8)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.8px',
+                  }}>
+                    {product.productType}
+                  </span>
+                </div>
+              )}
+              {product.gender && (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  backgroundColor: 'rgba(0,0,0,0.05)',
+                  border: '1px solid rgba(0,0,0,0.1)',
+                }}>
+                  {/* Icône genre */}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'rgba(0,0,0,0.7)' }}>
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                    <line x1="9" y1="9" x2="9.01" y2="9"/>
+                    <line x1="15" y1="9" x2="15.01" y2="9"/>
+                  </svg>
+                  <span style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: 'rgba(0,0,0,0.8)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.8px',
+                  }}>
+                    {product.gender}
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* Colors */}
             {product.colors.length > 0 && (
               <div style={{ marginBottom: 24 }}>

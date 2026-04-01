@@ -855,7 +855,8 @@ export function Hero() {
           .stat-cell:nth-child(2) { border-right: none !important; }
           .stat-cell:nth-child(1), .stat-cell:nth-child(2) { border-bottom: 1px solid rgba(255,255,255,0.07) !important; }
         }
-        @media (max-width: 600px) {
+        @media (max-width: 640px) {
+          .hero-inner { padding: 72px 16px 48px !important; gap: 32px !important; }
           .hero-right { display: none !important; }
           .hero-stats { padding: 0 16px 56px !important; }
         }

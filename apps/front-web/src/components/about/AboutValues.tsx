@@ -55,7 +55,7 @@ export function AboutValues() {
   }, []);
 
   return (
-    <section ref={ref} style={{ backgroundColor: '#0a0a0a', padding: '100px 40px' }}>
+    <section ref={ref} style={{ backgroundColor: '#0a0a0a', padding: '60px 20px' }}>
       <style>{`
         @keyframes valUp {
           from { opacity: 0; transform: translateY(24px); }
@@ -64,12 +64,24 @@ export function AboutValues() {
         .val-in { animation: valUp 0.6s ease-out both; }
         .about-val-card:hover { border-color: rgba(255,59,48,0.4) !important; transform: translateY(-4px); }
         .about-val-card { transition: border-color 200ms ease, transform 200ms ease; }
+        @media (max-width: 768px) {
+          section { padding: 40px 16px !important; }
+          .values-header { margin-bottom: 32px !important; }
+          .values-title { font-size: clamp(1.2rem, 5vw, 2.5rem) !important; }
+          .values-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+          .about-val-card { padding: 20px 16px !important; border-radius: 16px !important; }
+          .values-icon { width: 40px !important; height: 40px !important; border-radius: 8px !important; margin-bottom: 16px !important; }
+          .values-icon svg { width: 20px !important; height: 20px !important; }
+          .values-title { font-size: 14px !important; }
+          .values-body { font-size: 12px !important; }
+        }
       `}</style>
 
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div
           className={visible ? 'val-in' : ''}
-          style={{ opacity: visible ? 1 : 0, textAlign: 'center', marginBottom: 64 }}
+          style={{ opacity: visible ? 1 : 0, textAlign: 'center', marginBottom: 40 }}
+          className="values-header"
         >
           <p style={{
             fontSize: 11, fontWeight: 900, letterSpacing: '3px',
@@ -78,23 +90,25 @@ export function AboutValues() {
             Ce qui nous guide
           </p>
           <h2 style={{
-            fontSize: 'clamp(2rem, 4vw, 3.5rem)',
+            fontSize: 'clamp(1.5rem, 4vw, 3rem)',
             fontWeight: 900,
             letterSpacing: '-2.5px',
             color: '#fff',
             margin: 0,
             textTransform: 'uppercase',
             lineHeight: 1,
-          }}>
+          }}
+          className="values-title">
             Nos valeurs
           </h2>
         </div>
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
           gap: 16,
-        }}>
+        }}
+        className="values-grid">
           {VALUES.map((v, i) => (
             <div
               key={i}
@@ -105,21 +119,22 @@ export function AboutValues() {
                 backgroundColor: 'rgba(255,255,255,0.04)',
                 border: '1.5px solid rgba(255,255,255,0.08)',
                 borderRadius: 24,
-                padding: '36px 32px',
+                padding: '28px 24px',
               }}
             >
               <div style={{
-                width: 56, height: 56,
-                borderRadius: 16,
+                width: 48, height: 48,
+                borderRadius: 12,
                 backgroundColor: 'rgba(255,59,48,0.12)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#FF3B30',
-                marginBottom: 24,
-              }}>
+                marginBottom: 20,
+              }}
+              className="values-icon">
                 {v.icon}
               </div>
               <h3 style={{
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: 900,
                 letterSpacing: '-0.5px',
                 color: '#fff',
@@ -129,7 +144,7 @@ export function AboutValues() {
                 {v.title}
               </h3>
               <p style={{
-                fontSize: 14,
+                fontSize: 13,
                 color: 'rgba(255,255,255,0.45)',
                 lineHeight: 1.7,
                 margin: 0,

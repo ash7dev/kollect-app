@@ -72,7 +72,9 @@ export function DashboardShell() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const {
     period, setPeriod, isLoading: dashboardLoading, hasError,
     brand, stats, salesData, orderStats, recentOrders, topProducts,
@@ -223,6 +225,17 @@ export function DashboardShell() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [notificationsOpen]);
+
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [profileMenuOpen]);
 
   // ── Early returns (après tous les hooks) ───────────────────────────────────
   if (checking || isLoading) return <FullPageState message="Chargement du dashboard…" />;
@@ -703,16 +716,137 @@ export function DashboardShell() {
                 Créer un drop
               </button>
 
-              {/* Avatar + logout */}
-              <button
-                type="button"
-                className="dash-avatar"
-                onClick={signOut}
-                title="Déconnexion"
-                aria-label="Déconnexion"
-              >
-                {(user.firstName?.[0] ?? user.email?.[0] ?? 'C').toUpperCase()}
-              </button>
+              {/* Profile menu */}
+              <div ref={profileMenuRef} style={{ position: 'relative' }}>
+                <button 
+                  type="button" 
+                  className="dash-avatar" 
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  aria-label="Menu profil" 
+                  title="Menu profil"
+                >
+                  {(user.firstName?.[0] ?? user.email?.[0] ?? 'C').toUpperCase()}
+                </button>
+
+                {profileMenuOpen && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    minWidth: '200px',
+                    backgroundColor: '#141414',
+                    borderRadius: '12px',
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    overflow: 'hidden',
+                    zIndex: 1000,
+                  }}>
+                    {/* Header du menu */}
+                    <div style={{
+                      padding: '12px 16px',
+                      borderBottom: '1px solid rgba(255,255,255,0.08)',
+                      color: 'rgba(255,255,255,0.9)',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                    }}>
+                      {user.firstName ? `${user.firstName} ${user.lastName || ''}` : user.email}
+                    </div>
+
+                    {/* Boutons du menu */}
+                    <div style={{ padding: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          router.push('/dashboard/settings');
+                          setProfileMenuOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '12px 16px',
+                          border: 'none',
+                          background: 'transparent',
+                          color: 'rgba(255,255,255,0.8)',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'background-color 0.15s, color 0.15s',
+                          fontFamily: 'inherit',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                          e.currentTarget.style.color = '#fff';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = 'rgba(255,255,255,0.8)';
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="3"/>
+                          <path d="M12 1v6m0 6v6m4.22-13.22 3.58-3.58M2.12 8.62l4.24 4.24M17.76 17.76l4.24-4.24"/>
+                          <path d="M20.88 8.62a8 8 0 1 1-7.76 7.76"/>
+                        </svg>
+                        Paramètres
+                      </button>
+
+                      <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.08)', margin: '0 4px' }} />
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await signOut();
+                            setProfileMenuOpen(false);
+                            // Nettoyer le localStorage et sessionStorage
+                            if (typeof window !== 'undefined') {
+                              localStorage.clear();
+                              sessionStorage.clear();
+                            }
+                            // Rediriger vers l'accueil
+                            router.push('/');
+                          } catch (error) {
+                            console.error('Erreur lors de la déconnexion:', error);
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '12px 16px',
+                          border: 'none',
+                          background: 'transparent',
+                          color: 'rgba(255,255,255,0.8)',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'background-color 0.15s, color 0.15s',
+                          fontFamily: 'inherit',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.15)';
+                          e.currentTarget.style.color = '#fff';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = 'rgba(255,255,255,0.8)';
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                          <polyline points="9,17 15,13 9,9"/>
+                          <path d="M23 21v-2a2 2 0 0 0-2-2h-4"/>
+                          <polyline points="17,17 19,13 17,9"/>
+                        </svg>
+                        Déconnexion
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
             </div>
           </header>

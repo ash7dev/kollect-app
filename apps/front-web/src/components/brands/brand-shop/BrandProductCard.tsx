@@ -102,6 +102,83 @@ function ConflictDialog({ conflictingBrands, onConfirm, onCancel }: ConflictDial
   );
 }
 
+// ── Teaser Modal ─────────────────────────────────────────────────────────────
+
+export function TeaserModal({ productName, accent, onCancel }: { productName: string, accent: string, onCancel: () => void }) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Produit bientôt disponible"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 3000,
+        backgroundColor: 'rgba(0,0,0,0.65)',
+        backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+      }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div style={{
+        backgroundColor: '#0a0a0a', 
+        borderRadius: 28,
+        padding: '40px 32px 32px', maxWidth: 420, width: '100%',
+        boxShadow: '0 32px 80px rgba(0,0,0,0.5)',
+        fontFamily: FONT_FAMILY_INTER,
+        color: '#fff',
+        textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+        animation: 'cardFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+      }}>
+        {/* Lueur d'accentuation */}
+        <div style={{
+           position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%',
+           background: `radial-gradient(circle at 50% 0%, ${accent}33 0%, transparent 50%)`,
+           pointerEvents: 'none', zIndex: 0
+        }} />
+
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px',
+            color: accent
+          }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+              <path d="M12 14v4M10 16h4"/>
+            </svg>
+          </div>
+          <h3 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 12px', letterSpacing: '-0.5px' }}>
+            Bientôt disponible
+          </h3>
+          <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.65)', lineHeight: 1.6, margin: '0 0 32px' }}>
+            <strong style={{ color: '#fff' }}>{productName}</strong> fait partie d'un drop exclusif à venir.<br/>
+            La page détaillée sera accessible le jour J.
+          </p>
+          <button type="button" onClick={onCancel} style={{
+            width: '100%', padding: '16px', borderRadius: 16, border: 'none',
+            backgroundColor: '#fff', color: '#000', fontSize: 15, fontWeight: 800, cursor: 'pointer',
+            transition: 'transform 0.1s ease, opacity 0.2s ease',
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.opacity = '1'; }}
+          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            Je reste à l'affût
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Card ──────────────────────────────────────────────────────────────────────
 
 export function BrandProductCard({ brandSlug, brandName, product, accent, isTeaser }: BrandProductCardProps) {
@@ -109,6 +186,7 @@ export function BrandProductCard({ brandSlug, brandName, product, accent, isTeas
   const [hovered, setHovered] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [conflictingBrands, setConflictingBrands] = useState<string[] | null>(null);
+  const [showTeaserModal, setShowTeaserModal] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Observer pour détecter quand la card est visible
@@ -181,26 +259,35 @@ export function BrandProductCard({ brandSlug, brandName, product, accent, isTeas
       {/* Animations CSS */}
       <style>{`
         @keyframes cardFadeIn {
-          from { 
-            opacity: 0; 
-            transform: translateY(25px) scale(0.97); 
+          from {
+            opacity: 0;
+            transform: translateY(25px) scale(0.97);
           }
-          to { 
-            opacity: 1; 
-            transform: translateY(0) scale(1); 
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
           }
         }
-        
+
         .product-card {
           opacity: 0;
           animation: cardFadeIn 0.6s ease-out forwards;
         }
-        
+
         @media (prefers-reduced-motion: reduce) {
           .product-card {
             opacity: 1;
             transform: none;
             animation: none;
+          }
+        }
+        @media (max-width: 640px) {
+          .product-card-info { padding: 6px 10px 12px !important; }
+          .product-card-price { font-size: 18px !important; }
+          .product-card-actions {
+            opacity: 1 !important;
+            transform: none !important;
+            pointer-events: auto !important;
           }
         }
       `}</style>
@@ -229,27 +316,52 @@ export function BrandProductCard({ brandSlug, brandName, product, accent, isTeas
       >
         {/* ── Image ── */}
         <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', flexShrink: 0, margin: 8 }}>
-          <Link
-            href={`/product/${encodeURIComponent(product.slug)}`}
-            aria-label={`Voir ${product.name}`}
-            style={{ display: 'block' }}
-          >
-            <div style={{ aspectRatio: '3 / 4', backgroundColor: '#F0F0F0', overflow: 'hidden' }}>
-              {image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={image} alt=""
-                  style={{
-                    width: '100%', height: '100%', objectFit: 'cover', display: 'block',
-                    transition: 'transform 380ms ease',
-                    transform: hovered ? 'scale(1.05)' : 'scale(1)',
-                  }}
-                />
-              ) : (
-                <div style={{ width: '100%', height: '100%', background: 'linear-gradient(145deg, #E2E2E2, #EBEBEB)' }} />
-              )}
-            </div>
-          </Link>
+          {isTeaser ? (
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowTeaserModal(true); }}
+              aria-label={`Produit ${product.name} à venir`}
+              style={{ display: 'block', width: '100%', border: 'none', background: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
+            >
+              <div style={{ aspectRatio: '3 / 4', backgroundColor: '#F0F0F0', overflow: 'hidden' }}>
+                {image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={image} alt=""
+                    style={{
+                      width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+                      transition: 'transform 380ms ease',
+                      transform: hovered ? 'scale(1.05)' : 'scale(1)',
+                    }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', background: 'linear-gradient(145deg, #E2E2E2, #EBEBEB)' }} />
+                )}
+              </div>
+            </button>
+          ) : (
+            <Link
+              href={`/product/${encodeURIComponent(product.slug)}`}
+              aria-label={`Voir ${product.name}`}
+              style={{ display: 'block' }}
+            >
+              <div style={{ aspectRatio: '3 / 4', backgroundColor: '#F0F0F0', overflow: 'hidden' }}>
+                {image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={image} alt=""
+                    style={{
+                      width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+                      transition: 'transform 380ms ease',
+                      transform: hovered ? 'scale(1.05)' : 'scale(1)',
+                    }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', background: 'linear-gradient(145deg, #E2E2E2, #EBEBEB)' }} />
+                )}
+              </div>
+            </Link>
+          )}
 
           {/* Badge rupture */}
           {isOutOfStock && !isTeaser && (
@@ -266,15 +378,15 @@ export function BrandProductCard({ brandSlug, brandName, product, accent, isTeas
               <span style={{
                 padding: '5px 12px', borderRadius: 999,
                 backgroundColor: 'rgba(255,59,48,0.95)', color: '#fff', fontSize: 11, fontWeight: 900,
-                letterSpacing: '0.5px'
-              }}>Teaser</span>
+                letterSpacing: '0.2px'
+              }}>Bientôt disponible</span>
             </div>
           )}
 
         </div>
 
         {/* ── Infos ── */}
-        <div style={{ padding: '8px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <div className="product-card-info" style={{ padding: '8px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
 
           {product.collection?.name && (
             <p style={{
@@ -301,13 +413,13 @@ export function BrandProductCard({ brandSlug, brandName, product, accent, isTeas
 
           {/* Prix */}
           <p style={{ margin: '0 0 14px', marginTop: 'auto', lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
-            <span style={{ fontSize: 24, fontWeight: 900, color: '#000', letterSpacing: '-1px' }}>
+            <span className="product-card-price" style={{ fontSize: 24, fontWeight: 900, color: '#000', letterSpacing: '-1px' }}>
               {priceFormatted}
             </span>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#888' }}>FCFA</span>
           </p>
 
-          <div style={{
+          <div className="product-card-actions" style={{
             display: 'flex', gap: 8, alignItems: 'stretch',
             opacity: hovered ? 1 : 0,
             transform: hovered ? 'translateY(0)' : 'translateY(6px)',
@@ -337,36 +449,69 @@ export function BrandProductCard({ brandSlug, brandName, product, accent, isTeas
             </button>
 
             {/* Bouton secondaire ↗ — carré outline */}
-            <Link
-              href={`/product/${encodeURIComponent(product.slug)}`}
-              onClick={(e) => e.stopPropagation()}
-              aria-label={`Voir ${product.name}`}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: 44, height: 44, flexShrink: 0,
-                borderRadius: 12,
-                border: '1.5px solid rgba(0,0,0,0.15)',
-                backgroundColor: '#fff',
-                color: '#000',
-                fontSize: 17,
-                textDecoration: 'none',
-                transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease',
-              }}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.backgroundColor = '#000';
-                el.style.color = '#fff';
-                el.style.borderColor = '#000';
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                el.style.backgroundColor = '#fff';
-                el.style.color = '#000';
-                el.style.borderColor = 'rgba(0,0,0,0.15)';
-              }}
-            >
-              ↗
-            </Link>
+            {isTeaser ? (
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowTeaserModal(true); }}
+                aria-label={`Produit ${product.name} à venir`}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 44, height: 44, flexShrink: 0,
+                  borderRadius: 12,
+                  border: '1.5px solid rgba(0,0,0,0.15)',
+                  backgroundColor: '#fff',
+                  color: '#000',
+                  fontSize: 17,
+                  cursor: 'pointer',
+                  transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease',
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget;
+                  el.style.backgroundColor = '#000';
+                  el.style.color = '#fff';
+                  el.style.borderColor = '#000';
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget;
+                  el.style.backgroundColor = '#fff';
+                  el.style.color = '#000';
+                  el.style.borderColor = 'rgba(0,0,0,0.15)';
+                }}
+              >
+                ↗
+              </button>
+            ) : (
+              <Link
+                href={`/product/${encodeURIComponent(product.slug)}`}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Voir ${product.name}`}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 44, height: 44, flexShrink: 0,
+                  borderRadius: 12,
+                  border: '1.5px solid rgba(0,0,0,0.15)',
+                  backgroundColor: '#fff',
+                  color: '#000',
+                  fontSize: 17,
+                  textDecoration: 'none',
+                  transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease',
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget as HTMLAnchorElement;
+                  el.style.backgroundColor = '#000';
+                  el.style.color = '#fff';
+                  el.style.borderColor = '#000';
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget as HTMLAnchorElement;
+                  el.style.backgroundColor = '#fff';
+                  el.style.color = '#000';
+                  el.style.borderColor = 'rgba(0,0,0,0.15)';
+                }}
+              >
+                ↗
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -376,6 +521,14 @@ export function BrandProductCard({ brandSlug, brandName, product, accent, isTeas
           conflictingBrands={conflictingBrands}
           onConfirm={handleConflictConfirm}
           onCancel={() => setConflictingBrands(null)}
+        />
+      )}
+      
+      {showTeaserModal && (
+        <TeaserModal 
+          productName={product.name} 
+          accent={accent} 
+          onCancel={() => setShowTeaserModal(false)} 
         />
       )}
     </>

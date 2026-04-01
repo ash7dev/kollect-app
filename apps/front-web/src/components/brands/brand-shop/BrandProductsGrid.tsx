@@ -12,111 +12,62 @@ type BrandProductsGridProps = {
   isTeaser?: boolean;
 };
 
-/** Découpe un tableau en rangées de N éléments */
-function chunkBy<T>(arr: T[], size: number): T[][] {
-  const rows: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    rows.push(arr.slice(i, i + size));
-  }
-  return rows;
-}
-
 export function BrandProductsGrid({ brandSlug, brandName, products, accent, isTeaser }: BrandProductsGridProps) {
   const [isVisible, setIsVisible] = useState(false);
-  
-  // Observer pour détecter quand la grille est visible
+
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
+      ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
       { threshold: 0.1 }
     );
-
     const element = document.getElementById('products-grid');
-    if (element) {
-      observer.observe(element);
-    }
-
+    if (element) observer.observe(element);
     return () => observer.disconnect();
   }, []);
 
   if (!products.length) return null;
 
-  const rows = chunkBy(products, 4);
+  const cols = Math.min(products.length, 4);
+  const cardWidth = Math.floor((1200 - 20 * 3) / 4);
 
   return (
-    <div 
-      id="products-grid"
-      style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: 20,
+    <div
+      style={{
+        maxWidth: 1200,
+        margin: '0 auto',
         opacity: isVisible ? 1 : 0,
         transform: isVisible ? 'translateY(0)' : 'translateY(30px)',
         transition: 'opacity 0.8s ease-out, transform 0.8s ease-out',
       }}
     >
-      {/* Animations CSS */}
       <style>{`
-        @keyframes rowSlideIn {
-          from { 
-            opacity: 0; 
-            transform: translateY(20px); 
-          }
-          to { 
-            opacity: 1; 
-            transform: translateY(0); 
-          }
+        .brand-products-grid {
+          display: grid;
+          grid-template-columns: repeat(${cols}, ${cardWidth}px);
+          justify-content: center;
+          gap: 20px;
         }
-        
-        .products-row {
-          opacity: 0;
-          animation: rowSlideIn 0.6s ease-out forwards;
+        @media (max-width: 640px) {
+          .brand-products-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; }
         }
-        
         @media (prefers-reduced-motion: reduce) {
-          .products-row {
-            opacity: 1;
-            transform: none;
-            animation: none;
-          }
+          #products-grid { opacity: 1 !important; transform: none !important; }
         }
       `}</style>
-      {rows.map((row, rowIndex) => {
-        const isLastIncomplete = rowIndex === rows.length - 1 && row.length < 4;
-        const rowDelay = 0.2 + (rowIndex * 0.1); // Délai progressif par rangée
+      <div id="products-grid" className="brand-products-grid">
 
-        return (
-          <div
-            key={rowIndex}
-            className={isVisible ? 'products-row' : ''}
-            style={{
-              display: 'flex',
-              gap: 20,
-              // Rangée complète : étirer les 4 cards sur toute la largeur
-              // Rangée incomplète : centrer les cards (1, 2 ou 3) sans les étirer
-              justifyContent: isLastIncomplete ? 'center' : 'stretch',
-              animationDelay: isVisible ? `${rowDelay}s` : '0s',
-            }}
-          >
-            {row.map((p) => (
-              <div
-                key={p.id}
-                style={{
-                  // Chaque card occupe exactement 1/4 de la largeur disponible (gaps inclus)
-                  flex: isLastIncomplete ? '0 0 calc(25% - 15px)' : '1 1 0',
-                  minWidth: 0,
-                }}
-              >
-                <BrandProductCard brandSlug={brandSlug} brandName={brandName} product={p} accent={accent} isTeaser={isTeaser} />
-              </div>
-            ))}
-          </div>
-        );
-      })}
+      {products.map((p) => (
+        <div key={p.id}>
+          <BrandProductCard
+            brandSlug={brandSlug}
+            brandName={brandName}
+            product={p}
+            accent={accent}
+            isTeaser={isTeaser}
+          />
+        </div>
+      ))}
+      </div>
     </div>
   );
 }

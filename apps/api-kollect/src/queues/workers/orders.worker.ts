@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable prettier/prettier */
 import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { NotificationPriority, NotificationType } from '@prisma/client';
@@ -25,7 +27,7 @@ import type {
 const ORDER_PROCESSED_TTL = 7 * 24 * 3600; // 7 jours
 
 @Injectable()
-@Processor(ORDERS_QUEUE)
+@Processor(ORDERS_QUEUE, { concurrency: 5 })
 export class OrdersWorker extends WorkerHost {
   private readonly logger = new Logger(OrdersWorker.name);
 

@@ -171,7 +171,7 @@ export function DropsCalendar() {
                     textTransform: 'uppercase', 
                     margin: 0 
                   }}>
-                    Agenda des maisons
+                    Agenda des marques
                   </p>
                 </div>
                 <h2 style={{ 

@@ -34,6 +34,25 @@ function buildActiveTags(f: ProductFilterState): ActiveFilter[] {
   if (f.maxPrice) tags.push({ key: 'maxPrice', label: `Max ${f.maxPrice} FCFA` });
   f.sizes.forEach(s => tags.push({ key: `size-${s}`, label: s }));
   f.colors.forEach(c => tags.push({ key: `color-${c}`, label: c }));
+  
+  // Types - utiliser les labels
+  const PRODUCT_TYPE_LABELS: Record<string, string> = {
+    'TSHIRT': 'T-shirt / Top',
+    'BONNET': 'Bonnet / Casquette',
+    'SAC': 'Sac',
+    'ENSEMBLE': 'Ensemble',
+    'ACCESSOIRE': 'Accessoire',
+  };
+  f.productTypes.forEach(t => tags.push({ key: `type-${t}`, label: PRODUCT_TYPE_LABELS[t] || t }));
+  
+  // Genders - utiliser les labels
+  const GENDER_LABELS: Record<string, string> = {
+    'HOMME': 'Homme',
+    'FEMME': 'Femme',
+    'UNISEXE': 'Unisex',
+  };
+  f.genders.forEach(g => tags.push({ key: `gender-${g}`, label: GENDER_LABELS[g] || g }));
+  
   if (f.inStock) tags.push({ key: 'inStock', label: 'En stock' });
   return tags;
 }
@@ -54,6 +73,8 @@ export function ProductsTab({ query }: ProductsTabProps) {
       if (f.maxPrice) params.set('maxPrice', f.maxPrice);
       if (f.sizes.length) params.set('sizes', f.sizes.join(','));
       if (f.colors.length) params.set('colors', f.colors.join(','));
+      if (f.productTypes.length) params.set('productTypes', f.productTypes.join(','));
+      if (f.genders.length) params.set('genders', f.genders.join(','));
       if (f.inStock) params.set('inStock', 'true');
       params.set('sortBy', f.sortBy);
       params.set('page', String(p));
@@ -85,12 +106,14 @@ export function ProductsTab({ query }: ProductsTabProps) {
     if (key === 'inStock') return setFilters(f => ({ ...f, inStock: false }));
     if (key.startsWith('size-')) return setFilters(f => ({ ...f, sizes: f.sizes.filter(s => `size-${s}` !== key) }));
     if (key.startsWith('color-')) return setFilters(f => ({ ...f, colors: f.colors.filter(c => `color-${c}` !== key) }));
+    if (key.startsWith('type-')) return setFilters(f => ({ ...f, productTypes: f.productTypes.filter(t => `type-${t}` !== key) }));
+    if (key.startsWith('gender-')) return setFilters(f => ({ ...f, genders: f.genders.filter(g => `gender-${g}` !== key) }));
   };
 
   return (
-    <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start', fontFamily: FONT_FAMILY_INTER }}>
+    <div className="explorer-tab-layout" style={{ display: 'flex', gap: 32, alignItems: 'flex-start', fontFamily: FONT_FAMILY_INTER }}>
       {/* Sidebar filtres */}
-      <aside style={{
+      <aside className="explorer-tab-aside" style={{
         width: 240, flexShrink: 0,
         position: 'sticky', top: 100,
         borderRight: '1px solid rgba(0,0,0,0.07)',

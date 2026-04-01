@@ -23,6 +23,9 @@ export class UpdateBrandDto {
   logo?: any; // Peut être un fichier (pour l'upload) ou une chaîne (URL existante) ou null (pour supprimer)
 
   @IsOptional()
+  coverImage?: any;
+
+  @IsOptional()
   @IsString()
   @MaxLength(1000)
   bio?: string;

@@ -477,6 +477,9 @@ export function CuratedSelection() {
           background-color: rgba(255,255,255,0.12) !important;
         }
         .curated-rail { scrollbar-width: thin; }
+        @media (max-width: 640px) {
+          #selection { padding: 64px 16px 64px !important; }
+        }
       `}</style>
     </section>
   );

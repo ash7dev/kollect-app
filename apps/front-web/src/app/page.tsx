@@ -1,7 +1,7 @@
 import { Navbar } from '@/components/landing/Navbar';
 import { HeroBanner } from '@/components/landing/HeroBanner';
 import { SocialProof } from '@/components/landing/SocialProof';
-import { DropsCalendar } from '@/components/landing/DropsCalendar';
+import { DropsHype } from '@/components/landing/DropsHype';
 import { CuratedSelection } from '@/components/landing/CuratedSelection';
 import { Features } from '@/components/landing/Features';
 import { HowItWorks } from '@/components/landing/HowItWorks';
@@ -54,8 +54,8 @@ export default function LandingPage() {
           {/* Marques partenaires */}
           <SocialProof />
 
-          {/* Section agenda : drops à venir + nouveautés */}
-          <DropsCalendar />
+          {/* Section agenda : drops à venir + nouveautés — tabs internes, 1 fetch */}
+          <DropsHype />
 
           {/* Sélection curatée + collections featuredées */}
           <CuratedSelection />

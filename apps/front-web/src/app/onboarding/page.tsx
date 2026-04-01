@@ -247,6 +247,11 @@ export default function OnboardingPage() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
+  const [isDraggingCover, setIsDraggingCover] = useState(false);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
+
   // ── Slug auto-gen ──
   const handleBrandNameChange = (value: string) => {
     setBrandName(value);
@@ -272,6 +277,22 @@ export default function OnboardingPage() {
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) handleFile(file);
+  };
+
+  // ── Cover Image ──
+  const handleCoverFile = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    setCoverImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setCoverImagePreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleCoverDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingCover(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleCoverFile(file);
   };
 
   // ── Step 1 submit ──
@@ -317,6 +338,7 @@ export default function OnboardingPage() {
       if (whatsapp.trim()) formData.append('whatsapp', whatsapp.trim());
       if (instagram.trim()) formData.append('instagram', instagram.trim());
       if (logoFile) formData.append('logo', logoFile);
+      if (coverImageFile) formData.append('coverImage', coverImageFile);
 
       await apiClient.post(
         API_ENDPOINTS.BRANDS.CREATE,
@@ -653,15 +675,59 @@ export default function OnboardingPage() {
                       <IconImage />
                     </div>
                     <div style={{ textAlign: 'center' as const }}>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 3 }}>Glissez votre logo ici</p>
-                      <p style={{ fontSize: 12, color: '#9ca3af' }}>
-                        ou <span style={{ color: '#FF3B30', fontWeight: 500 }}>cliquez pour choisir</span>
-                        {' '}· PNG, JPG, WebP — max 2 Mo
+                      <p style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 3 }}>Glissez-déposez votre logo ici</p>
+                      <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>
+                        ou choisissez via <span style={{ color: '#FF3B30', fontWeight: 500 }}>photothèque / fichiers</span>
                       </p>
+                      <p style={{ fontSize: 11, color: '#9ca3af', letterSpacing: '0.2px' }}>PNG, JPG, WebP — max 2 Mo</p>
                     </div>
                   </div>
                 )}
                 <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              </div>
+
+              {/* Cover Image */}
+              <div>
+                <label className="ob-label">
+                  Bannière <span style={{ fontWeight: 400, color: '#9ca3af' }}>(optionnel)</span>
+                </label>
+                {coverImagePreview ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 18px', background: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: 14 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={coverImagePreview} alt="Preview Cover" style={{ width: 80, height: 45, borderRadius: 8, objectFit: 'cover', border: '1.5px solid #f0f0f0' }} />
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 2 }}>Bannière sélectionnée</p>
+                      <p style={{ fontSize: 12, color: '#9ca3af' }}>{coverImageFile?.name}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setCoverImagePreview(null); setCoverImageFile(null); if (coverFileInputRef.current) coverFileInputRef.current.value = ''; }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: '#9ca3af', display: 'flex', borderRadius: 6 }}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className={`ob-drop-zone${isDraggingCover ? ' dragging' : ''}`}
+                    onClick={() => coverFileInputRef.current?.click()}
+                    onDragOver={(e) => { e.preventDefault(); setIsDraggingCover(true); }}
+                    onDragLeave={() => setIsDraggingCover(false)}
+                    onDrop={handleCoverDrop}
+                  >
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fff', border: '1.5px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                      <IconImage />
+                    </div>
+                    <div style={{ textAlign: 'center' as const }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 3 }}>Glissez-déposez votre bannière ici</p>
+                      <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>
+                        ou choisissez via <span style={{ color: '#FF3B30', fontWeight: 500 }}>photothèque / fichiers</span>
+                      </p>
+                      <p style={{ fontSize: 11, color: '#9ca3af', letterSpacing: '0.2px' }}>PNG, JPG, WebP — max 2 Mo</p>
+                    </div>
+                  </div>
+                )}
+                <input ref={coverFileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverFile(f); }} />
               </div>
 
               {/* Bio */}

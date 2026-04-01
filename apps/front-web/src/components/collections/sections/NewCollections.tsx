@@ -5,7 +5,6 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { env } from '@/config/env';
 import type { PublicCollection } from '@/types/drops';
-import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 type NewCollectionsProps = {
   collections: PublicCollection[];
@@ -101,7 +100,7 @@ function NewCard({ collection, index }: { collection: PublicCollection; index: n
         opacity: loaded ? 1 : 0,
         transform: loaded ? 'translateY(0) scale(1)' : 'translateY(32px) scale(0.95)',
         transition: 'all 0.6s cubic-bezier(0.16,1,0.3,1)',
-        fontFamily: FONT_FAMILY_INTER,
+        fontFamily: 'var(--font-inter), Inter, sans-serif',
         // Shadow premium comme FeaturedCard
         boxShadow: isHovered 
           ? '0 24px 48px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,59,48,0.3)' 
@@ -493,13 +492,6 @@ function NewCard({ collection, index }: { collection: PublicCollection; index: n
 }
 
 export function NewCollections({ collections }: NewCollectionsProps) {
-  console.log('NewCollections received:', collections.length, collections);
-  console.log('Collections with dates:', collections.map(c => ({
-    name: c.name,
-    launchedAt: c.launchedAt,
-    daysAgo: c.launchedAt ? Math.floor((Date.now() - new Date(c.launchedAt).getTime()) / (1000 * 60 * 60 * 24)) : 'no date'
-  })));
-  
   const [isVisible, setIsVisible] = useState(false);
   const railRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -549,7 +541,7 @@ export function NewCollections({ collections }: NewCollectionsProps) {
         opacity: isVisible ? 1 : 0,
         transform: isVisible ? 'translateY(0)' : 'translateY(40px)',
         transition: 'opacity 1s cubic-bezier(0.16,1,0.3,1), transform 1s cubic-bezier(0.16,1,0.3,1)',
-        fontFamily: FONT_FAMILY_INTER,
+        fontFamily: 'var(--font-inter), Inter, sans-serif',
         position: 'relative',
       }}
     >
@@ -570,10 +562,15 @@ export function NewCollections({ collections }: NewCollectionsProps) {
           border-color: rgba(255,255,255,0.25) !important;
           transform: scale(1.05);
         }
-        .nc-scroll-btn:disabled { 
-          opacity: 0.3 !important; 
+        .nc-scroll-btn:disabled {
+          opacity: 0.3 !important;
           cursor: not-allowed;
           transform: scale(0.95);
+        }
+        @media (max-width: 640px) {
+          #new-collections { padding: 48px 16px !important; margin: 0 6px !important; }
+          .nc-card { height: 420px !important; }
+          .nc-scroll-card { width: min(320px, 88vw) !important; max-width: min(320px, 88vw) !important; }
         }
         @keyframes newPing {
           0%, 100% { 
@@ -589,96 +586,47 @@ export function NewCollections({ collections }: NewCollectionsProps) {
         }
       `}</style>
 
-      {/* Header amélioré avec fond pour lisibilité */}
+      {/* Header */}
       <div style={{
-        maxWidth: 1400,
+        maxWidth: 1280,
         margin: '0 auto',
-        padding: isCenteredLayout ? '24px' : '24px 48px',
-        marginBottom: isCenteredLayout ? 32 : 40,
-        backgroundColor: 'rgba(0,0,0,0.95)', // Fond noir pour lisibilité
-        backdropFilter: 'blur(20px)',
-        borderRadius: 24,
-        border: '1px solid rgba(255,255,255,0.1)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        padding: '0 24px',
+        marginBottom: 40,
         display: 'flex',
-        alignItems: isCenteredLayout ? 'center' : 'flex-end',
+        alignItems: 'flex-end',
         justifyContent: 'space-between',
-        gap: 32,
+        gap: 24,
       }}>
-        <div style={{ 
-          textAlign: isCenteredLayout ? 'center' : 'left',
-          width: isCenteredLayout ? '100%' : 'auto',
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 12, 
-            marginBottom: 20,
-            justifyContent: isCenteredLayout ? 'center' : 'flex-start',
+        <div>
+          <p style={{
+            fontSize: 11, fontWeight: 700,
+            color: '#FF9500', letterSpacing: '2.8px',
+            textTransform: 'uppercase', margin: '0 0 14px',
           }}>
-            <div style={{
-              width: 10, height: 10, borderRadius: '50%',
-              background: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)',
-              boxShadow: '0 0 20px rgba(255,149,0,0.8)',
-              animation: 'newPing 2s ease-in-out infinite',
-            }} />
-            <span style={{
-              fontSize: 12, fontWeight: 800,
-              letterSpacing: '3px', textTransform: 'uppercase',
-              color: '#FF9500',
-              textShadow: '0 2px 4px rgba(255,149,0,0.3)',
-            }}>
-              Nouveautés
-            </span>
-          </div>
+            Nouveautés
+          </p>
           <h2 style={{
-            fontSize: isCenteredLayout 
-              ? 'clamp(1.8rem, 3vw, 2.4rem)' 
-              : 'clamp(2.2rem, 4vw, 3.2rem)',
-            fontWeight: 900,
-            letterSpacing: '-2px',
-            color: '#fff',
-            margin: 0,
-            lineHeight: 1.05,
-            textShadow: '0 4px 8px rgba(0,0,0,0.3)',
+            fontSize: 'clamp(1.5rem, 3.2vw, 2.1rem)',
+            fontWeight: 900, color: '#0a0a0a',
+            letterSpacing: '-1px', lineHeight: 1.1,
+            margin: '0 0 14px',
           }}>
-            Dernières{' '}
-            <span style={{ 
-              color: 'rgba(255,149,0,0.9)', // Orange plus visible
-              position: 'relative',
-              textShadow: '0 2px 8px rgba(255,149,0,0.4)',
-            }}>
-              sorties.
-              <div style={{
-                position: 'absolute',
-                bottom: -2,
-                left: 0,
-                right: 0,
-                height: '3px',
-                background: 'linear-gradient(90deg, #FF9500 0%, #FF3B30 100%)',
-                borderRadius: 2,
-                opacity: 1, // Plus visible
-                boxShadow: '0 2px 8px rgba(255,149,0,0.5)',
-              }} />
-            </span>
+            Dernières sorties
+            <br />
+            <span style={{ color: 'rgba(0,0,0,0.42)' }}>disponibles maintenant.</span>
           </h2>
-          {!isCenteredLayout && (
-            <p style={{
-              fontSize: 16,
-              color: 'rgba(255,255,255,0.5)',
-              margin: '12px 0 0',
-              lineHeight: 1.5,
-              fontWeight: 500,
-              maxWidth: 400,
-            }}>
-              Découvre les collections les plus récentes, disponibles maintenant.
-            </p>
-          )}
+          <p style={{
+            fontSize: 15, fontWeight: 500,
+            color: 'rgba(0,0,0,0.5)', lineHeight: 1.65,
+            margin: 0, maxWidth: 520,
+          }}>
+            Les collections les plus récentes, lancées dans les 30 derniers jours.
+          </p>
         </div>
 
-        {/* Nav arrows améliorées - seulement si pas en mode centré */}
+        {/* Nav arrows — seulement en mode carousel */}
         {!isCenteredLayout && (
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
             {(['left', 'right'] as const).map((dir) => (
               <button
                 key={dir}
@@ -686,14 +634,14 @@ export function NewCollections({ collections }: NewCollectionsProps) {
                 onClick={() => scroll(dir)}
                 disabled={dir === 'left' ? !canScrollLeft : !canScrollRight}
                 style={{
-                  width: 48, height: 48,
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: 16,
-                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  width: 44, height: 44,
+                  border: '1.5px solid rgba(0,0,0,0.1)',
+                  borderRadius: 14,
+                  backgroundColor: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', 
-                  color: 'rgba(255,255,255,0.8)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+                  cursor: 'pointer',
+                  color: 'rgba(0,0,0,0.6)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -750,7 +698,7 @@ export function NewCollections({ collections }: NewCollectionsProps) {
           }}
         >
           {collections.map((collection, i) => (
-            <div key={collection.id} style={{ 
+            <div key={collection.id} className="nc-scroll-card" style={{
               scrollSnapAlign: 'start',
               flexShrink: 0,
               width: '380px', // Largeur fixe pour les cartes en mode scroll

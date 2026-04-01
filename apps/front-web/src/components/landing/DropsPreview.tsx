@@ -21,7 +21,7 @@ interface Drop {
 const STYLES = [
   { accentColor: '#FF3B30', tag: 'Édition limitée' },
   { accentColor: '#FF9500', tag: 'Calendrier' },
-  { accentColor: '#C9A962', tag: 'Maison' },
+  { accentColor: '#C9A962', tag: 'Marque' },
 ];
 
 function IconCalendarEmpty() {
@@ -85,7 +85,7 @@ function EmptyDrops() {
       </Link>
       {/* Divider hint */}
       <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', marginTop: '20px' }}>
-        Maison ou label ?{' '}
+        Marque ou label ?{' '}
         <Link href="/create-brand" style={{ color: '#C9A962', textDecoration: 'none', fontWeight: 700 }}>
           Planifier un lancement →
         </Link>
@@ -177,7 +177,7 @@ export function DropsPreview() {
           const hasLaunchDate = !!d.launchDate && new Date(d.launchDate).getTime() > Date.now();
           return {
             id: d.id,
-            brand: d.brand?.name || 'Maison indépendante',
+            brand: d.brand?.name || 'Marque indépendante',
             name: d.name,
             status: d.status,
             launchLabel: hasLaunchDate ? 'Ouverture dans' : 'Sélection disponible',
@@ -225,7 +225,7 @@ export function DropsPreview() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FF3B30', boxShadow: '0 0 10px rgba(255,59,48,0.8)', display: 'inline-block', animation: 'dropPulse 1.5s ease-in-out infinite' }} />
               <p style={{ fontSize: '11px', fontWeight: 700, color: '#C2923B', letterSpacing: '2.5px', textTransform: 'uppercase', margin: 0 }}>
-                {drops.length > 0 ? 'Agenda des maisons' : 'Calendrier'}
+                {drops.length > 0 ? 'Agenda des marques' : 'Calendrier'}
               </p>
             </div>
             <h2 style={{ fontSize: 'clamp(2rem, 3.5vw, 2.8rem)', fontWeight: 900, color: '#fff', letterSpacing: '-1.5px', lineHeight: 1.1, margin: 0 }}>
@@ -290,7 +290,8 @@ export function DropsPreview() {
         @media (max-width: 960px) {
           .drops-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
-        @media (max-width: 600px) {
+        @media (max-width: 640px) {
+          #drops { padding: 64px 16px !important; margin: 0 6px !important; }
           .drops-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>

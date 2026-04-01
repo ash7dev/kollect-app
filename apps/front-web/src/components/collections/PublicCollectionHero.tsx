@@ -123,14 +123,14 @@ export function PublicCollectionHero({ collection }: PublicCollectionHeroProps) 
       {/* ── Top row : back link + brand logo ── */}
       <div style={{
         position: 'absolute',
-        top: 24,
+        top: 96,
         left: 0,
         right: 0,
         padding: '0 40px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        zIndex: 2,
+        zIndex: 10,
       }}>
         <Link
           href={`/brand/${brand.slug}`}

@@ -307,12 +307,17 @@ export function FeaturedCollections({ collections, isFirstSection = false }: Fea
         @media (prefers-reduced-motion: reduce) {
           .featured-card { opacity: 1; animation: none; }
         }
+        @media (max-width: 640px) {
+          #featured-collections { padding: 48px 16px !important; margin: 0 6px 0 !important; border-radius: 24px !important; }
+          .featured-cols-header { margin-bottom: 36px !important; }
+          .featured-cols-rest { grid-template-columns: 1fr !important; }
+        }
       `}</style>
 
       <div style={{ maxWidth: 1280, margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 60 }}>
+        <div className="featured-cols-header" style={{ textAlign: 'center', marginBottom: 60 }}>
           <div style={{
             display: 'inline-block',
             padding: '6px 18px',
@@ -360,7 +365,7 @@ export function FeaturedCollections({ collections, isFirstSection = false }: Fea
 
         {/* Rest grid */}
         {rest.length > 0 && (
-          <div style={{
+          <div className="featured-cols-rest" style={{
             display: 'grid',
             gridTemplateColumns: `repeat(${Math.min(rest.length, 3)}, 1fr)`,
             gap: 20,

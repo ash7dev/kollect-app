@@ -4,7 +4,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { apiClient } from '@/services/api/client';
 import { API_ENDPOINTS } from '@/services/api/endpoints';
 import { BrandShopBanner } from '@/components/brands/brand-shop/BrandShopBanner';
-import { BrandFloatingCart } from '@/components/brands/brand-shop/BrandFloatingCart';
 import { BrandProductsGrid } from '@/components/brands/brand-shop/BrandProductsGrid';
 import { brandAccentCss } from '@/components/brands/brandAccent';
 import { brandMediaUrl } from '@/components/brands/brand-media';
@@ -156,6 +155,13 @@ export function BrandShopPage({ brand, initialProducts, initialMeta }: BrandShop
       <style>{`
         html { scroll-behavior: smooth; scroll-padding-top: 132px; }
         .brand-tabs-strip::-webkit-scrollbar { display: none; }
+        @media (max-width: 640px) {
+          .bsp-products-wrapper { padding: 0 16px 60px !important; }
+          .bsp-collection-header { margin-bottom: 28px !important; padding: 0 4px !important; }
+          .bsp-footer { padding: 48px 16px 40px !important; }
+          .bsp-footer-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
+          .bsp-footer-stats { gap: 20px !important; flex-wrap: wrap !important; }
+        }
       `}</style>
 
       {/* Hero banner */}
@@ -171,6 +177,11 @@ export function BrandShopPage({ brand, initialProducts, initialMeta }: BrandShop
         isVerified={!!brand.isVerified}
       />
 
+      {/* Bio */}
+      {brand.bio && (
+        <BrandBio bio={brand.bio} accent={accent} />
+      )}
+
       {/* Upcoming drop — collection en TEASER avec launchDate future */}
       {(() => {
         const upcoming = collections.find(
@@ -180,17 +191,62 @@ export function BrandShopPage({ brand, initialProducts, initialMeta }: BrandShop
             new Date(c.launchDate).getTime() > Date.now(),
         );
         return upcoming ? (
-          <BrandUpcomingDrop
-            collection={{
-              id: upcoming.id,
-              name: upcoming.name,
-              slug: upcoming.slug,
-              coverImage: upcoming.coverImage,
-              teaserVideo: upcoming.teaserVideo,
-              launchDate: upcoming.launchDate,
-              brand: { slug: brand.slug, name: brand.name },
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            {/* Phrase d'annonce — même style que les titres de collection */}
+            <div style={{
+              textAlign: 'center',
+              padding: '64px 28px 32px',
+              backgroundColor: '#fff',
+            }}>
+              <span style={{
+                display: 'inline-block',
+                padding: '6px 16px',
+                borderRadius: 999,
+                backgroundColor: 'rgba(255,59,48,0.08)',
+                border: '1px solid rgba(255,59,48,0.25)',
+                color: '#FF3B30',
+                fontSize: 10,
+                fontWeight: 900,
+                letterSpacing: '2.5px',
+                textTransform: 'uppercase',
+                marginBottom: 18,
+              }}>
+                Prochainement
+              </span>
+              <h2 style={{
+                fontSize: 'clamp(2rem, 5vw, 3.8rem)',
+                fontWeight: 900,
+                letterSpacing: '-2px',
+                color: '#000',
+                margin: '0 0 16px',
+                textTransform: 'uppercase',
+                lineHeight: 1,
+              }}>
+                {brand.name} arrive
+              </h2>
+              <p style={{
+                fontSize: 15,
+                fontWeight: 500,
+                color: 'rgba(0,0,0,0.45)',
+                margin: '0 auto',
+                maxWidth: 520,
+                lineHeight: 1.7,
+              }}>
+                La communauté attend avec impatience. Sois parmi les premiers à découvrir ce qui va marquer l&apos;histoire du streetwear sénégalais.
+              </p>
+            </div>
+            <BrandUpcomingDrop
+              collection={{
+                id: upcoming.id,
+                name: upcoming.name,
+                slug: upcoming.slug,
+                coverImage: upcoming.coverImage,
+                teaserVideo: upcoming.teaserVideo,
+                launchDate: upcoming.launchDate,
+                brand: { slug: brand.slug, name: brand.name },
+              }}
+            />
+          </div>
         ) : null;
       })()}
 
@@ -205,64 +261,27 @@ export function BrandShopPage({ brand, initialProducts, initialMeta }: BrandShop
           return diff >= 0 && diff <= FIFTEEN_DAYS;
         });
         return recent ? (
-          <BrandRecentDrop
-            collection={{
-              id: recent.id,
-              name: recent.name,
-              slug: recent.slug,
-              coverImage: recent.coverImage,
-              teaserVideo: recent.teaserVideo,
-              launchDate: recent.launchDate,
-              launchedAt: recent.launchedAt,
-              createdAt: recent.createdAt,
-              brand: { slug: brand.slug, name: brand.name },
-            }}
-          />
-        ) : null;
-      })()}
-
-      {/* Bio */}
-      {brand.bio && (
-        <BrandBio bio={brand.bio} accent={accent} />
-      )}
-
-      {/* Collection cards */}
-      {groupedProducts.length > 0 && (
-        <BrandCollectionCards collections={groupedProducts} accent={accent} />
-      )}
-
-      {/* Galerie style Pinterest */}
-      <BrandGallery products={products} brandName={brand.name} />
-
-      
-      {/* Products — grouped by collection */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 28px 80px' }}>
-        {groupedProducts.length === 0 && !loading && (
-          <div style={{ textAlign: 'center', padding: '100px 0', color: 'rgba(0,0,0,0.35)' }}>
-            <p style={{ fontSize: 16, fontWeight: 600 }}>Aucun produit disponible pour le moment.</p>
-          </div>
-        )}
-
-        {groupedProducts.map((group) => (
-          <section
-            key={group.slug}
-            id={`col-${group.slug}`}
-            aria-label={`Collection ${group.name}`}
-            style={{ paddingTop: 70, marginBottom: 20 }}
-          >
-            {/* Collection header — centré */}
-            <div style={{ textAlign: 'center', marginBottom: 48, padding: '0 20px' }}>
+          <div style={{ position: 'relative' }}>
+            {/* Phrase d'annonce — même style que les titres de collection */}
+            <div style={{
+              textAlign: 'center',
+              padding: '64px 28px 32px',
+              backgroundColor: '#fff',
+            }}>
               <span style={{
                 display: 'inline-block',
-                padding: '6px 16px', borderRadius: 999,
-                backgroundColor: `${accent}18`,
-                border: `1px solid ${accent}55`,
-                color: accent,
-                fontSize: 10, fontWeight: 900, letterSpacing: '2.5px',
+                padding: '6px 16px',
+                borderRadius: 999,
+                backgroundColor: 'rgba(255,149,0,0.08)',
+                border: '1px solid rgba(255,149,0,0.25)',
+                color: '#FF9500',
+                fontSize: 10,
+                fontWeight: 900,
+                letterSpacing: '2.5px',
                 textTransform: 'uppercase',
                 marginBottom: 18,
               }}>
-                Collection
+                Disponible maintenant
               </span>
               <h2 style={{
                 fontSize: 'clamp(2rem, 5vw, 3.8rem)',
@@ -273,22 +292,115 @@ export function BrandShopPage({ brand, initialProducts, initialMeta }: BrandShop
                 textTransform: 'uppercase',
                 lineHeight: 1,
               }}>
-                {group.name}
+                {brand.name} est là
               </h2>
               <p style={{
-                fontSize: 15, fontWeight: 500,
+                fontSize: 15,
+                fontWeight: 500,
                 color: 'rgba(0,0,0,0.45)',
                 margin: '0 auto',
                 maxWidth: 520,
                 lineHeight: 1.7,
               }}>
-                {group.products.length} pièce{group.products.length > 1 ? 's' : ''} — disponibles maintenant
+                La collection tant attendue est enfin là. Découvre les pièces qui vont définir le style du moment.
               </p>
             </div>
+            <BrandRecentDrop
+              collection={{
+                id: recent.id,
+                name: recent.name,
+                slug: recent.slug,
+                coverImage: recent.coverImage,
+                teaserVideo: recent.teaserVideo,
+                launchDate: recent.launchDate,
+                launchedAt: recent.launchedAt,
+                createdAt: recent.createdAt,
+                brand: { slug: brand.slug, name: brand.name },
+              }}
+            />
+          </div>
+        ) : null;
+      })()}
 
-            <BrandProductsGrid brandSlug={brand.slug} brandName={brand.name} products={group.products} accent={accent} />
-          </section>
-        ))}
+      {/* Collection cards */}
+      {groupedProducts.length > 0 && (
+        <BrandCollectionCards collections={groupedProducts} accent={accent} />
+      )}
+
+      {/* Galerie style Pinterest */}
+      <BrandGallery products={products} brandName={brand.name} collections={collections} accent={accent} />
+
+      
+      {/* Products — grouped by collection */}
+      <div className="bsp-products-wrapper" style={{ maxWidth: 1280, margin: '0 auto', padding: '0 28px 80px' }}>
+        {groupedProducts.length === 0 && !loading && (
+          <div style={{ textAlign: 'center', padding: '100px 0', color: 'rgba(0,0,0,0.35)' }}>
+            {(() => {
+              const hasUpcoming = collections.some(c => c.status === 'TEASER' && c.launchDate && new Date(c.launchDate).getTime() > Date.now());
+              if (hasUpcoming) {
+                return <p style={{ fontSize: 16, fontWeight: 600 }}>Les produits du drop arrivent très bientôt.</p>;
+              }
+              return <p style={{ fontSize: 16, fontWeight: 600 }}>Aucun produit disponible pour le moment.</p>;
+            })()}
+          </div>
+        )}
+
+        {groupedProducts.map((group) => {
+          const isTeaser = collections.find((c) => c.name === group.name)?.status === 'TEASER';
+
+          return (
+            <section
+              key={group.slug}
+              id={`col-${group.slug}`}
+              aria-label={`Collection ${group.name}`}
+              style={{ paddingTop: 70, marginBottom: 20 }}
+            >
+              {/* Collection header — centré */}
+              <div className="bsp-collection-header" style={{ textAlign: 'center', marginBottom: 48, padding: '0 20px' }}>
+                <span style={{
+                  display: 'inline-block',
+                  padding: '6px 16px', borderRadius: 999,
+                  backgroundColor: isTeaser ? 'rgba(255,59,48,0.08)' : `${accent}18`,
+                  border: isTeaser ? '1px solid rgba(255,59,48,0.25)' : `1px solid ${accent}55`,
+                  color: isTeaser ? '#FF3B30' : accent,
+                  fontSize: 10, fontWeight: 900, letterSpacing: '2.5px',
+                  textTransform: 'uppercase',
+                  marginBottom: 18,
+                }}>
+                  {isTeaser ? 'Bientôt disponible' : 'Collection'}
+                </span>
+                <h2 style={{
+                  fontSize: 'clamp(2rem, 5vw, 3.8rem)',
+                  fontWeight: 900,
+                  letterSpacing: '-2px',
+                  color: '#000',
+                  margin: '0 0 16px',
+                  textTransform: 'uppercase',
+                  lineHeight: 1,
+                }}>
+                  {group.name}
+                </h2>
+                <p style={{
+                  fontSize: 15, fontWeight: 500,
+                  color: 'rgba(0,0,0,0.45)',
+                  margin: '0 auto',
+                  maxWidth: 520,
+                  lineHeight: 1.7,
+                }}>
+                  {group.products.length} pièce{group.products.length > 1 ? 's' : ''} — {isTeaser ? 'drop imminent' : 'disponibles maintenant'}
+                </p>
+              </div>
+
+              <BrandProductsGrid 
+                brandSlug={brand.slug} 
+                brandName={brand.name} 
+                products={group.products} 
+                accent={accent} 
+                isTeaser={isTeaser}
+              />
+            </section>
+          );
+        })}
 
         {/* Load more (edge case: paginated brands with 100+ products) */}
         {hasMore && (
@@ -312,8 +424,6 @@ export function BrandShopPage({ brand, initialProducts, initialMeta }: BrandShop
         )}
       </div>
 
-      {/* Panier flottant — apparait au scroll */}
-      <BrandFloatingCart brandSlug={brand.slug} brandName={brand.name} accent={accent} />
 
       <BrandTrustBadges brandName={brand.name} accent={accent} whatsapp={brand.whatsapp} />
       <BrandReviews accent={accent} />
@@ -321,6 +431,7 @@ export function BrandShopPage({ brand, initialProducts, initialMeta }: BrandShop
       {/* ── Footer de marque ── */}
       <section
         id="apropos"
+        className="bsp-footer"
         style={{
           backgroundColor: '#0a0a0a',
           color: '#fff',
@@ -371,7 +482,7 @@ export function BrandShopPage({ brand, initialProducts, initialMeta }: BrandShop
           </div>
 
           {/* Grid : bio + stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 48, alignItems: 'start' }}>
+          <div className="bsp-footer-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 48, alignItems: 'start' }}>
 
             {/* Bio */}
             <div>
@@ -393,7 +504,7 @@ export function BrandShopPage({ brand, initialProducts, initialMeta }: BrandShop
             </div>
 
             {/* Stats */}
-            <div style={{ display: 'flex', gap: 40, flexShrink: 0 }}>
+            <div className="bsp-footer-stats" style={{ display: 'flex', gap: 40, flexShrink: 0 }}>
               <div style={{ textAlign: 'center' }}>
                 <p style={{ fontSize: 'clamp(1.8rem, 3vw, 2.6rem)', fontWeight: 900, margin: 0, color: '#fff', letterSpacing: '-1.5px' }}>
                   {meta.total}

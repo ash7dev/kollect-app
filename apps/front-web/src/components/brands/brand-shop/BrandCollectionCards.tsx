@@ -18,9 +18,10 @@ type CollectionCardData = {
 type BrandCollectionCardsProps = {
   collections: CollectionCardData[];
   accent: string;
+  showHeader?: boolean;
 };
 
-export function BrandCollectionCards({ collections, accent }: BrandCollectionCardsProps) {
+export function BrandCollectionCards({ collections, accent, showHeader = true }: BrandCollectionCardsProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   // Observer pour détecter quand les collections sont visibles
@@ -81,6 +82,48 @@ export function BrandCollectionCards({ collections, accent }: BrandCollectionCar
         }
       `}</style>
       <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+        {/* Header */}
+        {showHeader && (
+          <div style={{ textAlign: 'center', marginBottom: 48, padding: '0 20px' }}>
+            <span style={{
+              display: 'inline-block',
+              padding: '6px 16px',
+              borderRadius: 999,
+              backgroundColor: `${accent}18`,
+              border: `1px solid ${accent}55`,
+              color: accent,
+              fontSize: 10,
+              fontWeight: 900,
+              letterSpacing: '2.5px',
+              textTransform: 'uppercase',
+              marginBottom: 18,
+            }}>
+              Collections
+            </span>
+            <h2 style={{
+              fontSize: 'clamp(2rem, 5vw, 3.8rem)',
+              fontWeight: 900,
+              letterSpacing: '-2px',
+              color: '#000',
+              margin: '0 0 16px',
+              textTransform: 'uppercase',
+              lineHeight: 1,
+            }}>
+              Toutes les collections
+            </h2>
+            <p style={{
+              fontSize: 15,
+              fontWeight: 500,
+              color: 'rgba(0,0,0,0.45)',
+              margin: '0 auto',
+              maxWidth: 520,
+              lineHeight: 1.7,
+            }}>
+              {collections.length} collection{collections.length > 1 ? 's' : ''} — explore chaque univers
+            </p>
+          </div>
+        )}
+
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',

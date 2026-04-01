@@ -446,7 +446,7 @@ export function RecentDrops() {
             ...c,
             daysSinceRelease: getDaysSince((c.launchedAt || c.launchDate)!),
           }))
-          .sort((a, b) => (b.daysSinceRelease || 0) - (a.daysSinceRelease || 0)); // Most recent first
+          .sort((a, b) => (a.daysSinceRelease || 0) - (b.daysSinceRelease || 0)); // Most recent first (lowest daysSince = most recent)
 
         setCollections(recentCollections);
       } catch (err) {

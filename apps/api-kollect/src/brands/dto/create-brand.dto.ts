@@ -22,6 +22,9 @@ export class CreateBrandDto {
   @IsOptional()
   logo?: Express.Multer.File;
 
+  @IsOptional()
+  coverImage?: Express.Multer.File;
+
   @IsString()
   @IsOptional()
   @MaxLength(300)

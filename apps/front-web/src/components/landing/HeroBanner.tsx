@@ -576,7 +576,7 @@ function ShowcaseFallback({ products }: { products: Product[] }) {
       <div aria-hidden style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)', backgroundSize: '30px 30px', pointerEvents: 'none' }} />
       <div aria-hidden style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '200px', background: 'linear-gradient(to top, #070707, transparent)', pointerEvents: 'none', zIndex: 2 }} />
 
-      <div style={{
+      <div className="hero-banner-inner" style={{
         flex: 1,
         display: 'flex',
         alignItems: 'center',
@@ -756,6 +756,9 @@ function ShowcaseFallback({ products }: { products: Product[] }) {
         @media (max-width: 1000px) {
           .showcase-right { display: none !important; }
           .showcase-left { width: 100% !important; }
+        }
+        @media (max-width: 640px) {
+          .hero-banner-inner { padding-top: 72px !important; padding-bottom: 56px !important; }
         }
       `}</style>
     </section>

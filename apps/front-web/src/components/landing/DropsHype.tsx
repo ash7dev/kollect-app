@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { apiClient } from '@/services/api/client';
@@ -25,31 +25,44 @@ interface HypeCollection {
   launchedAt?: string | null;
   coverImage?: string | null;
   teaserVideo?: string | null;
+  products?: Array<{ images?: string[] }>;
   _count?: { products: number };
   viewCount?: number;
 }
 
+type TabType = 'upcoming' | 'new';
 type CardType = 'upcoming' | 'new';
 
 interface HypeCard {
   collection: HypeCollection;
   type: CardType;
-  daysRemaining?: number;   // pour upcoming
-  daysSinceRelease?: number; // pour new
+  daysRemaining?: number;
+  daysSinceRelease?: number;
 }
+
+type MediaResult =
+  | { type: 'video'; src: string }
+  | { type: 'image'; src: string }
+  | { type: 'product-image'; src: string }
+  | { type: 'gradient' };
 
 /* ─── Constants ─────────────────────────────────────────────────── */
 const FIFTEEN_DAYS_MS = 15 * 24 * 60 * 60 * 1000;
+
+/* ─── Media resolver ─────────────────────────────────────────────── */
+function resolveMedia(collection: HypeCollection): MediaResult {
+  if (collection.teaserVideo) return { type: 'video', src: collection.teaserVideo };
+  if (collection.coverImage)  return { type: 'image', src: collection.coverImage };
+  const firstProductImg = collection.products?.[0]?.images?.[0];
+  if (firstProductImg)        return { type: 'product-image', src: firstProductImg };
+  return { type: 'gradient' };
+}
 
 /* ─── Time helpers ───────────────────────────────────────────────── */
 function pad(n: number) { return String(n).padStart(2, '0'); }
 
 function getDaysRemaining(dateStr: string): number {
   return Math.max(0, Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000));
-}
-function getHoursRemaining(dateStr: string): number {
-  const diff = new Date(dateStr).getTime() - Date.now();
-  return Math.max(0, Math.floor(diff / 3600000));
 }
 function getDaysSince(dateStr: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000));
@@ -89,14 +102,29 @@ function useLiveCountdown(targetDate?: string | null) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   HERO CARD — Grande carte principale (première de la grille)
+   HERO CARD — Grande carte principale avec doctrine vidéo/image
    ═══════════════════════════════════════════════════════════════════ */
 function HeroHypeCard({ card }: { card: HypeCard }) {
   const { collection, type } = card;
   const time = useLiveCountdown(type === 'upcoming' ? collection.launchDate : null);
-  const hasVideo = !!collection.teaserVideo;
-  const hasMedia = hasVideo || !!collection.coverImage;
+  const media = resolveMedia(collection);
+  const hasVideo = media.type === 'video';
   const pieces = collection._count?.products ?? 0;
+
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  // Gradient overlay : plus dense sur image (la vidéo en mouvement fait le job)
+  const bottomGradientOpacity = hasVideo ? '0.80' : '0.94';
 
   return (
     <Link
@@ -117,54 +145,75 @@ function HeroHypeCard({ card }: { card: HypeCard }) {
         border: '1px solid rgba(255,255,255,0.07)',
       }}
     >
-      {/* Media background */}
-      {hasVideo ? (
+      {/* ── Media background ── */}
+      {media.type === 'video' && (
         <video
-          src={collection.teaserVideo!}
-          autoPlay muted loop playsInline
+          ref={videoRef}
+          src={media.src}
+          autoPlay muted={isMuted} loop playsInline
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
         />
-      ) : collection.coverImage ? (
+      )}
+      {(media.type === 'image' || media.type === 'product-image') && (
         <Image
-          src={collection.coverImage}
+          src={media.src}
           alt={collection.name}
           fill
-          style={{ objectFit: 'cover', zIndex: 0 }}
+          style={{
+            objectFit: 'cover',
+            objectPosition: media.type === 'product-image' ? 'center top' : 'center',
+            zIndex: 0,
+          }}
           sizes="(max-width: 960px) 100vw, 55vw"
           priority
         />
-      ) : (
+      )}
+      {media.type === 'gradient' && (
         <div style={{
           position: 'absolute', inset: 0,
           background: type === 'upcoming'
             ? 'linear-gradient(135deg, #1a0000 0%, #0a0505 50%, #100000 100%)'
             : 'linear-gradient(135deg, #0a0500 0%, #0d0800 50%, #050300 100%)',
           zIndex: 0,
-        }} />
+        }}>
+          {/* Watermark initiale marque */}
+          <div aria-hidden style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{
+              fontSize: 'clamp(120px, 20vw, 200px)', fontWeight: 900,
+              color: type === 'upcoming' ? 'rgba(255,59,48,0.04)' : 'rgba(255,149,0,0.04)',
+              letterSpacing: '-8px', fontFamily: FONT_FAMILY_INTER, userSelect: 'none',
+            }}>
+              {collection.brand.name.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        </div>
       )}
 
-      {/* Gradient overlay */}
+      {/* ── Gradient overlay adaptatif ── */}
       <div aria-hidden style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(to top, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.1) 100%)',
+        background: `linear-gradient(to top, rgba(0,0,0,${bottomGradientOpacity}) 0%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.12) 100%)`,
         zIndex: 1,
       }} />
-      {/* Subtle red/orange grain glow */}
+      {/* Subtle colored glow */}
       <div aria-hidden style={{
         position: 'absolute', inset: 0,
         background: type === 'upcoming'
-          ? 'radial-gradient(ellipse at 80% 80%, rgba(255,59,48,0.08) 0%, transparent 60%)'
-          : 'radial-gradient(ellipse at 80% 80%, rgba(255,149,0,0.07) 0%, transparent 60%)',
+          ? 'radial-gradient(ellipse at 80% 80%, rgba(255,59,48,0.07) 0%, transparent 60%)'
+          : 'radial-gradient(ellipse at 80% 80%, rgba(255,149,0,0.06) 0%, transparent 60%)',
         zIndex: 1,
       }} />
 
-      {/* Content */}
+      {/* ── Content ── */}
       <div style={{
         position: 'absolute', inset: 0, zIndex: 2,
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        padding: '28px',
+        padding: '24px',
       }}>
-        {/* Top row */}
+        {/* Top row: Brand pill + badges */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           {/* Brand pill */}
           <div style={{
@@ -175,6 +224,7 @@ function HeroHypeCard({ card }: { card: HypeCard }) {
           }}>
             {collection.brand.logo ? (
               <div style={{ width: '22px', height: '22px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#fff', flexShrink: 0 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={collection.brand.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
             ) : (
@@ -199,39 +249,71 @@ function HeroHypeCard({ card }: { card: HypeCard }) {
             )}
           </div>
 
-          {/* Status badge */}
-          <div style={{
-            padding: '6px 14px', borderRadius: '10px',
-            backgroundColor: type === 'upcoming' ? 'rgba(255,59,48,0.18)' : 'rgba(255,149,0,0.18)',
-            border: `1px solid ${type === 'upcoming' ? 'rgba(255,59,48,0.38)' : 'rgba(255,149,0,0.38)'}`,
-            backdropFilter: 'blur(12px)',
-          }}>
-            <span style={{
-              fontSize: '10px', fontWeight: 800,
-              color: type === 'upcoming' ? '#FF3B30' : '#FF9500',
-              letterSpacing: '1.5px', textTransform: 'uppercase',
+          {/* Right cluster: status badge + mute button (si vidéo) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
+            {/* Status badge : vidéo vs image */}
+            <div style={{
+              padding: '6px 14px', borderRadius: '10px',
+              backgroundColor: hasVideo
+                ? 'rgba(255,59,48,0.85)'
+                : (type === 'upcoming' ? 'rgba(255,59,48,0.18)' : 'rgba(255,149,0,0.18)'),
+              border: hasVideo
+                ? 'none'
+                : `1px solid ${type === 'upcoming' ? 'rgba(255,59,48,0.38)' : 'rgba(255,149,0,0.38)'}`,
+              backdropFilter: hasVideo ? 'none' : 'blur(12px)',
+              boxShadow: hasVideo ? '0 4px 16px rgba(255,59,48,0.35)' : 'none',
             }}>
-              {type === 'upcoming' ? '● DROP IMMINENT' : '⚡ NOUVEAU'}
-            </span>
+              <span style={{
+                fontSize: '10px', fontWeight: 800,
+                color: hasVideo ? '#fff' : (type === 'upcoming' ? '#FF3B30' : '#FF9500'),
+                letterSpacing: '1.5px', textTransform: 'uppercase',
+              }}>
+                {hasVideo ? '🎬 TEASER' : (type === 'upcoming' ? '● DROP IMMINENT' : '⚡ NOUVEAU')}
+              </span>
+            </div>
+
+            {/* Bouton mute — visible en permanence si vidéo (pas caché derrière un hover) */}
+            {hasVideo && (
+              <button
+                onClick={toggleMute}
+                className="drops-mute-btn"
+                style={{
+                  width: '36px', height: '36px', borderRadius: '18px',
+                  backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: '#fff', transition: 'all 200ms ease',
+                  animation: isMuted ? 'none' : 'mutePulse 2s ease-in-out infinite',
+                }}
+              >
+                {isMuted ? (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+                  </svg>
+                ) : (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                  </svg>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
         {/* Bottom content */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Collection name */}
           <h3 style={{
             fontSize: 'clamp(1.6rem, 2.8vw, 2.4rem)',
-            fontWeight: 900,
-            color: '#fff',
-            margin: 0,
-            letterSpacing: '-1.5px',
-            lineHeight: 1.05,
+            fontWeight: 900, color: '#fff', margin: 0,
+            letterSpacing: '-1.5px', lineHeight: 1.05,
             textShadow: '0 2px 16px rgba(0,0,0,0.5)',
           }}>
             {collection.name}
           </h3>
 
-          {/* Countdown or "New" info */}
+          {/* Countdown live pour upcoming */}
           {type === 'upcoming' && time && (
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px' }}>
               {[
@@ -257,6 +339,7 @@ function HeroHypeCard({ card }: { card: HypeCard }) {
             </div>
           )}
 
+          {/* Info new release */}
           {type === 'new' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               {card.daysSinceRelease !== undefined && (
@@ -281,7 +364,7 @@ function HeroHypeCard({ card }: { card: HypeCard }) {
             </div>
           )}
 
-          {/* Bottom CTA row */}
+          {/* CTA row */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             {pieces > 0 && type === 'upcoming' && (
               <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
@@ -295,10 +378,9 @@ function HeroHypeCard({ card }: { card: HypeCard }) {
                 backgroundColor: type === 'upcoming' ? '#FF3B30' : '#FF9500',
                 fontSize: '14px', fontWeight: 800, color: '#fff',
                 boxShadow: type === 'upcoming' ? '0 8px 32px rgba(255,59,48,0.4)' : '0 8px 32px rgba(255,149,0,0.35)',
-                transition: 'all 250ms ease',
-                letterSpacing: '0.2px',
+                transition: 'all 250ms ease', letterSpacing: '0.2px',
               }}>
-                {type === 'upcoming' ? 'M\'alerter' : 'Voir la collection'}
+                {type === 'upcoming' ? "M'alerter" : 'Voir la collection'}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
@@ -314,9 +396,9 @@ function HeroHypeCard({ card }: { card: HypeCard }) {
 /* ═══════════════════════════════════════════════════════════════════
    STANDARD CARD — Carte secondaire
    ═══════════════════════════════════════════════════════════════════ */
-function StandardHypeCard({ card, index }: { card: HypeCard; index: number }) {
+function StandardHypeCard({ card }: { card: HypeCard }) {
   const { collection, type } = card;
-  const hasMedia = !!collection.coverImage || !!collection.teaserVideo;
+  const media = resolveMedia(collection);
   const pieces = collection._count?.products ?? 0;
   const accentColor = type === 'upcoming' ? '#FF3B30' : '#FF9500';
 
@@ -325,14 +407,10 @@ function StandardHypeCard({ card, index }: { card: HypeCard; index: number }) {
       href={`/brand/${collection.brand.slug}/${collection.slug}`}
       className="drops-std-card"
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        borderRadius: '20px',
-        backgroundColor: '#0A0A0A',
+        display: 'flex', flexDirection: 'column',
+        borderRadius: '20px', backgroundColor: '#0A0A0A',
         border: `1px solid ${accentColor}18`,
-        overflow: 'hidden',
-        textDecoration: 'none',
-        color: 'inherit',
+        overflow: 'hidden', textDecoration: 'none', color: 'inherit',
         transition: 'all 280ms cubic-bezier(0.4, 0, 0.2, 1)',
         position: 'relative',
       }}
@@ -342,22 +420,25 @@ function StandardHypeCard({ card, index }: { card: HypeCard; index: number }) {
 
       {/* Media thumbnail */}
       <div style={{ position: 'relative', height: '160px', backgroundColor: '#111', flexShrink: 0, overflow: 'hidden' }}>
-        {collection.teaserVideo ? (
+        {media.type === 'video' && (
           <video
-            src={collection.teaserVideo}
-            autoPlay muted loop playsInline
+            src={media.src} autoPlay muted loop playsInline
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
-        ) : collection.coverImage ? (
+        )}
+        {(media.type === 'image' || media.type === 'product-image') && (
           <Image
-            src={collection.coverImage}
-            alt={collection.name}
-            fill
-            style={{ objectFit: 'cover', transition: 'transform 400ms ease' }}
+            src={media.src} alt={collection.name} fill
+            style={{
+              objectFit: 'cover',
+              objectPosition: media.type === 'product-image' ? 'center top' : 'center',
+              transition: 'transform 400ms ease',
+            }}
             sizes="(max-width: 960px) 50vw, 25vw"
             className="drops-card-img"
           />
-        ) : (
+        )}
+        {media.type === 'gradient' && (
           <div style={{
             position: 'absolute', inset: 0,
             background: `linear-gradient(135deg, ${accentColor}12 0%, rgba(0,0,0,0.8) 100%)`,
@@ -368,27 +449,27 @@ function StandardHypeCard({ card, index }: { card: HypeCard; index: number }) {
             </span>
           </div>
         )}
-        {/* Gradient on thumbnail */}
+        {/* Thumbnail gradient + video badge */}
         <div aria-hidden style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,10,0.8) 0%, transparent 60%)' }} />
-        {/* Status pill */}
         <div style={{
-          position: 'absolute', top: '12px', right: '12px',
+          position: 'absolute', top: '10px', right: '10px',
           padding: '4px 10px', borderRadius: '8px',
-          backgroundColor: `${accentColor}20`, border: `1px solid ${accentColor}40`,
-          backdropFilter: 'blur(8px)',
+          backgroundColor: media.type === 'video' ? 'rgba(255,59,48,0.85)' : `${accentColor}22`,
+          border: media.type === 'video' ? 'none' : `1px solid ${accentColor}40`,
+          backdropFilter: media.type === 'video' ? 'none' : 'blur(8px)',
         }}>
-          <span style={{ fontSize: '9px', fontWeight: 800, color: accentColor, letterSpacing: '1.2px', textTransform: 'uppercase' }}>
-            {type === 'upcoming' ? '● À VENIR' : '⚡ NOUVEAU'}
+          <span style={{ fontSize: '9px', fontWeight: 800, color: media.type === 'video' ? '#fff' : accentColor, letterSpacing: '1.2px', textTransform: 'uppercase' }}>
+            {media.type === 'video' ? '🎬' : (type === 'upcoming' ? '● À VENIR' : '⚡ NOUVEAU')}
           </span>
         </div>
       </div>
 
       {/* Content */}
       <div style={{ padding: '18px 18px 20px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-        {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {collection.brand.logo ? (
             <div style={{ width: '18px', height: '18px', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#fff', flexShrink: 0 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={collection.brand.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
           ) : (
@@ -413,10 +494,8 @@ function StandardHypeCard({ card, index }: { card: HypeCard; index: number }) {
           )}
         </div>
 
-        {/* Name */}
         <h4 style={{
-          fontSize: '15px', fontWeight: 800,
-          color: '#fff', margin: 0,
+          fontSize: '15px', fontWeight: 800, color: '#fff', margin: 0,
           letterSpacing: '-0.4px', lineHeight: 1.3,
           overflow: 'hidden', textOverflow: 'ellipsis',
           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
@@ -424,7 +503,6 @@ function StandardHypeCard({ card, index }: { card: HypeCard; index: number }) {
           {collection.name}
         </h4>
 
-        {/* Time info */}
         <div style={{ marginTop: 'auto' }}>
           {type === 'upcoming' && collection.launchDate && (
             <div style={{
@@ -438,9 +516,7 @@ function StandardHypeCard({ card, index }: { card: HypeCard; index: number }) {
               <span style={{ fontSize: '12px', fontWeight: 700, color: '#FF3B30' }}>
                 {formatCountdownShort(collection.launchDate)}
               </span>
-              {pieces > 0 && (
-                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginLeft: 'auto' }}>{pieces} pcs</span>
-              )}
+              {pieces > 0 && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginLeft: 'auto' }}>{pieces} pcs</span>}
             </div>
           )}
           {type === 'new' && (
@@ -451,9 +527,7 @@ function StandardHypeCard({ card, index }: { card: HypeCard; index: number }) {
             }}>
               <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#34C759', boxShadow: '0 0 8px rgba(52,199,89,0.7)', flexShrink: 0 }} />
               <span style={{ fontSize: '12px', fontWeight: 700, color: '#34C759' }}>Disponible maintenant</span>
-              {pieces > 0 && (
-                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginLeft: 'auto' }}>{pieces} pcs</span>
-              )}
+              {pieces > 0 && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginLeft: 'auto' }}>{pieces} pcs</span>}
             </div>
           )}
         </div>
@@ -468,9 +542,7 @@ function StandardHypeCard({ card, index }: { card: HypeCard; index: number }) {
 function DropsHypeSkeleton() {
   return (
     <div className="drops-hype-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: 'auto auto', gap: '16px' }}>
-      {/* Hero skeleton */}
       <div style={{ gridColumn: '1 / 3', gridRow: '1 / 3', borderRadius: '28px', backgroundColor: '#0A0A0A', border: '1px solid rgba(255,255,255,0.06)', minHeight: '480px', animation: 'dropsHypeSkeleton 1.6s ease-in-out infinite' }} />
-      {/* Standard card skeletons */}
       {[0, 1, 2, 3].map(i => (
         <div key={i} style={{
           borderRadius: '20px', backgroundColor: '#0A0A0A', border: '1px solid rgba(255,255,255,0.06)', height: '232px',
@@ -486,10 +558,7 @@ function DropsHypeSkeleton() {
    ═══════════════════════════════════════════════════════════════════ */
 function DropsHypeEmpty() {
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      padding: '80px 24px', textAlign: 'center',
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '80px 24px', textAlign: 'center' }}>
       <div style={{
         width: '80px', height: '80px', borderRadius: '24px',
         background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.18)',
@@ -497,9 +566,7 @@ function DropsHypeEmpty() {
       }}>
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="4" width="18" height="18" rx="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
+          <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
         </svg>
       </div>
       <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', margin: '0 0 12px' }}>
@@ -524,7 +591,9 @@ function DropsHypeEmpty() {
    MAIN EXPORT
    ═══════════════════════════════════════════════════════════════════ */
 export function DropsHype() {
-  const [cards, setCards] = useState<HypeCard[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>('upcoming');
+  const [upcomingCards, setUpcomingCards] = useState<HypeCard[]>([]);
+  const [newCards, setNewCards] = useState<HypeCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -537,42 +606,36 @@ export function DropsHype() {
         const comingSoon: HypeCollection[] = Array.isArray(homeData?.comingSoon) ? homeData.comingSoon : [];
         const newReleases: HypeCollection[] = Array.isArray(homeData?.newReleases) ? homeData.newReleases : [];
 
-        const upcomingCards: HypeCard[] = comingSoon
+        const upcoming: HypeCard[] = comingSoon
           .filter((c) => c.launchDate && new Date(c.launchDate).getTime() > Date.now())
-          .slice(0, 3)
-          .map((c) => ({
-            collection: c,
-            type: 'upcoming' as CardType,
-            daysRemaining: getDaysRemaining(c.launchDate!),
-          }));
+          .slice(0, 5)
+          .map((c) => ({ collection: c, type: 'upcoming' as CardType, daysRemaining: getDaysRemaining(c.launchDate!) }));
 
-        const newCards: HypeCard[] = newReleases
+        // Trier les new : vidéos en premier, puis images, puis reste
+        const newSorted: HypeCard[] = newReleases
           .filter((c) => {
             const ref = c.launchedAt || c.launchDate;
-            if (!ref) return false;
-            return Date.now() - new Date(ref).getTime() <= FIFTEEN_DAYS_MS;
+            return ref && Date.now() - new Date(ref).getTime() <= FIFTEEN_DAYS_MS;
           })
-          .slice(0, 3)
+          .sort((a, b) => {
+            if (a.teaserVideo && !b.teaserVideo) return -1;
+            if (!a.teaserVideo && b.teaserVideo) return 1;
+            if (a.coverImage && !b.coverImage) return -1;
+            if (!a.coverImage && b.coverImage) return 1;
+            return 0;
+          })
+          .slice(0, 5)
           .map((c) => ({
             collection: c,
             type: 'new' as CardType,
             daysSinceRelease: getDaysSince((c.launchedAt || c.launchDate)!),
           }));
 
-        // Combine: prioritize upcoming, fill with new. Max 5 total for layout.
-        // Hero = first card. Grid takes up to 5 cards total.
-        const combined: HypeCard[] = [];
+        setUpcomingCards(upcoming);
+        setNewCards(newSorted);
 
-        // Interleave for visual variety: upcoming first, then new
-        const allUpcoming = [...upcomingCards];
-        const allNew = [...newCards];
-
-        while (combined.length < 5 && (allUpcoming.length > 0 || allNew.length > 0)) {
-          if (allUpcoming.length > 0) combined.push(allUpcoming.shift()!);
-          if (combined.length < 5 && allNew.length > 0) combined.push(allNew.shift()!);
-        }
-
-        setCards(combined);
+        // Tab par défaut : upcoming si données, sinon new
+        if (upcoming.length === 0 && newSorted.length > 0) setActiveTab('new');
       } catch (err) {
         console.error('DropsHype fetch failed:', err);
         setError(true);
@@ -583,8 +646,10 @@ export function DropsHype() {
     load();
   }, []);
 
-  const heroCard = cards[0];
-  const otherCards = cards.slice(1, 5);
+  const activeCards = activeTab === 'upcoming' ? upcomingCards : newCards;
+  const heroCard = activeCards[0];
+  const otherCards = activeCards.slice(1, 5);
+  const totalCount = upcomingCards.length + newCards.length;
 
   return (
     <section
@@ -608,8 +673,8 @@ export function DropsHype() {
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative' }}>
 
-        {/* ─── Section Header ─── */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '44px', flexWrap: 'wrap', gap: '20px' }}>
+        {/* ─── Header ─── */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
               <span style={{
@@ -619,7 +684,7 @@ export function DropsHype() {
                 animation: 'dropsHypePulse 1.5s ease-in-out infinite',
               }} />
               <p style={{ fontSize: '11px', fontWeight: 700, color: '#FF3B30', letterSpacing: '2.5px', textTransform: 'uppercase', margin: 0 }}>
-                Agenda des maisons
+                Agenda des marques
               </p>
             </div>
             <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', fontWeight: 900, color: '#fff', letterSpacing: '-1.5px', lineHeight: 1.1, margin: 0 }}>
@@ -647,6 +712,47 @@ export function DropsHype() {
           </Link>
         </div>
 
+        {/* ─── Tabs ─── */}
+        {!loading && !error && (
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '32px' }}>
+            {([
+              { key: 'upcoming' as TabType, label: '● À VENIR', count: upcomingCards.length, color: '#FF3B30' },
+              { key: 'new' as TabType,      label: '⚡ NOUVEAUTÉS', count: newCards.length, color: '#FF9500' },
+            ] as const).map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '999px',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  fontFamily: FONT_FAMILY_INTER,
+                  letterSpacing: '0.2px',
+                  transition: 'all 200ms ease',
+                  cursor: 'pointer',
+                  backgroundColor: activeTab === tab.key ? '#fff' : 'rgba(255,255,255,0.06)',
+                  color: activeTab === tab.key ? '#000' : 'rgba(255,255,255,0.45)',
+                  border: activeTab === tab.key ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                }}
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <span style={{
+                    fontSize: '11px', fontWeight: 800,
+                    opacity: activeTab === tab.key ? 0.5 : 0.4,
+                    backgroundColor: activeTab === tab.key ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)',
+                    padding: '1px 7px', borderRadius: '999px',
+                  }}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* ─── Content ─── */}
         {loading ? (
           <DropsHypeSkeleton />
@@ -656,43 +762,42 @@ export function DropsHype() {
               Impossible de charger les drops. <Link href="/collections" style={{ color: '#FF3B30', textDecoration: 'none', fontWeight: 700 }}>Voir le calendrier →</Link>
             </p>
           </div>
-        ) : cards.length === 0 ? (
+        ) : activeCards.length === 0 ? (
           <DropsHypeEmpty />
         ) : (
-          <div className="drops-hype-grid" style={{
-            display: 'grid',
-            gridTemplateColumns: otherCards.length === 0 ? '1fr' : 'repeat(4, 1fr)',
-            gridTemplateRows: 'auto auto',
-            gap: '16px',
-          }}>
+          <div
+            className="drops-hype-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: otherCards.length === 0 ? '1fr' : 'repeat(4, 1fr)',
+              gridTemplateRows: 'auto auto',
+              gap: '16px',
+            }}
+          >
             {heroCard && <HeroHypeCard card={heroCard} />}
-            {otherCards.map((card, i) => (
-              <StandardHypeCard key={card.collection.id} card={card} index={i} />
+            {otherCards.map((card) => (
+              <StandardHypeCard key={card.collection.id} card={card} />
             ))}
           </div>
         )}
 
         {/* ─── Legend strip ─── */}
-        {cards.length > 0 && (
+        {totalCount > 0 && !loading && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: '24px',
             marginTop: '28px', paddingTop: '24px',
             borderTop: '1px solid rgba(255,255,255,0.06)',
             flexWrap: 'wrap',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>
-                <span style={{ fontSize: '9px', color: '#FF3B30', fontWeight: 800 }}>●</span>
-                Drop imminent — ouverture à venir
-              </span>
-            </div>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>
+              <span style={{ fontSize: '9px', color: '#FF3B30', fontWeight: 800 }}>●</span>
+              Drop imminent — ouverture à venir
+            </span>
             <div style={{ width: '1px', height: '14px', backgroundColor: 'rgba(255,255,255,0.08)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>
-                <span style={{ fontSize: '9px', color: '#FF9500', fontWeight: 800 }}>⚡</span>
-                Nouveau — sorti dans les 3 derniers jours
-              </span>
-            </div>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>
+              <span style={{ fontSize: '9px', color: '#FF9500', fontWeight: 800 }}>⚡</span>
+              Nouveau — sorti récemment
+            </span>
             <Link href="/create-brand" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', textDecoration: 'none', color: 'rgba(255,255,255,0.25)', marginLeft: 'auto', transition: 'color 200ms ease' }} className="drops-hype-creator-hint">
               Tu es créateur ?{' '}
               <span style={{ color: '#C9A962', fontWeight: 700 }}>Planifier un lancement →</span>
@@ -710,56 +815,39 @@ export function DropsHype() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.45; }
         }
-        .drops-hero-card:hover {
-          transform: scale(1.01) !important;
+        @keyframes mutePulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.15); }
+          50% { box-shadow: 0 0 0 6px rgba(255,255,255,0); }
         }
+        .drops-hero-card:hover { transform: scale(1.01) !important; }
         .drops-hero-card:hover .drops-hero-cta {
           transform: translateY(-2px) !important;
           filter: brightness(1.1) !important;
         }
+        .drops-mute-btn:hover { background-color: rgba(0,0,0,0.7) !important; border-color: rgba(255,255,255,0.35) !important; }
         .drops-std-card:hover {
           transform: translateY(-5px) !important;
           box-shadow: 0 24px 56px rgba(0,0,0,0.7) !important;
-          border-color: rgba(255,59,48,0.25) !important;
+          border-color: rgba(255,59,48,0.22) !important;
         }
-        .drops-std-card:hover .drops-card-img {
-          transform: scale(1.04) !important;
-        }
+        .drops-std-card:hover .drops-card-img { transform: scale(1.04) !important; }
         .drops-hype-see-all:hover {
           color: #fff !important;
           border-color: rgba(255,255,255,0.22) !important;
           background-color: rgba(255,255,255,0.07) !important;
         }
-        .drops-hype-creator-hint:hover span:last-child {
-          color: #e8c274 !important;
-        }
+        .drops-hype-creator-hint:hover span:last-child { color: #e8c274 !important; }
         @media (max-width: 1100px) {
-          .drops-hype-grid {
-            grid-template-columns: repeat(3, 1fr) !important;
-          }
-          .drops-hero-card {
-            grid-column: 1 / 4 !important;
-            grid-row: 1 !important;
-            min-height: 380px !important;
-          }
+          .drops-hype-grid { grid-template-columns: repeat(3, 1fr) !important; }
+          .drops-hero-card { grid-column: 1 / 4 !important; grid-row: 1 !important; min-height: 380px !important; }
         }
         @media (max-width: 720px) {
-          .drops-hype-grid {
-            grid-template-columns: 1fr 1fr !important;
-          }
-          .drops-hero-card {
-            grid-column: 1 / 3 !important;
-            grid-row: 1 !important;
-            min-height: 340px !important;
-          }
+          .drops-hype-grid { grid-template-columns: 1fr 1fr !important; }
+          .drops-hero-card { grid-column: 1 / 3 !important; grid-row: 1 !important; min-height: 340px !important; }
         }
         @media (max-width: 480px) {
-          .drops-hype-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .drops-hero-card {
-            grid-column: 1 !important;
-          }
+          .drops-hype-grid { grid-template-columns: 1fr !important; }
+          .drops-hero-card { grid-column: 1 !important; }
         }
       `}</style>
     </section>

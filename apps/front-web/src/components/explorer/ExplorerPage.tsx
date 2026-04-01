@@ -59,7 +59,22 @@ export function ExplorerPage() {
         counts={counts}
       />
 
-      <main style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 40px 80px' }}>
+      <style>{`
+        @media (max-width: 640px) {
+          .explorer-main { padding: 24px 16px 60px !important; }
+          .explorer-tab-layout { flex-direction: column !important; gap: 0 !important; }
+          .explorer-tab-aside {
+            width: 100% !important;
+            position: static !important;
+            border-right: none !important;
+            border-bottom: 1px solid rgba(0,0,0,0.07) !important;
+            padding-right: 0 !important;
+            padding-bottom: 16px !important;
+            margin-bottom: 16px !important;
+          }
+        }
+      `}</style>
+      <main className="explorer-main" style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 40px 80px' }}>
         {activeTab === 'products' && <ProductsTab query={query} />}
         {activeTab === 'collections' && <CollectionsTab query={query} />}
         {activeTab === 'brands' && <BrandsTab query={query} />}

@@ -83,7 +83,7 @@ export function HowItWorks() {
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative' }}>
         {/* Header */}
-        <div style={{ maxWidth: '540px', marginBottom: '80px' }}>
+        <div className="hiw-header" style={{ maxWidth: '540px', marginBottom: '80px' }}>
           <p style={{
             fontSize: '11px', fontWeight: 700, color: '#FF3B30',
             letterSpacing: '2.5px', textTransform: 'uppercase',
@@ -191,7 +191,10 @@ export function HowItWorks() {
           .hiw-connector { display: none !important; }
         }
         @media (max-width: 640px) {
-          .hiw-grid { gap: 16px !important; }
+          #how-it-works { padding: 64px 16px !important; margin: 0 6px !important; }
+          .hiw-header { margin-bottom: 48px !important; }
+          .hiw-grid { gap: 12px !important; }
+          .hiw-card { padding: 24px 20px !important; }
         }
       `}</style>
     </section>

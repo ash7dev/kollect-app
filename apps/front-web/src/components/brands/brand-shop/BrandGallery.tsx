@@ -2,11 +2,18 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { TeaserModal } from './BrandProductCard';
 import type { BrandProductCardItem } from './BrandProductCard';
+type BrandCollectionLite = {
+  name: string;
+  status?: string | null;
+};
 
 type BrandGalleryProps = {
   products: BrandProductCardItem[];
   brandName: string;
+  collections?: BrandCollectionLite[];
+  accent?: string;
 };
 
 // Fonction pour générer des hauteurs et largeurs aléatoires style Pinterest
@@ -51,9 +58,10 @@ function getImageUrl(product: BrandProductCardItem, imageIndex: number = 0): str
   return product.images[imageIndex % product.images.length];
 }
 
-export function BrandGallery({ products, brandName }: BrandGalleryProps) {
+export function BrandGallery({ products, brandName, collections = [], accent = '#000' }: BrandGalleryProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [teaserModalProduct, setTeaserModalProduct] = useState<string | null>(null);
   
   // Générer un seed aléatoire à chaque chargement de composant
   const [seed] = useState(() => Math.floor(Math.random() * 10000));
@@ -252,8 +260,13 @@ export function BrandGallery({ products, brandName }: BrandGalleryProps) {
               onMouseEnter={() => setHoveredIndex(index)}
               onMouseLeave={() => setHoveredIndex(null)}
               onClick={() => {
-                // Rediriger vers la page du produit
-                window.location.href = `/product/${item.slug}`;
+                const isTeaser = !!collections.find(c => c.name === item.collection?.name && c.status === 'TEASER');
+                if (isTeaser) {
+                  setTeaserModalProduct(item.name);
+                } else {
+                  // Rediriger vers la page du produit
+                  window.location.href = `/product/${item.slug}`;
+                }
               }}
             >
               {/* Image */}
@@ -347,6 +360,15 @@ export function BrandGallery({ products, brandName }: BrandGalleryProps) {
           );
         })}
       </div>
+
+      {/* Modale affichée lors d'un clic sur un produit Teaser */}
+      {teaserModalProduct && (
+        <TeaserModal
+          productName={teaserModalProduct}
+          accent={accent}
+          onCancel={() => setTeaserModalProduct(null)}
+        />
+      )}
     </section>
   );
 }

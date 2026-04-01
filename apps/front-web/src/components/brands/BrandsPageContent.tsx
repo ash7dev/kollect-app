@@ -10,7 +10,9 @@ import { BrandsGrid } from '@/components/brands/BrandsGrid';
 import { BrandsEmpty } from '@/components/brands/BrandsEmpty';
 import { BrandsCreatorCta } from '@/components/brands/BrandsCreatorCta';
 import { BrandFeatured } from '@/components/brands/BrandFeatured';
-import { FONT_FAMILY_INTER } from '@/styles/typography';
+import { BrandNewcomer } from '@/components/brands/BrandNewcomer';
+
+const NEWCOMER_DAYS = 30;
 
 function sortBrands(list: BrandListItem[], sort: BrandSortId): BrandListItem[] {
   const copy = [...list];
@@ -110,7 +112,22 @@ export function BrandsPageContent() {
     return sortBrands(list, sort);
   }, [raw, query, verifiedOnly, sort]);
 
-  const spotlight = useMemo(() => filteredSorted.slice(0, Math.min(2, filteredSorted.length)), [filteredSorted]);
+  const newcomers = useMemo(() => {
+    const cutoff = Date.now() - NEWCOMER_DAYS * 86400000;
+    return filteredSorted.filter((b) => b.createdAt && new Date(b.createdAt).getTime() > cutoff);
+  }, [filteredSorted]);
+
+  const establishedBrands = useMemo(() => {
+    const cutoff = Date.now() - NEWCOMER_DAYS * 86400000;
+    return filteredSorted.filter((b) => !b.createdAt || new Date(b.createdAt).getTime() <= cutoff);
+  }, [filteredSorted]);
+
+  const spotlightEligible = useMemo(() => {
+    const cutoff = Date.now() - 15 * 86400000;
+    return filteredSorted.filter((b) => !b.createdAt || new Date(b.createdAt).getTime() <= cutoff);
+  }, [filteredSorted]);
+
+  const spotlight = useMemo(() => spotlightEligible.slice(0, Math.min(2, spotlightEligible.length)), [spotlightEligible]);
   const gridItems = useMemo(() => filteredSorted.slice(2), [filteredSorted]);
 
   const hasFilters = query.trim().length > 0 || verifiedOnly;
@@ -189,11 +206,15 @@ export function BrandsPageContent() {
               éditoriale. Suis le fil, ouvre la boutique — c’est là que l’histoire de la marque prend tout son sens.
             </p>
           </div>
-          <BrandFeatured brands={filteredSorted} />
+          <BrandFeatured brands={establishedBrands} />
         </section>
       )}
 
-      <div style={{ padding: '32px 0 48px', fontFamily: FONT_FAMILY_INTER }}>
+      {!loading && newcomers.length > 0 && (
+        <BrandNewcomer brands={newcomers} />
+      )}
+
+      <div style={{ padding: '32px 0 48px', fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 var(--layout-container-padding)' }}>
           {fetchError && (
             <p style={{ color: '#FF453A', fontSize: 14, marginBottom: 20, padding: '0 12px' }}>{fetchError}</p>
@@ -207,6 +228,19 @@ export function BrandsPageContent() {
             <>
               {showSpotlight && (
                 <div style={{ marginBottom: gridItems.length > 0 ? 40 : 0 }}>
+                  <div style={{ marginBottom: 'clamp(20px, 3vw, 28px)', maxWidth: '720px', padding: '0 12px' }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-accent)', letterSpacing: '2.8px', textTransform: 'uppercase', margin: '0 0 14px' }}>
+                      Coup de projecteur
+                    </p>
+                    <h2 style={{ fontSize: 'clamp(1.5rem, 3.2vw, 2.1rem)', fontWeight: 900, color: '#0a0a0a', letterSpacing: '-1px', lineHeight: 1.1, margin: '0 0 14px' }}>
+                      Les marques qui font
+                      <br />
+                      <span style={{ color: 'rgba(0,0,0,0.42)' }}>parler d&apos;elles en ce moment.</span>
+                    </h2>
+                    <p style={{ fontSize: 15, fontWeight: 500, color: 'rgba(0,0,0,0.5)', lineHeight: 1.65, margin: 0, maxWidth: 560 }}>
+                      Sélection éditoriale — les créateurs les plus actifs de la plateforme, ceux qui sortent des pièces et construisent leur univers.
+                    </p>
+                  </div>
                   <BrandSpotlight brands={spotlight} />
                 </div>
               )}

@@ -34,7 +34,7 @@ export function ExplorerHero({ activeTab, onTabChange, query, onQueryChange, cou
   useEffect(() => { setIsVisible(true); }, []);
 
   return (
-    <section style={{
+    <section id="explorer-hero" style={{
       backgroundColor: '#0a0a0a',
       padding: '80px 40px 0',
       marginTop: 72,
@@ -58,6 +58,9 @@ export function ExplorerHero({ activeTab, onTabChange, query, onQueryChange, cou
         }
         .explorer-hero-in { animation: explorerHeroUp 0.7s ease-out both; }
         .explorer-tab-btn:hover { color: #fff !important; }
+        @media (max-width: 640px) {
+          #explorer-hero { padding: 48px 16px 0 !important; }
+        }
       `}</style>
 
       <div style={{ maxWidth: 1280, margin: '0 auto', position: 'relative', zIndex: 1 }}>

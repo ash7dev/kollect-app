@@ -75,7 +75,7 @@ function genSKU(name: string): string {
 
 // ─── emptyProduct ─────────────────────────────────────────────────────────────
 export function emptyProduct(): WizardProductDraft {
-  return { name: '', description: '', price: 0, stock: 10, sku: '', sizes: [], colors: [], images: [] };
+  return { name: '', description: '', price: 0, stock: 10, sku: '', sizes: [], colors: [], images: [], productType: 'TSHIRT', gender: 'UNISEXE' };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

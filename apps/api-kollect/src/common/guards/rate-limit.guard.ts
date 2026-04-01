@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -28,6 +27,13 @@ export const RATE_LIMIT_KEY = 'rateLimit';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
+  // Limite par défaut appliquée à toutes les routes sans décorateur @RateLimit()
+  private static readonly DEFAULT_OPTIONS: RateLimitOptions = {
+    windowMs: 60_000, // 1 minute
+    max: 100,         // 100 req/min par identifiant — baseline minimum
+    message: 'Trop de requêtes, veuillez réessayer dans une minute',
+  };
+
   constructor(
     private readonly reflector: Reflector,
     private readonly logger: AppLogger,
@@ -35,14 +41,10 @@ export class RateLimitGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const options = this.reflector.get<RateLimitOptions>(
-      RATE_LIMIT_KEY,
-      context.getHandler(),
-    );
-
-    if (!options) {
-      return true;
-    }
+    const options =
+      this.reflector.get<RateLimitOptions>(RATE_LIMIT_KEY, context.getHandler()) ??
+      this.reflector.get<RateLimitOptions>(RATE_LIMIT_KEY, context.getClass()) ??
+      RateLimitGuard.DEFAULT_OPTIONS;
 
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();

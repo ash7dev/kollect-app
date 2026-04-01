@@ -77,7 +77,7 @@ export function Testimonials() {
     >
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '72px' }}>
+        <div className="testimonials-header" style={{ textAlign: 'center', marginBottom: '72px' }}>
           <p style={{
             fontSize: '11px', fontWeight: 700, color: '#FF3B30',
             letterSpacing: '2.5px', textTransform: 'uppercase',
@@ -198,7 +198,7 @@ export function Testimonials() {
         </div>
       </div>
 
-      <style>{`
+      <style suppressHydrationWarning>{`
         .testimonial-card:hover {
           transform: translateY(-4px) !important;
           box-shadow: 0 20px 48px rgba(0,0,0,0.07) !important;
@@ -206,8 +206,12 @@ export function Testimonials() {
         @media (max-width: 960px) {
           .testimonials-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
-        @media (max-width: 600px) {
-          .testimonials-grid { grid-template-columns: 1fr !important; }
+        @media (max-width: 640px) {
+          #testimonials { padding: 64px 16px !important; margin: 0 6px !important; }
+          .testimonials-header { margin-bottom: 40px !important; }
+          .testimonials-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+          .testimonial-card { padding: 24px 20px !important; }
+          .testimonials-grid > *:nth-child(n+4) { display: none !important; }
         }
       `}</style>
     </section>

@@ -5,6 +5,8 @@ export type ProductFilterState = {
   maxPrice: string;
   sizes: string[];
   colors: string[];
+  productTypes: string[];
+  genders: string[];
   inStock: boolean;
   sortBy: 'popular' | 'recent' | 'price-asc' | 'price-desc';
 };
@@ -14,12 +16,26 @@ export const DEFAULT_PRODUCT_FILTERS: ProductFilterState = {
   maxPrice: '',
   sizes: [],
   colors: [],
+  productTypes: [],
+  genders: [],
   inStock: false,
   sortBy: 'popular',
 };
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const COLORS = ['Noir', 'Blanc', 'Gris', 'Rouge', 'Bleu', 'Vert', 'Beige', 'Marron'];
+const PRODUCT_TYPES = [
+  { value: 'TSHIRT', label: 'T-shirt / Top' },
+  { value: 'BONNET', label: 'Bonnet / Casquette' },
+  { value: 'SAC', label: 'Sac' },
+  { value: 'ENSEMBLE', label: 'Ensemble' },
+  { value: 'ACCESSOIRE', label: 'Accessoire' },
+];
+const GENDERS = [
+  { value: 'HOMME', label: 'Homme' },
+  { value: 'FEMME', label: 'Femme' },
+  { value: 'UNISEXE', label: 'Unisex' },
+];
 const SORTS = [
   { value: 'popular', label: 'Populaire' },
   { value: 'recent', label: 'Récent' },
@@ -51,6 +67,12 @@ export function ProductFilters({ filters, onChange }: ProductFiltersProps) {
 
   const toggleColor = (c: string) =>
     set({ colors: filters.colors.includes(c) ? filters.colors.filter(x => x !== c) : [...filters.colors, c] });
+
+  const toggleProductType = (t: string) =>
+    set({ productTypes: filters.productTypes.includes(t) ? filters.productTypes.filter(x => x !== t) : [...filters.productTypes, t] });
+
+  const toggleGender = (g: string) =>
+    set({ genders: filters.genders.includes(g) ? filters.genders.filter(x => x !== g) : [...filters.genders, g] });
 
   return (
     <div style={{ padding: '24px 0' }}>
@@ -122,6 +144,44 @@ export function ProductFilters({ filters, onChange }: ProductFiltersProps) {
               }}
             >
               {c}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Type">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {PRODUCT_TYPES.map(t => (
+            <button
+              key={t.value} onClick={() => toggleProductType(t.value)}
+              style={{
+                padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                border: filters.productTypes.includes(t.value) ? 'none' : '1.5px solid rgba(0,0,0,0.12)',
+                backgroundColor: filters.productTypes.includes(t.value) ? '#0a0a0a' : 'transparent',
+                color: filters.productTypes.includes(t.value) ? '#fff' : 'rgba(0,0,0,0.6)',
+                transition: 'all 150ms ease',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Genre">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {GENDERS.map(g => (
+            <button
+              key={g.value} onClick={() => toggleGender(g.value)}
+              style={{
+                padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                border: filters.genders.includes(g.value) ? 'none' : '1.5px solid rgba(0,0,0,0.12)',
+                backgroundColor: filters.genders.includes(g.value) ? '#0a0a0a' : 'transparent',
+                color: filters.genders.includes(g.value) ? '#fff' : 'rgba(0,0,0,0.6)',
+                transition: 'all 150ms ease',
+              }}
+            >
+              {g.label}
             </button>
           ))}
         </div>

@@ -789,8 +789,6 @@ function LiveActivity() {
 
 /* ─── Main Component ───────────────────────────────────────────────── */
 export function FOMOSection() {
-  const [trending, setTrending] = useState<TrendingCollection[]>([]);
-  const [comingSoon, setComingSoon] = useState<ComingSoonCollection[]>([]);
   const [featured, setFeatured] = useState<FeaturedCollection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -798,23 +796,24 @@ export function FOMOSection() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [homeRes, featuredRes] = await Promise.all([
-          apiClient.get('/collections/home'),
-          apiClient.get('/collections/featured?limit=6'),
-        ]);
-
-        const homeData = homeRes.data;
-        setTrending(Array.isArray(homeData?.trending) ? homeData.trending : []);
-        setComingSoon(Array.isArray(homeData?.comingSoon) ? homeData.comingSoon : []);
-        setFeatured(Array.isArray(featuredRes.data) ? featuredRes.data : []);
+        const featuredRes = await apiClient.get('/collections/featured?limit=6');
+        const raw: FeaturedCollection[] = Array.isArray(featuredRes.data) ? featuredRes.data : [];
+        // Trier : collections avec vidéo en premier, puis coverImage, puis reste
+        const sorted = [...raw].sort((a, b) => {
+          if (a.teaserVideo && !b.teaserVideo) return -1;
+          if (!a.teaserVideo && b.teaserVideo) return 1;
+          if (a.coverImage && !b.coverImage) return -1;
+          if (!a.coverImage && b.coverImage) return 1;
+          return 0;
+        });
+        setFeatured(sorted);
       } catch (err) {
-        console.error('Failed to fetch FOMO data:', err);
+        console.error('Failed to fetch featured collections:', err);
         setError(true);
       } finally {
         setLoading(false);
       }
     }
-
     fetchData();
   }, []);
 
@@ -880,7 +879,7 @@ export function FOMOSection() {
         </div>
 
         {/* Carousel featured */}
-        <div className="featured-carousel" style={{
+        <div className="featured-carousel fomo-carousel" style={{
           display: 'flex',
           overflowX: 'auto',
           gap: '24px',
@@ -910,7 +909,7 @@ export function FOMOSection() {
 
         {/* Footer CTA */}
         {!loading && !error && (
-          <div style={{
+          <div className="fomo-footer-cta" style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -987,9 +986,10 @@ export function FOMOSection() {
             font-size: 2.2rem !important;
           }
         }
-        @media (max-width: 600px) {
-          #fomo .grid { 
-            grid-template-columns: 1fr !important; 
+        @media (max-width: 640px) {
+          #fomo { padding: 64px 16px !important; margin: 0 6px !important; }
+          #fomo .grid {
+            grid-template-columns: 1fr !important;
           }
           .hero-trending-card {
             min-height: 240px !important;
@@ -997,6 +997,10 @@ export function FOMOSection() {
           #fomo .grid h2 {
             font-size: 1.8rem !important;
           }
+          .featured-card-wrapper { height: 420px !important; }
+          .featured-card h3 { font-size: 20px !important; line-height: 24px !important; }
+          .fomo-carousel { gap: 14px !important; }
+          .fomo-footer-cta { flex-direction: column !important; align-items: flex-start !important; gap: 20px !important; }
         }
       `}</style>
     </section>

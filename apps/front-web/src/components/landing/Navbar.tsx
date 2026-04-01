@@ -16,7 +16,7 @@ const NAV_LINKS = [
   { label: 'À propos', href: '/about' },
 ];
 
-export function Navbar({ transparent = false }: { transparent?: boolean } = {}) {
+export function Navbar({ transparent = false, black = false }: { transparent?: boolean; black?: boolean } = {}) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -133,11 +133,11 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
           zIndex: 50,
           fontFamily: FONT_FAMILY_INTER,
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          backdropFilter: scrolled || transparent ? 'blur(20px) saturate(180%)' : 'none',
-          WebkitBackdropFilter: scrolled || transparent ? 'blur(20px) saturate(180%)' : 'none',
-          background: scrolled || transparent ? 'rgba(10, 10, 10, 0.85)' : 'transparent',
-          borderBottom: scrolled || transparent ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
-          boxShadow: scrolled || transparent ? '0 4px 32px rgba(0,0,0,0.4)' : 'none',
+          backdropFilter: scrolled || transparent || black ? 'blur(20px) saturate(180%)' : 'none',
+          WebkitBackdropFilter: scrolled || transparent || black ? 'blur(20px) saturate(180%)' : 'none',
+          background: black ? '#000000' : (scrolled || transparent ? 'rgba(10, 10, 10, 0.85)' : 'transparent'),
+          borderBottom: scrolled || transparent || black ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+          boxShadow: scrolled || transparent || black ? '0 4px 32px rgba(0,0,0,0.4)' : 'none',
         }}
       >
         <div style={{
@@ -165,7 +165,7 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
             <span style={{
               fontSize: '36px',
               fontWeight: 600,
-              color: '#fff',
+              color: black ? '#fff' : '#fff',
               letterSpacing: '-0.7px',
               fontStyle: 'italic',
               fontFamily: "'Snell Roundhand', 'Dancing Script', 'Brush Script MT', cursive",
@@ -185,10 +185,10 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
               display: 'flex',
               alignItems: 'center',
               gap: '2px',
-              background: 'rgba(255,255,255,0.07)',
+              background: black ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.07)',
               borderRadius: '14px',
               padding: '5px',
-              border: '1px solid rgba(255,255,255,0.10)',
+              border: black ? '1px solid rgba(0,0,0,0.2)' : '1px solid rgba(255,255,255,0.10)',
               backdropFilter: 'blur(8px)',
             }}
           >
@@ -204,7 +204,7 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
                     borderRadius: '9px',
                     fontSize: '14px',
                     fontWeight: isActive ? 700 : 500,
-                    color: isActive ? '#fff' : 'rgba(255,255,255,0.60)',
+                    color: black ? (isActive ? '#fff' : 'rgba(255,255,255,0.8)') : (isActive ? '#fff' : 'rgba(255,255,255,0.60)'),
                     textDecoration: 'none',
                     transition: 'all 200ms ease',
                     backgroundColor: isActive ? '#FF3B30' : 'transparent',
@@ -226,44 +226,6 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
             className="nav-cta-desktop"
             style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, zIndex: 1 }}
           >
-            {/* ── Bouton panier (toujours visible) ── */}
-            {mounted && (
-              <button
-                onClick={toggleCart}
-                aria-label="Ouvrir le panier"
-                style={{
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  padding: '9px', borderRadius: '10px',
-                  color: 'rgba(255,255,255,0.85)',
-                  backgroundColor: cartCount > 0 ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)',
-                  border: cartCount > 0 ? '1px solid rgba(255,255,255,0.20)' : '1px solid rgba(255,255,255,0.10)',
-                  cursor: 'pointer',
-                  position: 'relative',
-                  transition: 'all 200ms ease',
-                }}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <path d="M16 10a4 4 0 0 1-8 0" />
-                </svg>
-                {cartCount > 0 && (
-                  <span style={{
-                    position: 'absolute', top: '4px', right: '4px',
-                    minWidth: '17px', height: '17px', borderRadius: '9px',
-                    backgroundColor: '#FF3B30', color: '#fff',
-                    fontSize: '9px', fontWeight: 800,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '0 4px', lineHeight: 1,
-                    boxShadow: '0 0 0 2px rgba(10,10,10,0.9)',
-                  }}>
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
-                )}
-              </button>
-            )}
-
             {mounted && user && user.id ? (
               /* Connecté → notifications + menu profil */
               <>
@@ -277,9 +239,9 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
                       justifyContent: 'center',
                       padding: '9px',
                       borderRadius: '10px',
-                      color: 'rgba(255,255,255,0.85)',
-                      backgroundColor: 'rgba(255,255,255,0.07)',
-                      border: '1px solid rgba(255,255,255,0.10)',
+                      color: black ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.85)',
+                      backgroundColor: black ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.07)',
+                      border: black ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(255,255,255,0.10)',
                       cursor: 'pointer',
                       transition: 'all 200ms ease',
                       position: 'relative',
@@ -308,7 +270,7 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
                         padding: '0 4px',
                         lineHeight: 1,
                         letterSpacing: '0.2px',
-                        boxShadow: '0 0 0 2px rgba(10,10,10,0.9)',
+                        boxShadow: black ? '0 0 0 2px #000000' : '0 0 0 2px rgba(10,10,10,0.9)',
                       }}>
                         {unreadCount > 99 ? '99+' : unreadCount}
                       </span>
@@ -487,9 +449,9 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
                       borderRadius: '10px',
                       fontSize: '14px',
                       fontWeight: 600,
-                      color: 'rgba(255,255,255,0.90)',
-                      backgroundColor: 'rgba(255,255,255,0.07)',
-                      border: '1px solid rgba(255,255,255,0.10)',
+                      color: black ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.90)',
+                      backgroundColor: black ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.07)',
+                      border: black ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(255,255,255,0.10)',
                       cursor: 'pointer',
                       transition: 'all 200ms ease',
                     }}
@@ -711,9 +673,9 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
                     borderRadius: '10px',
                     fontSize: '14px',
                     fontWeight: 600,
-                    color: 'rgba(255,255,255,0.75)',
+                    color: black ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.75)',
                     textDecoration: 'none',
-                    border: '1px solid rgba(255,255,255,0.12)',
+                    border: black ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.12)',
                     transition: 'all 200ms ease',
                     backgroundColor: 'transparent',
                   }}
@@ -749,6 +711,46 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
             )}
           </div>
 
+          {/* ── Bouton panier (toujours visible, desktop + mobile) ── */}
+          {mounted && (
+            <button
+              onClick={toggleCart}
+              aria-label="Ouvrir le panier"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                padding: '9px', borderRadius: '10px',
+                color: black ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.85)',
+                backgroundColor: cartCount > 0 ? (black ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.12)') : (black ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.07)'),
+                border: cartCount > 0 ? (black ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.20)') : (black ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(255,255,255,0.10)'),
+                cursor: 'pointer',
+                position: 'relative',
+                transition: 'all 200ms ease',
+                flexShrink: 0,
+                zIndex: 1,
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <path d="M16 10a4 4 0 0 1-8 0" />
+              </svg>
+              {cartCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: '4px', right: '4px',
+                  minWidth: '17px', height: '17px', borderRadius: '9px',
+                  backgroundColor: '#FF3B30', color: '#fff',
+                  fontSize: '9px', fontWeight: 800,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 4px', lineHeight: 1,
+                  boxShadow: black ? '0 0 0 2px #000000' : '0 0 0 2px rgba(10,10,10,0.9)',
+                }}>
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* ══ Burger — mobile ══ */}
           <button
             className="nav-burger"
@@ -760,8 +762,8 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              border: '1px solid rgba(255,255,255,0.12)',
-              backgroundColor: 'rgba(255,255,255,0.07)',
+              border: black ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.12)',
+              backgroundColor: black ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.07)',
               alignItems: 'center',
               justifyContent: 'center',
               flexDirection: 'column',
@@ -777,7 +779,7 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
                 display: 'block',
                 width: '18px',
                 height: '2px',
-                backgroundColor: '#fff',
+                backgroundColor: black ? '#fff' : '#fff',
                 borderRadius: '2px',
                 transition: 'all 250ms ease',
                 transformOrigin: 'center',
@@ -819,7 +821,7 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
           bottom: 0,
           width: '300px',
           zIndex: 1001,
-          backgroundColor: '#0F0F0F',
+          backgroundColor: black ? '#FFFFFF' : '#0F0F0F',
           boxShadow: '-8px 0 60px rgba(0,0,0,0.6)',
           border: '1px solid rgba(255,255,255,0.07)',
           display: 'flex',
@@ -836,7 +838,7 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
             fontWeight: 700,
             fontStyle: 'italic',
             letterSpacing: '1.2px',
-            color: '#FF3B30',
+            color: black ? '#000000' : '#FF3B30',
             fontFamily: "'Snell Roundhand', 'Dancing Script', cursive",
           }}>
             Kollect
@@ -870,7 +872,7 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
                 borderRadius: '12px',
                 fontSize: '16px',
                 fontWeight: isActive ? 700 : 500,
-                color: isActive ? '#fff' : 'rgba(255,255,255,0.60)',
+                color: black ? (isActive ? '#fff' : 'rgba(0,0,0,0.8)') : (isActive ? '#fff' : 'rgba(255,255,255,0.60)'),
                 textDecoration: 'none',
                 backgroundColor: isActive ? '#FF3B30' : 'transparent',
                 boxShadow: isActive ? '0 4px 16px rgba(255,59,48,0.30)' : 'none',
@@ -919,9 +921,9 @@ export function Navbar({ transparent = false }: { transparent?: boolean } = {}) 
                   borderRadius: '12px',
                   fontSize: '15px',
                   fontWeight: 600,
-                  color: 'rgba(255,255,255,0.75)',
+                  color: black ? '#000' : 'rgba(255,255,255,0.75)',
                   textDecoration: 'none',
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  border: black ? '1px solid rgba(0,0,0,0.3)' : '1px solid rgba(255,255,255,0.12)',
                   textAlign: 'center',
                   backgroundColor: 'transparent',
                 }}

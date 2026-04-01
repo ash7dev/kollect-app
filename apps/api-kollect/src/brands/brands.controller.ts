@@ -13,12 +13,9 @@ import {
   HttpCode,
   HttpStatus,
   UseInterceptors,
-  UploadedFile,
-  ParseFilePipe,
-  MaxFileSizeValidator,
-  FileTypeValidator,
+  UploadedFiles,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { BrandsService, BrandStats } from './brands.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
@@ -28,7 +25,6 @@ import { BrandOwnerGuard } from '../common/guards/brand-owner.guard';
 import { Roles, GetUser } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { CreateBrandResponse } from './types/brand.types';
-import { UPLOAD_CONSTANTS } from '../upload/types/upload.types';
 
 // Interface pour les filtres de recherche
 // Les valeurs viennent des query params (?isActive=true&isVerified=true)
@@ -111,31 +107,19 @@ export class BrandsController {
    * - website, instagram, facebook, twitter, tiktok: string (optional)
    */
   @Post()
-  @UseInterceptors(FileInterceptor('logo'))
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'logo', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }]))
   @HttpCode(HttpStatus.CREATED)
   async create(
     @GetUser('id') userId: string,
     @Body() createBrandDto: CreateBrandDto,
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({
-            maxSize: UPLOAD_CONSTANTS.MAX_IMAGE_SIZE,
-          }),
-          new FileTypeValidator({
-            fileType: new RegExp(
-              UPLOAD_CONSTANTS.ALLOWED_IMAGE_MIMETYPES.join('|'),
-            ),
-          }),
-        ],
-        fileIsRequired: false, // Le logo est optionnel
-      }),
-    )
-    logo?: Express.Multer.File,
+    @UploadedFiles() files?: { logo?: Express.Multer.File[], coverImage?: Express.Multer.File[] },
   ): Promise<CreateBrandResponse> {
     // Si un fichier est téléchargé, on l'ajoute au DTO
-    if (logo) {
-      createBrandDto.logo = logo;
+    if (files?.logo?.[0]) {
+      createBrandDto.logo = files.logo[0];
+    }
+    if (files?.coverImage?.[0]) {
+      createBrandDto.coverImage = files.coverImage[0];
     }
 
     return await this.brandsService.create(userId, createBrandDto);
@@ -173,40 +157,28 @@ export class BrandsController {
    * - Si logo absent → Pas de modification
    */
   @Patch(':id')
-  @Roles('isCEO')
   @UseGuards(BrandOwnerGuard)
-  @UseInterceptors(FileInterceptor('logo'))
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'logo', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }]))
   @HttpCode(HttpStatus.OK)
   async update(
     @GetUser('id') userId: string,
     @Param('id') brandId: string,
     @Body() updateBrandDto: UpdateBrandDto,
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({
-            maxSize: UPLOAD_CONSTANTS.MAX_IMAGE_SIZE,
-          }),
-          new FileTypeValidator({
-            fileType: new RegExp(
-              UPLOAD_CONSTANTS.ALLOWED_IMAGE_MIMETYPES.join('|'),
-            ),
-          }),
-        ],
-        fileIsRequired: false, // Le logo est optionnel lors de l'update
-      }),
-    )
-    logo?: Express.Multer.File,
+    @UploadedFiles() files?: { logo?: Express.Multer.File[], coverImage?: Express.Multer.File[] },
   ) {
     // Gestion intelligente du logo
-    if (logo) {
-      // Nouveau fichier uploadé → remplacement
-      updateBrandDto.logo = logo;
+    if (files?.logo?.[0]) {
+      updateBrandDto.logo = files.logo[0];
     } else if (updateBrandDto.logo === '' || updateBrandDto.logo === 'null') {
-      // Suppression demandée (via form data string)
       updateBrandDto.logo = null;
     }
-    // Si ni logo file ni suppression demandée → pas de modification (undefined)
+    
+    // Gestion intelligente de la coverImage
+    if (files?.coverImage?.[0]) {
+      updateBrandDto.coverImage = files.coverImage[0];
+    } else if (updateBrandDto.coverImage === '' || updateBrandDto.coverImage === 'null') {
+      updateBrandDto.coverImage = null;
+    }
 
     return await this.brandsService.update(userId, brandId, updateBrandDto);
   }
@@ -218,7 +190,6 @@ export class BrandsController {
    * La boutique reste en BDD mais n'est plus visible publiquement
    */
   @Delete(':id/deactivate')
-  @Roles('isCEO')
   @UseGuards(BrandOwnerGuard)
   @HttpCode(HttpStatus.OK)
   async deactivate(
@@ -234,7 +205,6 @@ export class BrandsController {
    * Nécessite : JWT + Rôle CEO + Propriétaire
    */
   @Patch(':id/reactivate')
-  @Roles('isCEO')
   @UseGuards(BrandOwnerGuard)
   @HttpCode(HttpStatus.OK)
   async reactivate(
@@ -278,7 +248,6 @@ export class BrandsController {
  * GET /brands/:id/stats
  */
   @Get(':id/stats')
-  @Roles('isCEO')
   @UseGuards(BrandOwnerGuard)
   @HttpCode(HttpStatus.OK)
   async getStats(
@@ -303,7 +272,6 @@ export class BrandsController {
    * GET /brands/:id/sales-data?period=7days
    */
   @Get(':id/sales-data')
-  @Roles('isCEO')
   @UseGuards(BrandOwnerGuard)
   @HttpCode(HttpStatus.OK)
   async getSalesData(

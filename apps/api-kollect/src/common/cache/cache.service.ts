@@ -1,210 +1,96 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+/* eslint-disable prettier/prettier */
+import { Injectable, Inject, Logger } from '@nestjs/common';
+import type Redis from 'ioredis';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
-export interface CacheOptions {
-  ttl?: number; // Time to live in seconds
-  key: string;
-}
-
-// Cache en mémoire pour le développement (à remplacer par Redis en production)
-interface CacheItem<T = unknown> {
-  value: T;
-  expiresAt: number;
-  createdAt: number;
-}
-
+/**
+ * Cache Redis distribué — fonctionne en multi-instances Docker.
+ * Remplace l'ancien CacheService Map (non partagé entre pods).
+ *
+ * API :
+ *   get<T>(key)                     → valeur ou null
+ *   set<T>(key, value, ttl?)        → void  (TTL en secondes, défaut 3 600)
+ *   delete(key)                     → void
+ *   exists(key)                     → boolean
+ *   getOrSet<T>(key, fetcher, ttl?) → valeur cachée ou fraîche
+ *   deleteByPattern(pattern)        → supprime toutes les clés correspondantes (SCAN+DEL)
+ */
 @Injectable()
 export class CacheService {
-  private readonly cache = new Map<string, CacheItem>();
   private readonly logger = new Logger(CacheService.name);
-  private readonly isProduction: boolean;
-  private stats = {
-    hits: 0,
-    misses: 0,
-    sets: 0,
-    deletes: 0,
-  };
 
-  constructor(private configService: ConfigService) {
-    this.isProduction = configService.get('NODE_ENV') === 'production';
-  }
+  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
-  get<T>(key: string): T | null {
-    const item = this.cache.get(key);
-
-    if (!item) {
-      this.stats.misses++;
+  async get<T>(key: string): Promise<T | null> {
+    try {
+      const raw = await this.redis.get(key);
+      if (raw === null) return null;
+      return JSON.parse(raw) as T;
+    } catch (err) {
+      this.logger.warn(`Cache get failed for "${key}": ${err instanceof Error ? err.message : 'unknown'}`);
       return null;
     }
+  }
 
-    // Vérifier si l'item a expiré
-    if (Date.now() > item.expiresAt) {
-      this.cache.delete(key);
-      this.stats.misses++;
-      return null;
+  async set<T>(key: string, value: T, ttl = 3600): Promise<void> {
+    try {
+      await this.redis.set(key, JSON.stringify(value), 'EX', ttl);
+    } catch (err) {
+      this.logger.warn(`Cache set failed for "${key}": ${err instanceof Error ? err.message : 'unknown'}`);
     }
-
-    this.stats.hits++;
-
-    this.logger.debug(`Cache hit for key: ${key}`);
-    return item.value as T;
   }
 
-  set<T>(key: string, value: T, ttl: number = 3600): void {
-    const expiresAt = Date.now() + ttl * 1000;
-
-    this.cache.set(key, {
-      value,
-      expiresAt,
-      createdAt: Date.now(),
-    });
-
-    this.stats.sets++;
-
-    this.logger.debug(`Cache set for key: ${key}, TTL: ${ttl}s`);
-  }
-
-  delete(key: string): boolean {
-    const deleted = this.cache.delete(key);
-
-    if (deleted) {
-      this.stats.deletes++;
-      this.logger.debug(`Cache deleted for key: ${key}`);
+  async delete(key: string): Promise<void> {
+    try {
+      await this.redis.del(key);
+    } catch (err) {
+      this.logger.warn(`Cache delete failed for "${key}": ${err instanceof Error ? err.message : 'unknown'}`);
     }
-
-    return deleted;
   }
 
-  clear(): void {
-    const size = this.cache.size;
-    this.cache.clear();
-
-    this.stats.deletes += size;
-    this.logger.log(`Cache cleared: ${size} items removed`);
-  }
-
-  exists(key: string): boolean {
-    const item = this.cache.get(key);
-
-    if (!item) {
+  async exists(key: string): Promise<boolean> {
+    try {
+      return (await this.redis.exists(key)) > 0;
+    } catch {
       return false;
     }
-
-    // Vérifier si l'item a expiré
-    if (Date.now() > item.expiresAt) {
-      this.cache.delete(key);
-      return false;
-    }
-
-    return true;
   }
 
-  // Méthodes utilitaires pour les patterns courants
-  async getOrSet<T>(
-    key: string,
-    fetcher: () => Promise<T>,
-    ttl: number = 3600,
-  ): Promise<T> {
-    const cached = this.get<T>(key);
-
+  /**
+   * Retourne la valeur depuis le cache si présente, sinon appelle `fetcher`,
+   * stocke le résultat et le retourne.
+   */
+  async getOrSet<T>(key: string, fetcher: () => Promise<T>, ttl = 3600): Promise<T> {
+    const cached = await this.get<T>(key);
     if (cached !== null) {
+      this.logger.debug(`Cache hit: ${key}`);
       return cached;
     }
-
     const value = await fetcher();
-    this.set(key, value, ttl);
-
+    await this.set(key, value, ttl);
     return value;
   }
 
-  // Cache avec tag pour invalider plusieurs clés
-  setWithTag<T>(key: string, value: T, tag: string, ttl: number = 3600): void {
-    this.set(key, value, ttl);
-    this.set(`tag:${tag}:${key}`, true, ttl);
-  }
+  /**
+   * Invalide toutes les clés Redis correspondant au pattern (ex: "brands:list:*").
+   * Utilise SCAN pour ne pas bloquer le serveur Redis.
+   */
+  async deleteByPattern(pattern: string): Promise<void> {
+    try {
+      let cursor = '0';
+      const keysToDelete: string[] = [];
+      do {
+        const [nextCursor, keys] = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+        cursor = nextCursor;
+        keysToDelete.push(...keys);
+      } while (cursor !== '0');
 
-  invalidateTag(tag: string): void {
-    const keysToDelete: string[] = [];
-
-    for (const key of this.cache.keys()) {
-      if (key.startsWith(`tag:${tag}:`)) {
-        const actualKey = key.replace(`tag:${tag}:`, '');
-        keysToDelete.push(actualKey);
-        keysToDelete.push(key);
+      if (keysToDelete.length > 0) {
+        await this.redis.del(...keysToDelete);
+        this.logger.debug(`Cache invalidated ${keysToDelete.length} keys matching "${pattern}"`);
       }
+    } catch (err) {
+      this.logger.warn(`Cache deleteByPattern failed for "${pattern}": ${err instanceof Error ? err.message : 'unknown'}`);
     }
-
-    for (const key of keysToDelete) {
-      this.delete(key);
-    }
-
-    this.logger.log(
-      `Invalidated tag ${tag}: removed ${keysToDelete.length / 2} items`,
-    );
-  }
-
-  // Statistiques
-  getStats() {
-    const total = this.stats.hits + this.stats.misses;
-    const hitRate = total > 0 ? (this.stats.hits / total) * 100 : 0;
-
-    return {
-      ...this.stats,
-      total,
-      hitRate: Math.round(hitRate * 100) / 100,
-      size: this.cache.size,
-    };
-  }
-
-  // Cleanup des items expirés
-  cleanup(): void {
-    const now = Date.now();
-    const keysToDelete: string[] = [];
-
-    for (const [key, item] of this.cache.entries()) {
-      if (now > item.expiresAt) {
-        keysToDelete.push(key);
-      }
-    }
-
-    for (const key of keysToDelete) {
-      this.cache.delete(key);
-    }
-
-    if (keysToDelete.length > 0) {
-      this.logger.log(
-        `Cache cleanup: removed ${keysToDelete.length} expired items`,
-      );
-    }
-  }
-
-  // Méthode décorateur pour le cache
-  cacheable(key: string, ttl: number = 3600) {
-    return (
-      target: CacheService,
-      propertyKey: string,
-      descriptor: PropertyDescriptor,
-    ) => {
-      const originalMethod = descriptor.value;
-
-      descriptor.value = async function (
-        this: CacheService,
-        ...args: unknown[]
-      ) {
-        const cacheKey = `${key}:${JSON.stringify(args)}`;
-
-        return this.getOrSet(
-          cacheKey,
-          () => originalMethod.apply(this, args),
-          ttl,
-        );
-      };
-
-      return descriptor;
-    };
   }
 }

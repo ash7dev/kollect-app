@@ -1,9 +1,9 @@
 'use client';
-// SEO handled via /become-seller/metadata.ts (Next.js App Router pattern)
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useState } from 'react';
+import { Navbar } from '@/components/landing/Navbar';
+import { Footer } from '@/components/landing/Footer';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -37,8 +37,10 @@ const PERKS = [
       </svg>
     ),
     title: 'Boutique opérationnelle en 48h',
-    desc: 'Tu crées ton compte, tu remplis ton profil, tu launches ton premier drop. Zéro code, zéro agence.',
+    desc: 'Tu crées ton compte, tu remplis ton profil de marque, et tu lances ton premier drop. Zéro code, zéro agence, zéro friction.',
     color: '#FF3B30',
+    stat: '48h',
+    statLabel: 'pour lancer',
   },
   {
     icon: (
@@ -47,8 +49,10 @@ const PERKS = [
       </svg>
     ),
     title: 'Dashboard CEO tout-en-un',
-    desc: 'Gère tes commandes, tes stocks, tes analytics et tes discussions client depuis un seul espace.',
+    desc: 'Gère tes commandes, tes stocks, tes analytics et tes échanges clients depuis un seul espace. Tout ce dont une marque a besoin, au même endroit.',
     color: '#FF9500',
+    stat: '1',
+    statLabel: 'espace, tout dedans',
   },
   {
     icon: (
@@ -58,8 +62,10 @@ const PERKS = [
       </svg>
     ),
     title: 'Audience locale qualifiée',
-    desc: 'Accède directement à une communauté de passionnés déjà là. Pas besoin de tout construire de zéro.',
+    desc: "Accède directement à une communauté de passionnés déjà là. Tu n'as pas besoin de construire ton audience depuis zéro — elle t'attend.",
     color: '#34C759',
+    stat: '50k+',
+    statLabel: 'acheteurs actifs',
   },
   {
     icon: (
@@ -67,9 +73,11 @@ const PERKS = [
         <rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" />
       </svg>
     ),
-    title: 'Paiements sécurisés en avance',
-    desc: 'Tu encaisses avant d\'expédier. Ton argent est protégé et versé directement sur ton compte.',
+    title: "Encaisse avant d'expédier",
+    desc: "Avec le système de drops, tes clients paient avant que tu ne produises. Zéro stock dormant. L'argent est sécurisé et versé directement sur ton compte.",
     color: '#007AFF',
+    stat: '0 CFA',
+    statLabel: 'de frais fixes',
   },
   {
     icon: (
@@ -77,9 +85,11 @@ const PERKS = [
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
       </svg>
     ),
-    title: 'Drops en avant-première',
-    desc: 'Crée l\'urgence avec des drops en édition limitée. Gère l\'anticipation, le teaser et l\'ouverture des ventes.',
+    title: "L'urgence du drop",
+    desc: "Crée l'anticipation avec un teaser vidéo, puis ouvre les ventes à une date précise. L'édition limitée crée la demande que le stock normal ne crée jamais.",
     color: '#AF52DE',
+    stat: '∞',
+    statLabel: 'hype possible',
   },
   {
     icon: (
@@ -87,35 +97,38 @@ const PERKS = [
         <path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
       </svg>
     ),
-    title: 'Badge vérifié Kollect',
-    desc: 'Après validation, ta marque affiche le badge de confiance. Crédibilité instantanée auprès des acheteurs.',
+    title: 'Badge Kollect — crédibilité instantanée',
+    desc: "Le badge vérifié Kollect signale la confiance à tes clients avant même qu'ils aient vu tes produits. Une validation que les créateurs indépendants ne peuvent pas acheter ailleurs.",
     color: '#C9A962',
+    stat: '✓',
+    statLabel: 'Marque vérifiée',
   },
 ];
+
 
 const STEPS = [
   {
     n: '01',
-    title: 'Crée ton compte',
-    desc: 'Inscris-toi en 2 minutes. Un compte, une identité de marque.',
+    title: 'Crée ton compte créateur',
+    desc: 'En 2 minutes. Un compte, une identité de marque. Aucun abonnement ni CB requis pour commencer.',
     color: '#FF3B30',
   },
   {
     n: '02',
     title: 'Configure ta boutique',
-    desc: 'Nom, logo, bio, liens sociaux. Ton espace est prêt en moins d\'une heure.',
+    desc: 'Nom, logo, bio, liens sociaux. Ton espace est prêt en moins d\'une heure. Tout est personnalisable depuis ton dashboard.',
     color: '#FF9500',
   },
   {
     n: '03',
     title: 'Lance ton premier drop',
-    desc: 'Ajoute tes produits, définis le stock, configure la date d\'ouverture et active le teaser.',
+    desc: 'Ajoute tes produits, définis le stock maximum, active le teaser avec une date d\'ouverture. Le compte à rebours fait le reste.',
     color: '#34C759',
   },
   {
     n: '04',
     title: 'Vends & encaisse',
-    desc: 'Ta communauté commande, tu prépares et expédies. L\'argent est viré directement sur ton compte.',
+    desc: 'Ta communauté commande, tu prépares et expédies. L\'argent est viré directement. Tu ne cours pas après tes clients.',
     color: '#007AFF',
   },
 ];
@@ -123,27 +136,27 @@ const STEPS = [
 const FAQS = [
   {
     q: 'C\'est payant pour créer ma boutique ?',
-    a: 'Non. Créer ta boutique sur Kollect est entièrement gratuit. Kollect prend une commission uniquement sur les ventes réalisées, pas de frais fixes mensuels.',
+    a: 'Non. Créer ta boutique sur Kollect est entièrement gratuit. Kollect prend une commission uniquement sur les ventes réalisées — pas de frais fixes, pas d\'abonnement mensuel.',
   },
   {
     q: 'Combien de temps pour être opérationnel ?',
-    a: 'Moins de 48h. Tu crées ton compte, remplis les infos de ta marque, et ton premier drop peut être en ligne le jour même. La validation "badge vérifié" intervient ensuite dans les 24-48h.',
+    a: 'Moins de 48h. Tu crées ton compte, remplis les infos de ta marque, et ton premier drop peut être en ligne le jour même. La validation "badge vérifié" intervient ensuite dans les 24-48h suivantes.',
   },
   {
     q: 'Je peux vendre sans stock avec les drops ?',
-    a: 'Oui, c\'est exactement le principe. Tu annonces un drop avec un teaser, les clients réservent et paient en avance, tu produis ou tu commandes en conséquence. Zéro stock dormant.',
+    a: 'Oui, c\'est exactement le principe. Tu annonces un drop avec un teaser, les clients réservent et paient en avance, tu produis ou commandes en conséquence. Zéro stock dormant, zéro prise de risque financier.',
   },
   {
     q: 'Comment sont gérés les paiements ?',
-    a: 'Les paiements sont encaissés et sécurisés par Kollect à la commande. Tu es virée dès que la commande est confirmée. Tu n\'as jamais à courir après tes clients.',
+    a: 'Les paiements sont encaissés et sécurisés par Kollect à la commande. Tu es viré(e) dès que la commande est confirmée et expédiée. Tu n\'as jamais à courir après tes clients ou gérer les remboursements manuellement.',
+  },
+  {
+    q: 'Est-ce que je garde le contrôle de ma marque ?',
+    a: 'Totalement. Kollect est une plateforme, pas un distributeur. Tu gardes ta marque, ton identité visuelle, ta relation client. On est l\'infrastructure qui te permet de vendre — rien de plus.',
   },
   {
     q: 'Puis-je vendre des articles non fabriqués au Sénégal ?',
     a: 'Kollect valorise les créateurs locaux sénégalais. Pour l\'instant, les marques doivent être basées au Sénégal. Les produits peuvent être sourcés localement ou à l\'international.',
-  },
-  {
-    q: 'Est-ce que je garde le contrôle de ma marque ?',
-    a: 'Totalement. Kollect est une plateforme, pas un distributeur. Tu gardes ta marque, ton identité, ta relation client. On est juste l\'infrastructure qui te permet de vendre.',
   },
 ];
 
@@ -154,6 +167,27 @@ const STATS = [
   { value: '100%', label: 'Contrôle de ta marque' },
 ];
 
+const TESTIMONIALS = [
+  {
+    quote: 'J\'ai lancé ma première collection en 3 jours. Le drop s\'est sold out en moins de 6 heures. Sans Kollect, ça m\'aurait pris 6 mois.',
+    name: 'Aminata D.',
+    role: 'Fondatrice — Studio AM',
+    color: '#FF3B30',
+  },
+  {
+    quote: 'Le dashboard CEO est bluffant. Je vois mes ventes en temps réel, mes clients me laissent des messages — tout au même endroit.',
+    name: 'Ibrahima S.',
+    role: 'CEO — KeyStreet Dakar',
+    color: '#34C759',
+  },
+  {
+    quote: 'Le badge vérifié m\'a donné une crédibilité instantanée. Mes clients me font confiance avant même d\'avoir reçu leur colis.',
+    name: 'Fatou N.',
+    role: 'Créatrice — Wax & Ride',
+    color: '#007AFF',
+  },
+];
+
 /* ═══════════════════════════════════════════════════════════════════
    COMPONENTS
    ═══════════════════════════════════════════════════════════════════ */
@@ -161,30 +195,39 @@ const STATS = [
 function PerkCard({ perk }: { perk: typeof PERKS[0] }) {
   return (
     <div className="bcs-perk-card" style={{
-      backgroundColor: '#0A0A0A',
-      border: '1px solid rgba(255,255,255,0.07)',
+      backgroundColor: '#fff',
+      border: '1px solid rgba(0,0,0,0.08)',
       borderRadius: '20px',
       padding: '28px 24px',
-      display: 'flex', flexDirection: 'column', gap: '16px',
+      display: 'flex', flexDirection: 'column', gap: '20px',
       position: 'relative', overflow: 'hidden',
-      transition: 'border-color 300ms ease, transform 300ms ease',
+      transition: 'border-color 300ms ease, transform 300ms ease, box-shadow 300ms ease',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
     }}>
-      {/* Top glow */}
-      <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60px', background: `linear-gradient(to bottom, ${perk.color}10, transparent)`, pointerEvents: 'none' }} />
+      {/* Stat pill en haut à droite */}
+      <div style={{
+        position: 'absolute', top: '20px', right: '20px',
+        padding: '4px 10px', borderRadius: '999px',
+        backgroundColor: `${perk.color}10`, border: `1px solid ${perk.color}20`,
+      }}>
+        <span style={{ fontSize: '11px', fontWeight: 800, color: perk.color, letterSpacing: '0.3px' }}>
+          {perk.stat} <span style={{ fontWeight: 500, opacity: 0.7 }}>{perk.statLabel}</span>
+        </span>
+      </div>
       {/* Icon */}
       <div style={{
         width: '48px', height: '48px', borderRadius: '14px',
-        backgroundColor: `${perk.color}12`, border: `1px solid ${perk.color}25`,
+        backgroundColor: `${perk.color}10`, border: `1px solid ${perk.color}18`,
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
       }}>
         {perk.icon}
       </div>
       {/* Text */}
       <div>
-        <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#fff', letterSpacing: '-0.3px', margin: '0 0 8px', lineHeight: 1.3 }}>
+        <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.3px', margin: '0 0 8px', lineHeight: 1.3 }}>
           {perk.title}
         </h3>
-        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, margin: 0 }}>
+        <p style={{ fontSize: '13px', color: 'rgba(0,0,0,0.45)', lineHeight: 1.75, margin: 0 }}>
           {perk.desc}
         </p>
       </div>
@@ -195,11 +238,10 @@ function PerkCard({ perk }: { perk: typeof PERKS[0] }) {
 function StepCard({ step, index, total }: { step: typeof STEPS[0]; index: number; total: number }) {
   return (
     <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-      {/* Left: Number + line */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, paddingTop: '4px' }}>
         <div style={{
           width: '48px', height: '48px', borderRadius: '14px',
-          backgroundColor: `${step.color}12`, border: `1px solid ${step.color}30`,
+          backgroundColor: `${step.color}10`, border: `1px solid ${step.color}25`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{ fontSize: '16px', fontWeight: 900, color: step.color, letterSpacing: '-0.5px', fontFamily: FONT_FAMILY_INTER }}>
@@ -213,12 +255,11 @@ function StepCard({ step, index, total }: { step: typeof STEPS[0]; index: number
           }} />
         )}
       </div>
-      {/* Right: Text */}
       <div style={{ paddingBottom: index < total - 1 ? '40px' : '0', flex: 1 }}>
-        <h3 style={{ fontSize: '17px', fontWeight: 800, color: '#fff', letterSpacing: '-0.4px', margin: '0 0 8px', lineHeight: 1.3 }}>
+        <h3 style={{ fontSize: '17px', fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.4px', margin: '0 0 8px', lineHeight: 1.3 }}>
           {step.title}
         </h3>
-        <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.7, margin: 0, maxWidth: '360px' }}>
+        <p style={{ fontSize: '14px', color: 'rgba(0,0,0,0.45)', lineHeight: 1.75, margin: 0, maxWidth: '360px' }}>
           {step.desc}
         </p>
       </div>
@@ -229,12 +270,7 @@ function StepCard({ step, index, total }: { step: typeof STEPS[0]; index: number
 function FaqItem({ faq }: { faq: typeof FAQS[0] }) {
   const [open, setOpen] = useState(false);
   return (
-    <div
-      style={{
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
-        transition: 'border-color 200ms ease',
-      }}
-    >
+    <div style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
       <button
         onClick={() => setOpen(v => !v)}
         style={{
@@ -243,15 +279,15 @@ function FaqItem({ faq }: { faq: typeof FAQS[0] }) {
           gap: '16px', fontFamily: 'inherit',
         }}
       >
-        <span style={{ fontSize: '15px', fontWeight: 700, color: open ? '#fff' : 'rgba(255,255,255,0.75)', letterSpacing: '-0.2px', lineHeight: 1.4, transition: 'color 200ms ease' }}>
+        <span style={{ fontSize: '15px', fontWeight: 700, color: open ? '#0A0A0A' : 'rgba(0,0,0,0.65)', letterSpacing: '-0.2px', lineHeight: 1.4, transition: 'color 200ms ease' }}>
           {faq.q}
         </span>
         <div style={{
           width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
-          backgroundColor: open ? 'rgba(255,59,48,0.12)' : 'rgba(255,255,255,0.05)',
-          border: `1px solid ${open ? 'rgba(255,59,48,0.28)' : 'rgba(255,255,255,0.08)'}`,
+          backgroundColor: open ? 'rgba(255,59,48,0.08)' : 'rgba(0,0,0,0.04)',
+          border: `1px solid ${open ? 'rgba(255,59,48,0.2)' : 'rgba(0,0,0,0.08)'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: open ? '#FF3B30' : 'rgba(255,255,255,0.4)',
+          color: open ? '#FF3B30' : 'rgba(0,0,0,0.35)',
           transition: 'all 200ms ease',
         }}>
           <IconChevron open={open} />
@@ -262,9 +298,45 @@ function FaqItem({ faq }: { faq: typeof FAQS[0] }) {
         overflow: 'hidden',
         transition: 'max-height 320ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
-        <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.8, paddingBottom: '20px', margin: 0 }}>
+        <p style={{ fontSize: '14px', color: 'rgba(0,0,0,0.5)', lineHeight: 1.85, paddingBottom: '20px', margin: 0 }}>
           {faq.a}
         </p>
+      </div>
+    </div>
+  );
+}
+
+function TestimonialCard({ t }: { t: typeof TESTIMONIALS[0] }) {
+  return (
+    <div style={{
+      backgroundColor: '#fff',
+      border: '1px solid rgba(0,0,0,0.07)',
+      borderRadius: '20px',
+      padding: '28px 24px',
+      display: 'flex', flexDirection: 'column', gap: '20px',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+    }}>
+      {/* Stars */}
+      <div style={{ display: 'flex', gap: '4px' }}>
+        {[0,1,2,3,4].map(i => (
+          <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="#FF9500" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        ))}
+      </div>
+      <p style={{ fontSize: '14px', color: 'rgba(0,0,0,0.65)', lineHeight: 1.8, margin: 0, fontStyle: 'italic' }}>
+        "{t.quote}"
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '8px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+        <div style={{
+          width: '36px', height: '36px', borderRadius: '50%',
+          backgroundColor: t.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '13px', fontWeight: 800, color: '#fff', flexShrink: 0,
+        }}>
+          {t.name.charAt(0)}
+        </div>
+        <div>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#0A0A0A', margin: '0 0 2px' }}>{t.name}</p>
+          <p style={{ fontSize: '11px', color: 'rgba(0,0,0,0.4)', margin: 0 }}>{t.role}</p>
+        </div>
       </div>
     </div>
   );
@@ -275,44 +347,9 @@ function FaqItem({ faq }: { faq: typeof FAQS[0] }) {
    ═══════════════════════════════════════════════════════════════════ */
 export default function BecomeSellerPage() {
   return (
-    <div style={{ backgroundColor: '#070707', minHeight: '100vh', fontFamily: FONT_FAMILY_INTER, color: '#fff' }}>
-
-      {/* ─── Minimal Navbar ─── */}
-      <nav style={{
-        position: 'sticky', top: 0, zIndex: 50,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 clamp(20px, 4vw, 48px)',
-        height: '64px',
-        backgroundColor: 'rgba(7,7,7,0.85)',
-        backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-      }}>
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '8px', backgroundColor: '#FF3B30', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>K</span>
-            </div>
-            <span style={{ fontSize: '16px', fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>Kollect</span>
-            <div style={{ padding: '2px 8px', borderRadius: '6px', backgroundColor: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.25)', marginLeft: '4px' }}>
-              <span style={{ fontSize: '10px', fontWeight: 700, color: '#FF3B30', letterSpacing: '1px', textTransform: 'uppercase' }}>Creators</span>
-            </div>
-          </div>
-        </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Link href="/auth/login" className="bcs-nav-link" style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 200ms ease' }}>
-            Se connecter
-          </Link>
-          <Link href="/onboarding" className="bcs-cta-top" style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px',
-            padding: '9px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 700,
-            color: '#fff', textDecoration: 'none', backgroundColor: '#FF3B30',
-            boxShadow: '0 4px 20px rgba(255,59,48,0.35)',
-            transition: 'all 220ms ease',
-          }}>
-            Démarrer gratuitement
-          </Link>
-        </div>
-      </nav>
+    <div style={{ backgroundColor: '#FFFFFF', minHeight: '100vh', fontFamily: FONT_FAMILY_INTER, color: '#0A0A0A' }}>
+      {/* Réutilise exactement la même Navbar que la landing */}
+      <Navbar />
 
       <main>
         {/* ═══════════════════════════════
@@ -321,24 +358,25 @@ export default function BecomeSellerPage() {
         <section aria-label="Créez votre marque sur Kollect" style={{
           position: 'relative', overflow: 'hidden',
           padding: 'clamp(80px, 12vw, 140px) clamp(20px, 4vw, 48px) clamp(60px, 8vw, 100px)',
+          backgroundColor: '#fff',
         }}>
-          {/* BG glows */}
-          <div aria-hidden style={{ position: 'absolute', top: '-20%', right: '-10%', width: '800px', height: '800px', background: 'radial-gradient(ellipse, rgba(255,59,48,0.07) 0%, transparent 60%)', pointerEvents: 'none' }} />
-          <div aria-hidden style={{ position: 'absolute', bottom: '-10%', left: '-5%', width: '600px', height: '600px', background: 'radial-gradient(ellipse, rgba(175,82,222,0.05) 0%, transparent 60%)', pointerEvents: 'none' }} />
-          <div aria-hidden style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '32px 32px', pointerEvents: 'none' }} />
+          {/* Subtle grid background */}
+          <div aria-hidden style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '32px 32px', pointerEvents: 'none' }} />
+          {/* Red radial glow — subtil */}
+          <div aria-hidden style={{ position: 'absolute', top: '-10%', right: '-5%', width: '700px', height: '700px', background: 'radial-gradient(ellipse, rgba(255,59,48,0.06) 0%, transparent 65%)', pointerEvents: 'none' }} />
 
-          <div style={{ maxWidth: '1140px', margin: '0 auto', position: 'relative' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative' }}>
             <div className="bcs-hero-inner" style={{ display: 'flex', alignItems: 'center', gap: '80px', flexWrap: 'wrap' }}>
 
               {/* Left */}
-              <div className="bcs-hero-left" style={{ flex: '0 0 auto', width: 'min(540px, 100%)' }}>
+              <div className="bcs-hero-left" style={{ flex: '0 0 auto', width: 'min(560px, 100%)' }}>
                 {/* Badge */}
                 <div style={{
                   display: 'inline-flex', alignItems: 'center', gap: '8px',
                   padding: '6px 16px 6px 10px', borderRadius: '999px', marginBottom: '28px',
-                  backgroundColor: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.25)',
+                  backgroundColor: 'rgba(255,59,48,0.06)', border: '1px solid rgba(255,59,48,0.18)',
                 }}>
-                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#FF3B30', flexShrink: 0, boxShadow: '0 0 10px rgba(255,59,48,0.8)', animation: 'bcsHeroPulse 2s ease-in-out infinite' }} />
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#FF3B30', flexShrink: 0, boxShadow: '0 0 10px rgba(255,59,48,0.6)', animation: 'bcsHeroPulse 2s ease-in-out infinite' }} />
                   <span style={{ fontSize: '11px', fontWeight: 700, color: '#FF3B30', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
                     Programme créateurs · Gratuit
                   </span>
@@ -347,29 +385,33 @@ export default function BecomeSellerPage() {
                 {/* H1 */}
                 <h1 style={{
                   fontSize: 'clamp(2.4rem, 4.5vw, 5rem)',
-                  fontWeight: 900, letterSpacing: '-3px', lineHeight: 1.0, margin: '0 0 24px',
+                  fontWeight: 900, letterSpacing: '-3px', lineHeight: 1.02, margin: '0 0 24px', color: '#0A0A0A',
                 }}>
-                  Vends tes créations.{' '}
+                  Ta marque mérite{' '}
                   <span style={{
                     background: 'linear-gradient(135deg, #FF3B30 0%, #FF6B6B 40%, #FF9500 100%)',
                     WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
                   }}>
-                    Sans friction.
+                    une vitrine.
                   </span>
                 </h1>
 
-                <p style={{ fontSize: 'clamp(1rem, 1.5vw, 1.15rem)', color: 'rgba(255,255,255,0.45)', lineHeight: 1.75, margin: '0 0 32px', maxWidth: '460px' }}>
-                  Kollect est la plateforme streetwear du Sénégal. Lance ta boutique, organise des drops en édition limitée, et vends à une audience de 50 000+ passionnés. En 48h.
+                <p style={{ fontSize: 'clamp(1rem, 1.5vw, 1.15rem)', color: 'rgba(0,0,0,0.5)', lineHeight: 1.8, margin: '0 0 32px', maxWidth: '480px' }}>
+                  Kollect est la plateforme streetwear du Sénégal. Lance ta boutique, organise des drops en édition limitée, et vends à une audience de 50 000+ passionnés — sans friction, sans frais fixes.
                 </p>
 
                 {/* Value props */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '36px' }}>
-                  {['Boutique gratuite, commission uniquement sur les ventes', 'Drops en avant-première avec countdown et teaser', 'Dashboard analytics + gestion commandes inclus'].map((v) => (
+                  {[
+                    'Boutique gratuite — commission uniquement sur les ventes',
+                    'Drops en avant-première avec countdown et teaser vidéo',
+                    'Dashboard analytics + gestion commandes inclus dès le départ',
+                  ].map((v) => (
                     <div key={v} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '20px', height: '20px', borderRadius: '6px', backgroundColor: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#34C759' }}>
+                      <div style={{ width: '20px', height: '20px', borderRadius: '6px', backgroundColor: 'rgba(52,199,89,0.1)', border: '1px solid rgba(52,199,89,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#34C759' }}>
                         <IconCheck />
                       </div>
-                      <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>{v}</span>
+                      <span style={{ fontSize: '14px', color: 'rgba(0,0,0,0.6)', fontWeight: 500 }}>{v}</span>
                     </div>
                   ))}
                 </div>
@@ -380,16 +422,16 @@ export default function BecomeSellerPage() {
                     display: 'inline-flex', alignItems: 'center', gap: '8px',
                     padding: '16px 32px', borderRadius: '14px', fontSize: '16px', fontWeight: 800,
                     color: '#fff', textDecoration: 'none', backgroundColor: '#FF3B30',
-                    boxShadow: '0 8px 40px rgba(255,59,48,0.4)', transition: 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 8px 40px rgba(255,59,48,0.35)', transition: 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)',
                   }}>
-                    Créer ma boutique
+                    Créer ma boutique — C&apos;est gratuit
                     <IconArrow />
                   </Link>
-                  <Link href="#how-it-works" className="bcs-hero-ghost" style={{
+                  <Link href="#comment-ca-marche" className="bcs-hero-ghost" style={{
                     display: 'inline-flex', alignItems: 'center', gap: '8px',
                     padding: '16px 24px', borderRadius: '14px', fontSize: '15px', fontWeight: 600,
-                    color: 'rgba(255,255,255,0.6)', textDecoration: 'none',
-                    border: '1px solid rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.04)',
+                    color: 'rgba(0,0,0,0.5)', textDecoration: 'none',
+                    border: '1px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent',
                     transition: 'all 220ms ease',
                   }}>
                     Voir comment ça marche
@@ -397,12 +439,12 @@ export default function BecomeSellerPage() {
                 </div>
 
                 {/* Trust strip */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '28px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '28px', paddingTop: '24px', borderTop: '1px solid rgba(0,0,0,0.07)' }}>
                   <div style={{ display: 'flex' }}>
                     {['#FF3B30', '#FF9500', '#34C759', '#007AFF', '#AF52DE'].map((c, i) => (
                       <div key={i} style={{
                         width: '28px', height: '28px', borderRadius: '50%', backgroundColor: c,
-                        border: '2px solid #070707', marginLeft: i === 0 ? '0' : '-8px',
+                        border: '2px solid #fff', marginLeft: i === 0 ? '0' : '-8px',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '10px', fontWeight: 700, color: '#fff',
                       }}>
@@ -410,30 +452,33 @@ export default function BecomeSellerPage() {
                       </div>
                     ))}
                   </div>
-                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', margin: 0 }}>
+                  <p style={{ fontSize: '13px', color: 'rgba(0,0,0,0.35)', margin: 0 }}>
                     Rejoins les créateurs déjà sur la plateforme
                   </p>
                 </div>
               </div>
 
-              {/* Right — Visual dashboard mock */}
-              <div className="bcs-hero-right" style={{ flex: 1, minWidth: '280px', maxWidth: '440px' }}>
+              {/* Right — Dashboard mock premium */}
+              <div className="bcs-hero-right" style={{ flex: 1, minWidth: '280px', maxWidth: '460px' }}>
                 <div style={{
                   borderRadius: '24px',
-                  backgroundColor: '#111',
+                  backgroundColor: '#0A0A0A',
                   border: '1px solid rgba(255,255,255,0.08)',
                   overflow: 'hidden',
-                  boxShadow: '0 40px 100px rgba(0,0,0,0.7)',
+                  boxShadow: '0 40px 100px rgba(0,0,0,0.15), 0 8px 32px rgba(0,0,0,0.08)',
                 }}>
-                  {/* Mock dashboard header */}
-                  <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Mock header */}
+                  <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ display: 'flex', gap: '5px' }}>
                       {['#FF5F57', '#FEBC2E', '#28C840'].map((c) => <div key={c} style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: c }} />)}
                     </div>
-                    <div style={{ flex: 1, height: '20px', borderRadius: '6px', backgroundColor: 'rgba(255,255,255,0.06)', marginLeft: '8px' }} />
+                    <div style={{ flex: 1, height: '18px', borderRadius: '5px', backgroundColor: 'rgba(255,255,255,0.06)', marginLeft: '8px' }} />
+                    <div style={{ padding: '3px 10px', borderRadius: '6px', backgroundColor: 'rgba(255,59,48,0.15)', border: '1px solid rgba(255,59,48,0.25)' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 700, color: '#FF3B30', letterSpacing: '0.5px', textTransform: 'uppercase' }}>CEO Dashboard</span>
+                    </div>
                   </div>
                   {/* Mock KPIs */}
-                  <div style={{ padding: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ padding: '18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     {[
                       { label: 'Ventes totales', value: '1 420 000', unit: 'CFA', color: '#FF3B30' },
                       { label: 'Commandes', value: '47', unit: 'ce mois', color: '#34C759' },
@@ -442,36 +487,37 @@ export default function BecomeSellerPage() {
                     ].map((kpi) => (
                       <div key={kpi.label} style={{
                         padding: '14px 16px', borderRadius: '14px',
-                        backgroundColor: '#0A0A0A', border: '1px solid rgba(255,255,255,0.07)',
+                        backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.07)',
                       }}>
-                        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', margin: '0 0 6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: '0 0 6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                           {kpi.label}
                         </p>
                         <p style={{ fontSize: '18px', fontWeight: 900, color: kpi.color, margin: '0 0 2px', letterSpacing: '-0.5px' }}>
                           {kpi.value}
                         </p>
-                        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>{kpi.unit}</p>
+                        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', margin: 0 }}>{kpi.unit}</p>
                       </div>
                     ))}
                   </div>
-                  {/* Mock drop card */}
-                  <div style={{ margin: '0 20px 20px', padding: '16px', borderRadius: '14px', backgroundColor: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)' }}>
+                  {/* Active drop */}
+                  <div style={{ margin: '0 18px 18px', padding: '16px', borderRadius: '14px', backgroundColor: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.18)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
                         <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#FF3B30', display: 'inline-block', boxShadow: '0 0 8px rgba(255,59,48,0.8)', animation: 'bcsHeroPulse 1.5s ease-in-out infinite' }} />
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#FF3B30', letterSpacing: '1px', textTransform: 'uppercase' }}>Drop actif</span>
+                        <span style={{ fontSize: '10px', fontWeight: 800, color: '#FF3B30', letterSpacing: '1px', textTransform: 'uppercase' }}>Drop actif</span>
                       </div>
-                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>Clôt dans 2j 4h</span>
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>Clôt dans 2j 4h</span>
                     </div>
                     <p style={{ fontSize: '14px', fontWeight: 800, color: '#fff', margin: '0 0 4px', letterSpacing: '-0.3px' }}>Collection Été — Édition Limitée</p>
-                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', margin: '0 0 10px' }}>32/50 exemplaires vendus</p>
-                    {/* Progress bar */}
+                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', margin: '0 0 10px' }}>32/50 exemplaires vendus</p>
                     <div style={{ height: '4px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.08)' }}>
                       <div style={{ height: '100%', width: '64%', borderRadius: '999px', backgroundColor: '#FF3B30', boxShadow: '0 0 8px rgba(255,59,48,0.5)' }} />
                     </div>
+                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', margin: '6px 0 0', textAlign: 'right' }}>64% sold</p>
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
         </section>
@@ -479,23 +525,22 @@ export default function BecomeSellerPage() {
         {/* ═══════════════════════════════
             STATS BAR
             ═══════════════════════════════ */}
-        <div style={{ padding: '0 clamp(20px, 4vw, 48px)' }}>
+        <div style={{ padding: '0 clamp(20px, 4vw, 48px)', backgroundColor: '#fff' }}>
           <div style={{
-            maxWidth: '1140px', margin: '0 auto',
+            maxWidth: '1200px', margin: '0 auto',
             display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
-            borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)',
-            overflow: 'hidden', backgroundColor: '#0D0D0D',
+            borderRadius: '20px', border: '1px solid rgba(0,0,0,0.07)',
+            overflow: 'hidden', backgroundColor: '#FAFAFA',
           }} className="bcs-stats-grid">
             {STATS.map((stat, i) => (
               <div key={stat.label} className="bcs-stat-cell" style={{
                 padding: '28px 20px', textAlign: 'center',
-                borderRight: i < STATS.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
-                transition: 'background 200ms ease',
+                borderRight: i < STATS.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none',
               }}>
-                <p style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)', fontWeight: 900, color: '#fff', letterSpacing: '-2px', lineHeight: 1, margin: '0 0 6px' }}>
+                <p style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)', fontWeight: 900, color: '#FF3B30', letterSpacing: '-2px', lineHeight: 1, margin: '0 0 6px' }}>
                   {stat.value}
                 </p>
-                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.32)', fontWeight: 500, margin: 0 }}>
+                <p style={{ fontSize: '12px', color: 'rgba(0,0,0,0.4)', fontWeight: 500, margin: 0 }}>
                   {stat.label}
                 </p>
               </div>
@@ -504,18 +549,18 @@ export default function BecomeSellerPage() {
         </div>
 
         {/* ═══════════════════════════════
-            PERKS
+            PERKS — Pourquoi Kollect
             ═══════════════════════════════ */}
-        <section aria-label="Avantages créateurs" style={{ padding: 'clamp(80px, 10vw, 120px) clamp(20px, 4vw, 48px)' }}>
-          <div style={{ maxWidth: '1140px', margin: '0 auto' }}>
+        <section aria-label="Avantages créateurs" style={{ padding: 'clamp(80px, 10vw, 120px) clamp(20px, 4vw, 48px)', backgroundColor: '#fff' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 14px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '20px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Pourquoi Kollect</span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 14px', borderRadius: '999px', backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', marginBottom: '20px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(0,0,0,0.38)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Pourquoi Kollect</span>
               </div>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.8rem)', fontWeight: 900, color: '#fff', letterSpacing: '-1.5px', lineHeight: 1.1, margin: 0, maxWidth: '600px', marginLeft: 'auto', marginRight: 'auto' }}>
+              <h2 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.8rem)', fontWeight: 900, color: '#0A0A0A', letterSpacing: '-1.5px', lineHeight: 1.1, margin: 0, maxWidth: '640px', marginLeft: 'auto', marginRight: 'auto' }}>
                 Tout ce dont tu as besoin pour vendre.{' '}
-                <span style={{ color: 'rgba(255,255,255,0.28)' }}>Rien de superflu.</span>
+                <span style={{ color: 'rgba(0,0,0,0.25)' }}>Rien de superflu.</span>
               </h2>
             </div>
             {/* Grid */}
@@ -530,28 +575,32 @@ export default function BecomeSellerPage() {
         {/* ═══════════════════════════════
             HOW IT WORKS
             ═══════════════════════════════ */}
-        <section id="how-it-works" aria-label="Processus de lancement" style={{
+        <section id="comment-ca-marche" aria-label="Processus de lancement" style={{
           padding: 'clamp(80px, 10vw, 120px) clamp(20px, 4vw, 48px)',
-          backgroundColor: '#000',
+          backgroundColor: '#0A0A0A',
           position: 'relative', overflow: 'hidden',
-          borderRadius: 'var(--radius-xxxl, 32px)',
+          borderRadius: '32px',
           margin: '0 12px',
-          border: '1px solid rgba(255,255,255,0.06)',
         }}>
-          {/* BG grid */}
           <div aria-hidden style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px)', backgroundSize: '60px 60px', pointerEvents: 'none' }} />
 
-          <div style={{ maxWidth: '1140px', margin: '0 auto', position: 'relative', display: 'flex', gap: '80px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            {/* Left: Header */}
+          <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative', display: 'flex', gap: '80px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            {/* Left */}
             <div className="bcs-hiw-left" style={{ flex: '0 0 auto', width: 'min(380px, 100%)' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 14px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '20px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Processus</span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 14px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', marginBottom: '20px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.45)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Processus</span>
               </div>
               <h2 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.8rem)', fontWeight: 900, color: '#fff', letterSpacing: '-1.5px', lineHeight: 1.1, margin: '0 0 20px' }}>
-                De zéro à ta première vente.
+                De zéro à ta{' '}
+                <span style={{
+                  background: 'linear-gradient(135deg, #FF3B30 0%, #FF9500 100%)',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+                }}>
+                  première vente.
+                </span>
               </h2>
-              <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.42)', lineHeight: 1.8, margin: '0 0 32px' }}>
-                Pas de jargon, pas de frais cachés. Juste les étapes pour lancer et encaisser.
+              <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.8, margin: '0 0 32px' }}>
+                Pas de jargon, pas de frais cachés. Juste les étapes pour lancer et encaisser — 4 étapes, quelques heures.
               </p>
               <Link href="/onboarding" className="bcs-hiw-cta" style={{
                 display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -563,7 +612,6 @@ export default function BecomeSellerPage() {
                 <IconArrow />
               </Link>
             </div>
-
             {/* Right: Steps */}
             <div style={{ flex: 1, minWidth: '280px' }}>
               {STEPS.map((step, i) => (
@@ -574,20 +622,40 @@ export default function BecomeSellerPage() {
         </section>
 
         {/* ═══════════════════════════════
-            FAQ
+            TESTIMONIALS
             ═══════════════════════════════ */}
-        <section aria-label="Questions fréquentes" style={{ padding: 'clamp(80px, 10vw, 120px) clamp(20px, 4vw, 48px)' }}>
-          <div style={{ maxWidth: '740px', margin: '0 auto' }}>
-            {/* Header */}
+        <section aria-label="Témoignages créateurs" style={{ padding: 'clamp(80px, 10vw, 120px) clamp(20px, 4vw, 48px)', backgroundColor: '#FAFAFA' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '52px' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 14px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '20px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>FAQ</span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 14px', borderRadius: '999px', backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)', marginBottom: '20px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(0,0,0,0.38)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Ils l&apos;ont fait</span>
               </div>
-              <h2 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', fontWeight: 900, color: '#fff', letterSpacing: '-1.2px', lineHeight: 1.15, margin: 0 }}>
-                Tu as des questions. On a les réponses.
+              <h2 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', fontWeight: 900, color: '#0A0A0A', letterSpacing: '-1.2px', lineHeight: 1.15, margin: 0 }}>
+                Les créateurs parlent.
               </h2>
             </div>
-            {/* Items */}
+            <div className="bcs-testimonials-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              {TESTIMONIALS.map((t) => (
+                <TestimonialCard key={t.name} t={t} />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════════════════════
+            FAQ
+            ═══════════════════════════════ */}
+        <section aria-label="Questions fréquentes" style={{ padding: 'clamp(80px, 10vw, 120px) clamp(20px, 4vw, 48px)', backgroundColor: '#fff' }}>
+          <div style={{ maxWidth: '740px', margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', marginBottom: '52px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 14px', borderRadius: '999px', backgroundColor: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.07)', marginBottom: '20px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(0,0,0,0.38)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>FAQ</span>
+              </div>
+              <h2 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', fontWeight: 900, color: '#0A0A0A', letterSpacing: '-1.2px', lineHeight: 1.15, margin: 0 }}>
+                Tu as des questions.{' '}
+                <span style={{ color: 'rgba(0,0,0,0.25)' }}>On a les réponses.</span>
+              </h2>
+            </div>
             <div>
               {FAQS.map((faq, i) => (
                 <FaqItem key={i} faq={faq} />
@@ -605,32 +673,28 @@ export default function BecomeSellerPage() {
           borderRadius: '32px',
           position: 'relative', overflow: 'hidden',
           background: 'linear-gradient(135deg, #1a0000 0%, #0d0005 50%, #0a0000 100%)',
-          border: '1px solid rgba(255,59,48,0.2)',
+          border: '1px solid rgba(255,59,48,0.15)',
         }}>
-          {/* Glows */}
           <div aria-hidden style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '700px', height: '400px', background: 'radial-gradient(ellipse, rgba(255,59,48,0.12) 0%, transparent 65%)', pointerEvents: 'none' }} />
           <div aria-hidden style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '28px 28px', pointerEvents: 'none' }} />
 
           <div style={{ maxWidth: '700px', margin: '0 auto', textAlign: 'center', position: 'relative' }}>
-            {/* Eyebrow */}
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
               padding: '6px 16px 6px 12px', borderRadius: '999px', marginBottom: '28px',
-              backgroundColor: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.3)',
+              backgroundColor: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.28)',
             }}>
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#FF3B30', flexShrink: 0, boxShadow: '0 0 10px rgba(255,59,48,0.8)', animation: 'bcsHeroPulse 2s ease-in-out infinite' }} />
               <span style={{ fontSize: '11px', fontWeight: 800, color: '#FF3B30', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
                 Gratuit pour toujours
               </span>
             </div>
-
             <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3.8rem)', fontWeight: 900, color: '#fff', letterSpacing: '-2.5px', lineHeight: 1.05, margin: '0 0 20px' }}>
               Prêt à lancer ta marque ?
             </h2>
-            <p style={{ fontSize: 'clamp(1rem, 1.5vw, 1.1rem)', color: 'rgba(255,255,255,0.42)', lineHeight: 1.7, margin: '0 0 40px', maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto' }}>
-              Rejoins les créateurs sénégalais qui vendent déjà sur Kollect. Tes premières ventes sont à quelques clics.
+            <p style={{ fontSize: 'clamp(1rem, 1.5vw, 1.1rem)', color: 'rgba(255,255,255,0.4)', lineHeight: 1.75, margin: '0 0 40px', maxWidth: '480px', marginLeft: 'auto', marginRight: 'auto' }}>
+              Des créateurs sénégalais vendent déjà sur Kollect. Ta boutique peut être en ligne aujourd&apos;hui. Tes premières ventes sont à quelques clics.
             </p>
-
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <Link href="/onboarding" className="bcs-final-cta" style={{
                 display: 'inline-flex', alignItems: 'center', gap: '10px',
@@ -645,63 +709,46 @@ export default function BecomeSellerPage() {
               <Link href="/" className="bcs-final-ghost" style={{
                 display: 'inline-flex', alignItems: 'center', gap: '8px',
                 padding: '17px 28px', borderRadius: '14px', fontSize: '15px', fontWeight: 600,
-                color: 'rgba(255,255,255,0.55)', textDecoration: 'none',
-                border: '1px solid rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.05)',
+                color: 'rgba(255,255,255,0.45)', textDecoration: 'none',
+                border: '1px solid rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.04)',
                 transition: 'all 220ms ease',
               }}>
-                Retour à l&apos;accueil
+                Voir les collections
               </Link>
             </div>
           </div>
         </section>
       </main>
 
-      {/* ─── Minimal footer ─── */}
-      <footer style={{
-        padding: '24px clamp(20px, 4vw, 48px)',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px',
-      }}>
-        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)', margin: 0 }}>
-          © 2025 Kollect. Tous droits réservés.
-        </p>
-        <div style={{ display: 'flex', gap: '24px' }}>
-          {[{ label: 'Accueil', href: '/' }, { label: 'Contact', href: '/contact' }, { label: 'Se connecter', href: '/auth/login' }].map((l) => (
-            <Link key={l.label} href={l.href} style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', textDecoration: 'none', transition: 'color 200ms ease' }} className="bcs-footer-link">
-              {l.label}
-            </Link>
-          ))}
-        </div>
-      </footer>
+      {/* Réutilise exactement le même Footer que la landing */}
+      <Footer />
 
       {/* ─── Styles ─── */}
-      <style>{`
+      <style suppressHydrationWarning>{`
         @keyframes bcsHeroPulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(0.85); }
         }
-        .bcs-nav-link:hover { color: rgba(255,255,255,0.85) !important; }
-        .bcs-cta-top:hover { transform: translateY(-1px) !important; box-shadow: 0 8px 28px rgba(255,59,48,0.5) !important; background-color: #e0342a !important; }
-        .bcs-hero-cta:hover { transform: translateY(-3px) scale(1.01) !important; box-shadow: 0 16px 56px rgba(255,59,48,0.58) !important; background-color: #e0342a !important; }
-        .bcs-hero-ghost:hover { color: #fff !important; border-color: rgba(255,255,255,0.28) !important; background-color: rgba(255,255,255,0.09) !important; }
+        .bcs-hero-cta:hover { transform: translateY(-3px) scale(1.01) !important; box-shadow: 0 16px 56px rgba(255,59,48,0.5) !important; background-color: #e0342a !important; }
+        .bcs-hero-ghost:hover { color: #0A0A0A !important; border-color: rgba(0,0,0,0.2) !important; background-color: rgba(0,0,0,0.04) !important; }
         .bcs-hiw-cta:hover { transform: translateY(-2px) !important; box-shadow: 0 14px 40px rgba(255,59,48,0.55) !important; background-color: #e0342a !important; }
         .bcs-final-cta:hover { transform: translateY(-3px) scale(1.01) !important; box-shadow: 0 18px 60px rgba(255,59,48,0.6) !important; }
-        .bcs-final-ghost:hover { color: #fff !important; border-color: rgba(255,255,255,0.3) !important; background-color: rgba(255,255,255,0.1) !important; }
-        .bcs-perk-card:hover { border-color: rgba(255,255,255,0.14) !important; transform: translateY(-4px) !important; }
-        .bcs-stat-cell:hover { background-color: rgba(255,255,255,0.03) !important; }
-        .bcs-footer-link:hover { color: rgba(255,255,255,0.65) !important; }
+        .bcs-final-ghost:hover { color: rgba(255,255,255,0.75) !important; border-color: rgba(255,255,255,0.25) !important; }
+        .bcs-perk-card:hover { border-color: rgba(0,0,0,0.14) !important; transform: translateY(-4px) !important; box-shadow: 0 12px 40px rgba(0,0,0,0.08) !important; }
         @media (max-width: 960px) {
           .bcs-hero-inner { flex-direction: column !important; gap: 48px !important; }
           .bcs-hero-left { width: 100% !important; }
           .bcs-hero-right { max-width: 100% !important; width: 100% !important; }
           .bcs-perks-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .bcs-testimonials-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .bcs-hiw-left { width: 100% !important; }
           .bcs-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .bcs-stats-grid > div:nth-child(2) { border-right: none !important; }
-          .bcs-stats-grid > div:nth-child(1), .bcs-stats-grid > div:nth-child(2) { border-bottom: 1px solid rgba(255,255,255,0.07) !important; }
+          .bcs-stats-grid > div:nth-child(1), .bcs-stats-grid > div:nth-child(2) { border-bottom: 1px solid rgba(0,0,0,0.06) !important; }
         }
         @media (max-width: 600px) {
           .bcs-perks-grid { grid-template-columns: 1fr !important; }
+          .bcs-testimonials-grid { grid-template-columns: 1fr !important; }
           .bcs-stats-grid { grid-template-columns: 1fr 1fr !important; }
         }
       `}</style>

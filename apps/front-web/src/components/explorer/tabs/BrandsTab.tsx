@@ -72,8 +72,8 @@ export function BrandsTab({ query }: BrandsTabProps) {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start', fontFamily: FONT_FAMILY_INTER }}>
-      <aside style={{
+    <div className="explorer-tab-layout" style={{ display: 'flex', gap: 32, alignItems: 'flex-start', fontFamily: FONT_FAMILY_INTER }}>
+      <aside className="explorer-tab-aside" style={{
         width: 240, flexShrink: 0,
         position: 'sticky', top: 100,
         borderRight: '1px solid rgba(0,0,0,0.07)',

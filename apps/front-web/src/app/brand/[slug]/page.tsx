@@ -59,7 +59,7 @@ async function getBrand(slug: string): Promise<Brand | null> {
 async function getBrandProducts(slug: string, page: number, limit: number, sortBy: string): Promise<Paginated<BrandProductApi> | null> {
   try {
     return await fetchAPI<Paginated<BrandProductApi>>(`/produits/brand/${slug}?page=${page}&limit=${limit}&sortBy=${sortBy}`, {
-      revalidate: 300,
+      cache: 'no-store'
     });
   } catch {
     return null;

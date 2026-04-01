@@ -18,6 +18,47 @@ import { PublicProductDto } from '../public-catalog/dto/public-product.dto';
 
 @Injectable()
 export class ProduitsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly publicCatalogService: PublicCatalogService,
+    @InjectQueue(ANALYTICS_QUEUE)
+    private readonly analyticsQueue: Queue,
+  ) {}
+
+  // ========================================
+  // HELPERS PRIVÉS
+  // ========================================
+
+  /**
+   * Récupère la marque d'un CEO — utilisé par create, update, delete, restore.
+   * Lance ForbiddenException si l'utilisateur n'est pas CEO ou n'a pas de marque.
+   */
+  private async getCEOBrand(userId: string): Promise<{ id: string }> {
+    const user = await this.prisma.utilisateur.findUnique({
+      where: { id: userId },
+      select: { isCEO: true, brand: { select: { id: true } } },
+    });
+    if (!user?.isCEO || !user.brand) {
+      throw new ForbiddenException('Seuls les CEOs avec une marque peuvent effectuer cette action');
+    }
+    return user.brand;
+  }
+
+  /**
+   * Récupère la marque d'un utilisateur (CEO ou non) — utilisé par findAllForCEO etc.
+   * Lance ForbiddenException si aucune marque n'est associée.
+   */
+  private async getUserBrand(userId: string): Promise<{ id: string }> {
+    const user = await this.prisma.utilisateur.findUnique({
+      where: { id: userId },
+      select: { brand: { select: { id: true } } },
+    });
+    if (!user?.brand) {
+      throw new ForbiddenException('Aucune marque associée');
+    }
+    return user.brand;
+  }
+
   async findRandom(query: RandomProduitsDto) {
     const page = Number(query.page ?? 1);
     const limit = Number(query.limit ?? 20);
@@ -67,30 +108,17 @@ export class ProduitsService {
       },
     };
   }
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly publicCatalogService: PublicCatalogService,
-    @InjectQueue(ANALYTICS_QUEUE)
-    private readonly analyticsQueue: Queue,
-  ) {}
-
   async create(userId: string, dto: CreateProduitDto) {
     // 1) Vérifier le CEO et récupérer sa marque
-    const user = await this.prisma.utilisateur.findUnique({
-      where: { id: userId },
-      select: { isCEO: true, brand: { select: { id: true } } },
-    });
-    if (!user?.isCEO || !user.brand) {
-      throw new ForbiddenException('Seuls les CEOs avec une marque peuvent créer des produits');
-    }
+    const brand = await this.getCEOBrand(userId);
 
     // 2) Vérifier que la collection appartient à la marque du CEO
     const collection = await this.prisma.collection.findUnique({
       where: { id: dto.collectionId },
       select: { id: true, brandId: true, status: true, name: true },
     });
-    if (!collection || collection.brandId !== user.brand.id) {
-      throw new ForbiddenException('Cette collection n’appartient pas à votre marque');
+    if (!collection || collection.brandId !== brand.id) {
+      throw new ForbiddenException("Cette collection n’appartient pas à votre marque");
     }
 
     // 3) Générer un slug unique par collection
@@ -128,7 +156,7 @@ export class ProduitsService {
         material: dto.material ?? null,
         weight: dto.weight ?? null,
         collectionId: collection.id,
-        brandId: user.brand.id,
+        brandId: brand.id,
         isVisible,
         isFeatured: dto.isFeatured ?? false,
         productType: dto.productType ?? null,
@@ -144,16 +172,11 @@ export class ProduitsService {
   }
 
   async findAllForCEO(userId: string, query: QueryProduitsDto) {
-    const user = await this.prisma.utilisateur.findUnique({
-      where: { id: userId },
-      select: { brand: { select: { id: true } } },
-    });
-    if (!user?.brand) throw new ForbiddenException('Aucune marque associée');
-
+    const brand = await this.getUserBrand(userId);
     const { collectionId, page = 1, limit = 10 } = query;
 
     const where: Prisma.ProduitWhereInput = {
-      brandId: user.brand.id,
+      brandId: brand.id,
       isDeleted: false,
       ...(collectionId && { collectionId }),
     };
@@ -186,16 +209,11 @@ export class ProduitsService {
   }
 
   async findDeletedForCEO(userId: string, query: QueryProduitsDto) {
-    const user = await this.prisma.utilisateur.findUnique({
-      where: { id: userId },
-      select: { brand: { select: { id: true } } },
-    });
-    if (!user?.brand) throw new ForbiddenException('Aucune marque associée');
-
+    const brand = await this.getUserBrand(userId);
     const { collectionId, page = 1, limit = 10 } = query;
 
     const where: Prisma.ProduitWhereInput = {
-      brandId: user.brand.id,
+      brandId: brand.id,
       isDeleted: true,
       ...(collectionId && { collectionId }),
     };
@@ -225,11 +243,7 @@ export class ProduitsService {
   }
 
   async findOneForCEO(userId: string, id: string) {
-    const user = await this.prisma.utilisateur.findUnique({
-      where: { id: userId },
-      select: { brand: { select: { id: true } } },
-    });
-    if (!user?.brand) throw new ForbiddenException('Aucune marque associée');
+    const brand = await this.getUserBrand(userId);
 
     const product = await this.prisma.produit.findUnique({
       where: { id },
@@ -243,8 +257,8 @@ export class ProduitsService {
       throw new NotFoundException('Produit non trouvé');
     }
 
-    if (product.brandId !== user.brand.id) {
-      throw new ForbiddenException('Ce produit n\'appartient pas à votre marque');
+    if (product.brandId !== brand.id) {
+      throw new ForbiddenException("Ce produit n'appartient pas à votre marque");
     }
 
     return product;
@@ -291,7 +305,6 @@ export class ProduitsService {
 
     if (
       !product.isVisible ||
-      product.isDeleted ||
       !this.publicCatalogService.isCollectionPublic(product.collection.status) ||
       product.collection.status !== CollectionStatus.DISPONIBLE
     ) {
@@ -313,13 +326,7 @@ export class ProduitsService {
 
   async update(userId: string, id: string, dto: UpdateProduitDto) {
     // 1) Vérifier le CEO et récupérer sa marque
-    const user = await this.prisma.utilisateur.findUnique({
-      where: { id: userId },
-      select: { isCEO: true, brand: { select: { id: true } } },
-    });
-    if (!user?.isCEO || !user.brand) {
-      throw new ForbiddenException('Seuls les CEOs avec une marque peuvent modifier des produits');
-    }
+    const brand = await this.getCEOBrand(userId);
 
     // 2) Vérifier que le produit existe et appartient à la marque
     const existingProduct = await this.prisma.produit.findUnique({
@@ -337,8 +344,8 @@ export class ProduitsService {
       throw new NotFoundException('Produit non trouvé');
     }
 
-    if (existingProduct.brandId !== user.brand.id) {
-      throw new ForbiddenException('Ce produit n\'appartient pas à votre marque');
+    if (existingProduct.brandId !== brand.id) {
+      throw new ForbiddenException("Ce produit n'appartient pas à votre marque");
     }
 
     // 3) Vérifier l'unicité du SKU si modifié
@@ -392,13 +399,7 @@ export class ProduitsService {
 
   async delete(userId: string, id: string) {
     // 1) Vérifier le CEO et récupérer sa marque
-    const user = await this.prisma.utilisateur.findUnique({
-      where: { id: userId },
-      select: { isCEO: true, brand: { select: { id: true } } },
-    });
-    if (!user?.isCEO || !user.brand) {
-      throw new ForbiddenException('Seuls les CEOs avec une marque peuvent supprimer des produits');
-    }
+    const brand = await this.getCEOBrand(userId);
 
     // 2) Vérifier que le produit existe et appartient à la marque
     const product = await this.prisma.produit.findUnique({
@@ -410,8 +411,8 @@ export class ProduitsService {
       throw new NotFoundException('Produit non trouvé');
     }
 
-    if (product.brandId !== user.brand.id) {
-      throw new ForbiddenException('Ce produit n\'appartient pas à votre marque');
+    if (product.brandId !== brand.id) {
+      throw new ForbiddenException("Ce produit n'appartient pas à votre marque");
     }
 
     if (product.isDeleted) {
@@ -428,13 +429,7 @@ export class ProduitsService {
   }
 
   async restore(userId: string, id: string) {
-    const user = await this.prisma.utilisateur.findUnique({
-      where: { id: userId },
-      select: { isCEO: true, brand: { select: { id: true } } },
-    });
-    if (!user?.isCEO || !user.brand) {
-      throw new ForbiddenException('Seuls les CEOs avec une marque peuvent restaurer des produits');
-    }
+    const brand = await this.getCEOBrand(userId);
 
     const product = await this.prisma.produit.findUnique({
       where: { id },
@@ -445,8 +440,8 @@ export class ProduitsService {
       throw new NotFoundException('Produit non trouvé');
     }
 
-    if (product.brandId !== user.brand.id) {
-      throw new ForbiddenException('Ce produit n\'appartient pas à votre marque');
+    if (product.brandId !== brand.id) {
+      throw new ForbiddenException("Ce produit n'appartient pas à votre marque");
     }
 
     if (!product.isDeleted) {
@@ -606,21 +601,17 @@ export class ProduitsService {
    * Basé sur ses favoris et son historique
    */
   async findPersonalized(userId: string, limit = 20) {
-    // 1. Récupérer les favoris de l'utilisateur
+    // 1. Récupérer les favoris de l'utilisateur (limité pour éviter un N+1)
     const favoris = await this.prisma.favori.findMany({
-      where: { 
+      where: {
         userId,
         type: { in: ['PRODUCT', 'BRAND'] },
       },
-      include: {
-        product: {
-          include: {
-            brand: true,
-            collection: true,
-          },
-        },
-        brand: true,
+      select: {
+        brandId: true,
+        product: { select: { brandId: true } },
       },
+      take: 20,
     });
 
     // 2. Extraire les marques et catégories favorites
@@ -855,9 +846,19 @@ export class ProduitsService {
         break;
     }
 
-    const where = this.publicCatalogService.getPublicProductWhere({
+    const where: Prisma.ProduitWhereInput = {
       brandId: brand.id,
-    });
+      isDeleted: false,
+      OR: [
+        {
+          isVisible: true,
+          collection: { status: CollectionStatus.DISPONIBLE },
+        },
+        {
+          collection: { status: CollectionStatus.TEASER },
+        },
+      ],
+    };
 
     const [products, total] = await Promise.all([
       this.prisma.produit.findMany({

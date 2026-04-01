@@ -16,6 +16,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../common/cache/cache.service';
 import { UploadService } from '../upload/upload.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
@@ -62,10 +63,16 @@ export interface BrandStats {
 export class BrandsService {
   private readonly logger = new Logger(BrandsService.name);
 
+  // Durées de cache en secondes
+  private static readonly CACHE_TTL_LIST = 60;    // liste publique — 60 s
+  private static readonly CACHE_TTL_DETAIL = 60;  // page marque — 60 s
+  private static readonly CACHE_TTL_STATS = 300;  // stats CEO — 5 min
+
   constructor(
     private prisma: PrismaService,
     private uploadService: UploadService,
     private readonly publicCatalogService: PublicCatalogService,
+    private readonly cacheService: CacheService,
   ) { }
 
   // ========================================
@@ -176,10 +183,15 @@ export class BrandsService {
       this.checkNameUniqueness(createBrandDto.name),
     ]);
 
-    // 4. Upload du logo si fourni
+    // 4. Upload des images si fournies
     let logoUrl: string | null = null;
+    let coverImageUrl: string | null = null;
+    
     if (createBrandDto.logo) {
       logoUrl = await this.uploadService.uploadBrandLogo(createBrandDto.logo);
+    }
+    if (createBrandDto.coverImage) {
+      coverImageUrl = await this.uploadService.uploadBrandCoverImage(createBrandDto.coverImage);
     }
 
     // 5. Créer la boutique et upgrader l'utilisateur au rôle CEO (1 profil max par utilisateur)
@@ -190,6 +202,7 @@ export class BrandsService {
           slug: createBrandDto.slug,
           bio: createBrandDto.bio,
           logo: logoUrl,
+          coverImage: coverImageUrl,
           website: createBrandDto.website,
           instagram: createBrandDto.instagram,
           userId,
@@ -246,16 +259,31 @@ export class BrandsService {
    * 📋 Récupérer toutes les marques actives (pour clients)
    */
   async findAll(filters?: BrandFilters): Promise<PublicBrandListItemDto[]> {
+    // Les recherches texte sont uniques → bypass du cache pour ne pas polluer Redis
+    if (filters?.search) {
+      return this.fetchBrandList(filters);
+    }
+
+    // Clé stable basée uniquement sur les filtres booléens (jamais sur le texte libre)
+    const cacheKey = `brands:list:${filters?.isActive ?? 'true'}:${filters?.isVerified ?? ''}`;
+
+    return this.cacheService.getOrSet(
+      cacheKey,
+      () => this.fetchBrandList(filters),
+      BrandsService.CACHE_TTL_LIST,
+    );
+  }
+
+  /** @internal Requête DB brute pour la liste de marques — appelée par findAll avec ou sans cache */
+  private async fetchBrandList(filters?: BrandFilters): Promise<PublicBrandListItemDto[]> {
     const where: Prisma.MarqueWhereInput = {};
 
-    // isActive: par défaut true si non fourni
     if (filters?.isActive !== undefined) {
       where.isActive = filters.isActive === 'true';
     } else {
       where.isActive = true;
     }
 
-    // isVerified: optionnel
     if (filters?.isVerified !== undefined) {
       where.isVerified = filters.isVerified === 'true';
     }
@@ -271,24 +299,16 @@ export class BrandsService {
       where,
       include: {
         user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
+          select: { id: true, firstName: true, lastName: true },
         },
-        /** 1 produit pour bannière — pas de filtre isVisible : les produits TEASER aussi */
         products: {
           where: { isDeleted: false },
           take: 1,
           orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
           select: { images: true },
         },
-        /** 1 collection : cover collection puis 1ère image produit */
         collections: {
-          where: {
-            status: { in: ['TEASER', 'DISPONIBLE'] },
-          },
+          where: { status: { in: ['TEASER', 'DISPONIBLE'] } },
           take: 1,
           orderBy: [{ launchDate: 'desc' }, { createdAt: 'desc' }],
           select: {
@@ -302,11 +322,7 @@ export class BrandsService {
           },
         },
         _count: {
-          select: {
-            products: true,
-            collections: true,
-            favoris: true,
-          },
+          select: { products: true, collections: true, favoris: true },
         },
       },
       orderBy: [
@@ -320,11 +336,13 @@ export class BrandsService {
   }
 
   /**
-   * 🔍 Récupérer une marque par son slug (page publique)
+   * 🔍 Helper privé — requête Prisma partagée pour les pages publiques de marque
    */
-  async findBySlug(slug: string): Promise<PublicBrandDetailDto> {
-    const brand = await this.prisma.marque.findUnique({
-      where: { slug },
+  private async fetchBrandWithRelations(
+    where: Prisma.MarqueWhereUniqueInput,
+  ) {
+    return this.prisma.marque.findUnique({
+      where,
       include: {
         user: {
           select: {
@@ -396,97 +414,39 @@ export class BrandsService {
         },
       },
     });
-
-    if (!brand) {
-      throw new NotFoundException('Boutique non trouvée');
-    }
-
-    if (!brand.isActive) {
-      throw new NotFoundException("Cette boutique n'est plus disponible");
-    }
-
-    return this.publicCatalogService.mapPublicBrandDetail(brand);
   }
 
   /**
-   * 🔍 Récupérer une marque par son id (page publique)
+   * 🔍 Récupérer une marque par son slug (page publique) — cachée 60 s
+   */
+  async findBySlug(slug: string): Promise<PublicBrandDetailDto> {
+    return this.cacheService.getOrSet(
+      `brands:slug:${slug}`,
+      async () => {
+        const brand = await this.fetchBrandWithRelations({ slug });
+        if (!brand) throw new NotFoundException('Boutique non trouvée');
+        if (!brand.isActive) throw new NotFoundException("Cette boutique n'est plus disponible");
+        return this.publicCatalogService.mapPublicBrandDetail(brand);
+      },
+      BrandsService.CACHE_TTL_DETAIL,
+    );
+  }
+
+  /**
+   * 🔍 Récupérer une marque par son id (page publique) — cachée 60 s
    * Utile pour les liens de partage quand le slug n'est pas disponible côté mobile.
    */
   async findPublicById(id: string): Promise<PublicBrandDetailDto> {
-    const brand = await this.prisma.marque.findUnique({
-      where: { id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
-          },
-        },
-        collections: {
-          where: this.publicCatalogService.getPublicCollectionWhere(),
-          orderBy: [
-            { status: 'asc' },
-            { launchDate: 'desc' },
-            { createdAt: 'desc' },
-          ],
-          take: 20,
-          include: {
-            _count: {
-              select: {
-                products: true,
-              },
-            },
-          },
-        },
-        products: {
-          where: this.publicCatalogService.getPublicProductWhere(),
-          orderBy: [
-            { isFeatured: 'desc' },
-            { createdAt: 'desc' },
-          ],
-          take: 22,
-          include: {
-            brand: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                logo: true,
-                isVerified: true,
-              },
-            },
-            collection: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                status: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: {
-            products: true,
-            collections: true,
-            favoris: true,
-            reviews: true,
-          },
-        },
+    return this.cacheService.getOrSet(
+      `brands:id:${id}`,
+      async () => {
+        const brand = await this.fetchBrandWithRelations({ id });
+        if (!brand) throw new NotFoundException('Boutique non trouvée');
+        if (!brand.isActive) throw new NotFoundException("Cette boutique n'est plus disponible");
+        return this.publicCatalogService.mapPublicBrandDetail(brand);
       },
-    });
-
-    if (!brand) {
-      throw new NotFoundException('Boutique non trouvée');
-    }
-
-    if (!brand.isActive) {
-      throw new NotFoundException("Cette boutique n'est plus disponible");
-    }
-
-    return this.publicCatalogService.mapPublicBrandDetail(brand);
+      BrandsService.CACHE_TTL_DETAIL,
+    );
   }
 
   /**
@@ -495,7 +455,23 @@ export class BrandsService {
   async findMyBrand(userId: string) {
     const brand = await this.prisma.marque.findUnique({
       where: { userId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        bio: true,
+        logo: true,
+        coverImage: true,
+        website: true,
+        instagram: true,
+        whatsapp: true,
+        isActive: true,
+        isVerified: true,
+        followerCount: true,
+        productCount: true,
+        userId: true,
+        createdAt: true,
+        updatedAt: true,
         user: {
           select: {
             id: true,
@@ -570,6 +546,22 @@ export class BrandsService {
       // Si c'est une string URL, on la conserve (pas de changement)
     }
 
+    // Gestion de la coverImage
+    if (updateBrandDto.coverImage !== undefined) {
+      if (updateBrandDto.coverImage === null || updateBrandDto.coverImage === '') {
+        // Supprimer la cover existante
+        await this.uploadService.deleteImageByUrl(brand.coverImage);
+        updateData.coverImage = null;
+      } else if (typeof updateBrandDto.coverImage === 'object') {
+        // Remplacer la cover
+        updateData.coverImage = await this.uploadService.replaceImage(
+          brand.coverImage,
+          updateBrandDto.coverImage as Express.Multer.File,
+          this.uploadService.uploadBrandCoverImage,
+        );
+      }
+    }
+
     // 5. Mettre à jour la marque
     const updatedBrand = await this.prisma.marque.update({
       where: { id: brandId },
@@ -591,6 +583,17 @@ export class BrandsService {
       name: updatedBrand.name,
     });
 
+    // Invalider le cache — le slug peut avoir changé, on purge l'ancien et le nouveau
+    await Promise.all([
+      this.cacheService.delete(`brands:slug:${brand.slug}`),
+      this.cacheService.delete(`brands:id:${brandId}`),
+      this.cacheService.deleteByPattern('brands:list:*'),
+      this.cacheService.deleteByPattern(`brands:stats:${brandId}:*`),
+      ...(updateBrandDto.slug && updateBrandDto.slug !== brand.slug
+        ? [this.cacheService.delete(`brands:slug:${updateBrandDto.slug}`)]
+        : []),
+    ]);
+
     return updatedBrand;
   }
 
@@ -598,7 +601,7 @@ export class BrandsService {
    * 🗑️ Désactiver sa marque (soft delete | CEO uniquement)
    */
   async deactivate(userId: string, brandId: string) {
-    await this.verifyBrandOwnership(userId, brandId);
+    const brand = await this.verifyBrandOwnership(userId, brandId);
 
     const deactivatedBrand = await this.prisma.marque.update({
       where: { id: brandId },
@@ -610,6 +613,12 @@ export class BrandsService {
       name: deactivatedBrand.name,
     });
 
+    await Promise.all([
+      this.cacheService.delete(`brands:slug:${brand.slug}`),
+      this.cacheService.delete(`brands:id:${brandId}`),
+      this.cacheService.deleteByPattern('brands:list:*'),
+    ]);
+
     return deactivatedBrand;
   }
 
@@ -617,7 +626,7 @@ export class BrandsService {
    * 🔄 Réactiver sa marque (CEO uniquement)
    */
   async reactivate(userId: string, brandId: string) {
-    await this.verifyBrandOwnership(userId, brandId);
+    const brand = await this.verifyBrandOwnership(userId, brandId);
 
     const reactivatedBrand = await this.prisma.marque.update({
       where: { id: brandId },
@@ -628,6 +637,12 @@ export class BrandsService {
       id: reactivatedBrand.id,
       name: reactivatedBrand.name,
     });
+
+    await Promise.all([
+      this.cacheService.delete(`brands:slug:${brand.slug}`),
+      this.cacheService.delete(`brands:id:${brandId}`),
+      this.cacheService.deleteByPattern('brands:list:*'),
+    ]);
 
     return reactivatedBrand;
   }
@@ -653,6 +668,18 @@ export class BrandsService {
   > {
     await this.verifyBrandOwnership(userId, brandId);
 
+    return this.cacheService.getOrSet(
+      `brands:stats:${brandId}:${period}`,
+      () => this.computeStats(brandId, period),
+      BrandsService.CACHE_TTL_STATS,
+    );
+  }
+
+  /** @internal Calcul réel des stats — appelé uniquement sur cache miss */
+  private async computeStats(
+    brandId: string,
+    period: '7days' | '30days' | '90days',
+  ) {
     const now = new Date();
     const periodDays = period === '7days' ? 7 : period === '90days' ? 90 : 30;
     const startDate = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);

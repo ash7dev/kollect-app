@@ -46,6 +46,33 @@ export class UploadService {
     }
   }
 
+  /**
+   * 📸 Upload de la bannière (cover image) d'une marque
+   * @param file - Fichier image unique
+   * @returns URL sécurisée de l'image uploadée
+   */
+  async uploadBrandCoverImage(file: Express.Multer.File): Promise<string> {
+    try {
+      this.logger.log('📤 Upload de la bannière de marque...');
+
+      const result = await this.cloudinaryService.uploadImage(file, {
+        folder: ImageFolder.BRANDS,
+        transformation: {
+          width: 1600,
+          height: 900,
+          crop: 'fill',
+          quality: 'auto',
+        },
+      });
+
+      this.logger.log(`✅ Bannière de marque uploadée: ${result.publicId}`);
+      return result.secureUrl;
+    } catch (error) {
+      this.logger.error('❌ Erreur upload bannière marque:', error);
+      throw new BadRequestException('Erreur lors du téléchargement de la bannière');
+    }
+  }
+
   // ========================================
   // UPLOADS POUR LES PRODUITS
   // ========================================

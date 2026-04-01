@@ -69,8 +69,7 @@ export class NotificationsService implements OnModuleInit {
     const [notifications, unreadCount] = await Promise.all([
       this.prisma.notification.findMany({
         where: { userId },
-        // Utilise un champ garanti par le schéma Prisma
-        orderBy: { id: 'desc' },
+        orderBy: { sentAt: 'desc' },
         take: 100,
       }),
       this.prisma.notification.count({
@@ -212,21 +211,18 @@ export class NotificationsService implements OnModuleInit {
     body: string,
     data?: Record<string, string>,
   ): Promise<{ success: number; failed: number }> {
+    const BATCH_SIZE = 50;
     let success = 0;
     let failed = 0;
 
-    for (const userId of userIds) {
-      const result = await this.sendPushNotification({
-        userId,
-        title,
-        body,
-        data,
-      });
-
-      if (result.success) {
-        success++;
-      } else {
-        failed++;
+    for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+      const batch = userIds.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map((userId) => this.sendPushNotification({ userId, title, body, data })),
+      );
+      for (const result of results) {
+        if (result.success) success++;
+        else failed++;
       }
     }
 

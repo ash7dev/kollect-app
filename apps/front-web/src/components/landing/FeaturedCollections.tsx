@@ -408,7 +408,7 @@ export function FeaturedCard({ collection, index }: { collection: FeaturedCollec
         flexDirection: 'column',
         height: '100%', // S'assurer que la carte remplit toute la hauteur disponible
       }}>
-        <div ref={fullscreenRef} style={{
+        <div ref={fullscreenRef} className="featured-card-wrapper" style={{
         display: 'block',
         width: '100%',
         height: cardHeight,
@@ -1162,11 +1162,14 @@ export function FeaturedCollections() {
             max-width: 350px !important;
           }
         }
-        @media (max-width: 600px) {
+        @media (max-width: 640px) {
+          #featured-collections { padding: 64px 16px 0 !important; margin: 0 6px !important; }
           .carousel-item {
             min-width: 85vw !important;
             max-width: 85vw !important;
           }
+          .featured-card-wrapper { height: 420px !important; }
+          .featured-card h3 { font-size: 20px !important; line-height: 24px !important; }
         }
       `}</style>
     </div>

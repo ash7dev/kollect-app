@@ -33,11 +33,13 @@ export function AllCollections({ collections }: AllCollectionsProps) {
   if (collections.length === 0) return null;
 
   return (
-    <section 
+    <section
       id="all-collections"
       style={{
         padding: '80px 40px',
-        backgroundColor: '#fafafa',
+        backgroundColor: '#fff',
+        margin: '0 12px',
+        borderRadius: 32,
         opacity: isVisible ? 1 : 0,
         transform: isVisible ? 'translateY(0)' : 'translateY(40px)',
         transition: 'opacity 0.8s ease-out, transform 0.8s ease-out',
@@ -62,17 +64,17 @@ export function AllCollections({ collections }: AllCollectionsProps) {
         }
         
         @media (prefers-reduced-motion: reduce) {
-          .all-card {
-            opacity: 1;
-            transform: none;
-            animation: none;
-          }
+          .all-card { opacity: 1; transform: none; animation: none; }
+        }
+        @media (max-width: 640px) {
+          #all-collections { padding: 48px 16px !important; margin: 0 6px !important; }
+          .all-collections-header { margin-bottom: 36px !important; }
         }
       `}</style>
 
       <div style={{ maxWidth: 1280, margin: '0 auto' }}>
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 60 }}>
+        <div className="all-collections-header" style={{ textAlign: 'center', marginBottom: 60 }}>
           <div style={{
             display: 'inline-block',
             padding: '6px 18px',
@@ -116,6 +118,7 @@ export function AllCollections({ collections }: AllCollectionsProps) {
         {/* Grid */}
         <BrandCollectionCards
           accent="#FF3B30"
+          showHeader={false}
           collections={collections.map(c => ({
             name: c.name,
             slug: c.slug,

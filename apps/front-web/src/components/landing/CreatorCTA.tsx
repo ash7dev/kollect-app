@@ -183,7 +183,7 @@ export function CreatorCTA() {
           </div>
 
           {/* ── Right : feature cards ── */}
-          <div style={{
+          <div className="creator-feature-cards" style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: '12px',
@@ -248,6 +248,11 @@ export function CreatorCTA() {
         }
         @media (max-width: 960px) {
           .creator-grid { grid-template-columns: 1fr !important; gap: 48px !important; }
+        }
+        @media (max-width: 640px) {
+          #creators { padding: 64px 16px !important; margin: 0 6px !important; }
+          .creator-grid { gap: 36px !important; }
+          .creator-feature-cards { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </section>

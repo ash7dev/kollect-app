@@ -462,7 +462,8 @@ export function RecentReleases() {
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
           }
         }
-        @media (max-width: 600px) {
+        @media (max-width: 640px) {
+          #recent-releases { padding: 64px 16px 64px !important; margin: 0 6px !important; }
           #recent-releases .grid {
             grid-template-columns: 1fr !important;
           }

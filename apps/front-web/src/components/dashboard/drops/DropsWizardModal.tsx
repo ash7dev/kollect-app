@@ -117,7 +117,7 @@ function TimePicker({ value, onChange }: { value: Date; onChange: (d: Date) => v
 
 // ─── Step 1 – Products ─────────────────────────────────────────────────────────
 function emptyProduct(): WizardProductDraft {
-  return { name:'', description:'', price:0, stock:10, sku:'', sizes:[], colors:[], images:[] };
+  return { name:'', description:'', price:0, stock:10, sku:'', sizes:[], colors:[], images:[], productType: 'TSHIRT', gender: 'UNISEXE' };
 }
 
 function ProductFormPanel({ product, onChange, onRemove, idx }: {

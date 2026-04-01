@@ -213,7 +213,11 @@ export function CTA() {
           transform: translateY(-1px);
         }
         @media (max-width: 560px) {
-          .cta-perks { gap: 16px !important; }
+          .cta-perks { gap: 16px !important; flex-direction: column !important; align-items: center !important; }
+        }
+        @media (max-width: 640px) {
+          #download { padding: 64px 16px !important; margin: 0 6px !important; }
+          .cta-app-btn, .cta-app-btn-primary { min-width: min(180px, calc(50vw - 30px)) !important; flex: 1 !important; justify-content: center !important; }
         }
       `}</style>
     </section>

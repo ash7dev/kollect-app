@@ -20,13 +20,11 @@ export function CollectionsPage({ collections }: CollectionsPageProps) {
     setIsVisible(true);
   }, []);
 
-  const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
-
   const comingSoonCollections = collections.filter(c => c.status === 'TEASER');
   const newCollections = collections.filter(c =>
     c.status === 'DISPONIBLE' &&
-    c.launchedAt != null
-    // Filtre temporel désactivé temporairement - à ajuster selon les besoins business
+    c.launchedAt != null &&
+    new Date(c.launchedAt).getTime() > Date.now() - 30 * 24 * 60 * 60 * 1000
   );
   const featuredCollections = collections.filter(c => c.isFeatured && c.status === 'DISPONIBLE');
   const allCollections = collections.filter(c => c.status === 'DISPONIBLE');

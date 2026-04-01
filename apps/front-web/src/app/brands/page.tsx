@@ -6,7 +6,7 @@ import { FONT_FAMILY_INTER } from '@/styles/typography';
 export default function BrandsPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#FFFFFF', fontFamily: FONT_FAMILY_INTER }}>
-      <Navbar />
+      <Navbar black />
       <div style={{ paddingTop: 72 }}>
         <BrandsPageContent />
       </div>

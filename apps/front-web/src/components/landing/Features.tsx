@@ -93,7 +93,7 @@ const FEATURES = [
     icon: <IconBoutique />,
     label: 'Espace marque',
     title: 'Boutique dédiée pour chaque marque',
-    description: 'Chaque maison dispose de sa vitrine : lookbook, collections et calendrier des sorties. Bientôt, ton propre nom de domaine pour prolonger l’expérience premium.',
+    description: 'Chaque marque dispose de sa vitrine : lookbook, collections et calendrier des sorties. Bientôt, ton propre nom de domaine pour prolonger l&apos;expérience premium.',
     dark: false,
     large: true,
   },
@@ -116,7 +116,7 @@ export function Features() {
     >
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
         {/* Header */}
-        <div style={{ maxWidth: '520px', marginBottom: '64px' }}>
+        <div className="features-header" style={{ maxWidth: '520px', marginBottom: '64px' }}>
           <p style={{
             fontSize: '11px', fontWeight: 700, color: '#FF3B30',
             letterSpacing: '2.5px', textTransform: 'uppercase',
@@ -131,7 +131,7 @@ export function Features() {
           }}>
             Tout pour découvrir
             <br />
-            <span style={{ color: 'rgba(0,0,0,0.3)' }}>les maisons &amp; pièces d’exception.</span>
+            <span style={{ color: 'rgba(0,0,0,0.3)' }}>les marques &amp; pièces d&apos;exception.</span>
           </h2>
         </div>
 
@@ -234,6 +234,12 @@ export function Features() {
         @media (max-width: 580px) {
           .bento-grid { grid-template-columns: 1fr !important; }
           .bento-card[style*="span 2"] { grid-column: span 1 !important; }
+        }
+        @media (max-width: 640px) {
+          #features { padding: 64px 16px !important; margin: 0 6px !important; }
+          .features-header { margin-bottom: 40px !important; }
+          .bento-card { padding: 24px 18px !important; }
+          .bento-grid { gap: 10px !important; }
         }
       ` }} />
     </section>

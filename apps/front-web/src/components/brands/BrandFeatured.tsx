@@ -7,6 +7,7 @@ import { env } from '@/config/env';
 import { BrandFollowButton } from '@/components/brands/BrandFollowButton';
 import { brandMediaUrl } from '@/components/brands/brand-media';
 import type { BrandListItem } from '@/components/brands/types';
+import { brandAccentCss } from '@/components/brands/brandAccent';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
 import { BrandProductCard, type BrandProductCardItem } from '@/components/brands/brand-shop/BrandProductCard';
 
@@ -20,6 +21,7 @@ type FeaturedProduct = {
   name: string;
   price: number;
   images: string[];
+  collection?: { name?: string | null } | null;
 };
 
 const FALLBACK_TAGLINES = [
@@ -66,6 +68,8 @@ export function BrandFeatured({ brands }: BrandFeaturedProps) {
 
   const [products, setProducts] = useState<FeaturedProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
+
+  const accent = useMemo(() => featured ? brandAccentCss(featured.id) : '#FF3B30', [featured]);
 
   useEffect(() => {
     if (!featured?.slug) {
@@ -430,6 +434,7 @@ export function BrandFeatured({ brands }: BrandFeaturedProps) {
                   name: p.name,
                   price: p.price,
                   images: p.images,
+                  collection: p.collection,
                 };
                 return (
                   <div
@@ -443,7 +448,7 @@ export function BrandFeatured({ brands }: BrandFeaturedProps) {
                       brandSlug={featured.slug}
                       brandName={featured.name}
                       product={productItem}
-                      accent="#FF3B30"
+                      accent={accent}
                     />
                   </div>
                 );
@@ -478,6 +483,63 @@ export function BrandFeatured({ brands }: BrandFeaturedProps) {
           box-shadow: var(--shadow-xl);
         }
         .brand-featured-prod-rail { scrollbar-width: thin; }
+        
+        /* Styles spécifiques pour les cards de produits dans BrandFeatured */
+        .brand-featured-prod-rail .product-card {
+          background-color: #fff !important;
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        }
+        .brand-featured-prod-rail .product-card:hover {
+          background-color: #fff !important;
+        }
+        
+        /* Nom de la collection en accent (toujours) - premier p si collection existe */
+        .brand-featured-prod-rail .product-card > div > p:first-child {
+          color: var(--color-accent, #FF3B30) !important;
+          font-size: 13px !important;
+          font-weight: 800 !important;
+        }
+        .brand-featured-prod-rail .product-card:hover > div > p:first-child {
+          color: var(--color-accent, #FF3B30) !important;
+          font-size: 13px !important;
+          font-weight: 800 !important;
+        }
+        
+        /* Nom du produit : noir au repos, accent au survol - deuxième p */
+        .brand-featured-prod-rail .product-card > div > p:nth-of-type(2) {
+          color: #111 !important;
+          font-size: 17px !important;
+          font-weight: 900 !important;
+          line-height: 1.2 !important;
+        }
+        .brand-featured-prod-rail .product-card:hover > div > p:nth-of-type(2) {
+          color: var(--color-accent, #FF3B30) !important;
+          font-size: 17px !important;
+          font-weight: 900 !important;
+          line-height: 1.2 !important;
+        }
+        
+        /* Prix en noir (toujours) - troisième p */
+        .brand-featured-prod-rail .product-card > div > p:nth-of-type(3) span:first-child {
+          color: #000 !important;
+          font-size: 26px !important;
+          font-weight: 900 !important;
+        }
+        .brand-featured-prod-rail .product-card:hover > div > p:nth-of-type(3) span:first-child {
+          color: #000 !important;
+          font-size: 26px !important;
+          font-weight: 900 !important;
+        }
+        .brand-featured-prod-rail .product-card > div > p:nth-of-type(3) span:last-child {
+          color: #888 !important;
+          font-size: 14px !important;
+          font-weight: 700 !important;
+        }
+        .brand-featured-prod-rail .product-card:hover > div > p:nth-of-type(3) span:last-child {
+          color: #888 !important;
+          font-size: 14px !important;
+          font-weight: 700 !important;
+        }
       `}</style>
     </section>
   );

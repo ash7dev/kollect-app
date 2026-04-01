@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
-import { APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -21,7 +21,8 @@ import { AppLogger } from './common/logger/logger.service';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
-import { CacheService } from './common/cache/cache.service';
+import { CacheModule } from './common/cache/cache.module';
+import { RateLimitGuard } from './common/guards/rate-limit.guard';
 import { QueuesModule } from './queues/queues.module';
 import { DropsWorkerModule } from './queues/workers/drops-worker.module';
 import { NotificationsWorkerModule } from './queues/workers/notifications-worker.module';
@@ -35,6 +36,7 @@ import { RedisModule } from './common/redis/redis.module';
       isGlobal: true,
     }),
     RedisModule,
+    CacheModule,
     ScheduleModule.forRoot(),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     PrismaModule,
@@ -59,7 +61,11 @@ import { RedisModule } from './common/redis/redis.module';
   providers: [
     AppService,
     AppLogger,
-    CacheService,
+    // Rate limiting global — 100 req/min par défaut, surchargeable via @RateLimit()
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    },
     // Interceptors globaux
     {
       provide: APP_INTERCEPTOR,

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -57,6 +56,15 @@ export interface AutoCancelResult {
 @Injectable()
 export class CommandesService {
   private readonly logger = new Logger(CommandesService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+    private emailService: EmailService,
+    private metricsService: MetricsService,
+    @InjectQueue(ORDERS_QUEUE)
+    private readonly ordersQueue: Queue,
+  ) {}
 
   private async reserveVariantStock(
     tx: Prisma.TransactionClient,
@@ -258,15 +266,6 @@ export class CommandesService {
 
     return updated;
   }
-  constructor(
-    private prisma: PrismaService,
-    private notificationsService: NotificationsService,
-    private emailService: EmailService,
-    private metricsService: MetricsService,
-    @InjectQueue(ORDERS_QUEUE)
-    private readonly ordersQueue: Queue,
-  ) {}
-
   /**
    * Créer une commande avec gestion atomique du stock
    */
@@ -332,9 +331,8 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
               variantId: null,
               productName: product.name,
               price: product.price,
-              // Si le front envoie déjà une taille/couleur, on les conserve
-              size: (item as any).size ?? null,
-              color: (item as any).color ?? null,
+              size: item.size ?? null,
+              color: item.color ?? null,
               quantity: item.quantity,
             });
           } else {
@@ -519,7 +517,7 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
 
     if (promo.minOrderAmount && subtotal < promo.minOrderAmount) {
       throw new BadRequestException(
-        `Montant minimum de ${promo.minOrderAmount / 100} FCFA requis pour ce code promo`,
+        `Montant minimum de ${promo.minOrderAmount.toLocaleString('fr-FR')} FCFA requis pour ce code promo`,
       );
     }
 
@@ -734,12 +732,9 @@ async getCommandesBoutique(userId: string, query: QueryCommandesDto) {
       throw new NotFoundException('Commande introuvable');
     }
 
-    // Vérifier les droits d'accès
+    // Vérifier les droits d'accès — brand déjà chargé dans la query ci-dessus
     if (isCEO) {
-      const brand = await this.prisma.marque.findUnique({
-        where: { userId },
-      });
-      if (commande.brandId !== brand?.id) {
+      if (commande.brand.userId !== userId) {
         throw new ForbiddenException('Accès non autorisé');
       }
     } else {
