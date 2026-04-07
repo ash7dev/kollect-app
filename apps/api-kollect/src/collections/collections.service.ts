@@ -593,7 +593,8 @@ async findAllForCEO(
             sizes: true,
             colors: true,
             sku: true,
-            isVisible: true 
+            isVisible: true,
+            collectionId: true
           },
           take: 10,
           orderBy: { createdAt: 'asc' },
@@ -606,6 +607,43 @@ async findAllForCEO(
 
     if (!collection) {
       throw new NotFoundException('Collection non trouvée');
+    }
+
+    // Appliquer les promotions automatiques aux produits de la collection
+    if (collection.products && collection.products.length > 0) {
+      collection.products = await this.publicCatalogService.applyPromotions(
+        collection.products,
+        collection.brandId,
+      );
+    }
+
+    // Vérifier s'il y a une promotion automatique sur cette collection
+    const now = new Date();
+    const collectionPromotion = await this.prisma.codePromo.findFirst({
+      where: {
+        brandId: collection.brandId,
+        scope: 'COLLECTION',
+        collectionId: collection.id,
+        isAutoApplied: true,
+        isActive: true,
+        startsAt: { lte: now },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: {
+        discountType: true,
+        discountValue: true,
+      },
+    });
+
+    // Ajouter les infos de promotion au niveau de la collection
+    if (collectionPromotion && collection.products && collection.products.length > 0) {
+      // Calculer le prix original moyen ou le prix minimum de la collection
+      const originalPrices = collection.products.map(p => p.price);
+      const minOriginalPrice = Math.min(...originalPrices);
+      
+      (collection as any).originalPrice = minOriginalPrice;
+      (collection as any).discountType = collectionPromotion.discountType;
+      (collection as any).discountValue = collectionPromotion.discountValue;
     }
 
     await this.analyticsQueue.add(
@@ -682,7 +720,18 @@ async findAllForCEO(
   ]);
 
   return {
-    data: collections.map((collection) => this.publicCatalogService.mapPublicCollection(collection)),
+    data: await Promise.all(
+      collections.map(async (collection) => {
+        // Appliquer les promotions aux produits de la collection (si présents)
+        if (collection.products && collection.products.length > 0) {
+          collection.products = await this.publicCatalogService.applyPromotions(
+            collection.products,
+            collection.brandId,
+          );
+        }
+        return this.publicCatalogService.mapPublicCollection(collection);
+      }),
+    ),
     meta: {
       total,
       page,

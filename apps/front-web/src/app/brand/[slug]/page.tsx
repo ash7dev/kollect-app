@@ -39,6 +39,9 @@ type BrandProductApi = {
   slug: string;
   name: string;
   price: number;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
   images?: string[] | null;
   stock?: number | null;
   collection?: { name?: string | null } | null;
@@ -129,6 +132,9 @@ export default async function BrandPage({ params }: { params: { slug: string } }
     slug: p.slug,
     name: p.name,
     price: p.price,
+    originalPrice: p.originalPrice,
+    discountType: p.discountType,
+    discountValue: p.discountValue,
     images: p.images ?? [],
     stock: p.stock ?? null,
     collection: p.collection ?? null,

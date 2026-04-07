@@ -36,7 +36,7 @@ export default function LandingPage() {
         fontFamily: FONT_FAMILY_INTER,
       }}
     >
-      <Navbar />
+      <Navbar transparent />
       <main style={{ backgroundColor: 'transparent' }}>
         {/* Hero dynamique : bannière si drop imminent/récent, showcase sinon */}
         <HeroBanner />

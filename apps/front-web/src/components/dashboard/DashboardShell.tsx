@@ -65,6 +65,7 @@ function FullPageState({ message }: { message: string }) {
 export function DashboardShell() {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeSection, setActiveSection] = useState<SidebarSection>('overview');
   const { user, signOut, isLoading } = useAuth();
@@ -455,6 +456,23 @@ export function DashboardShell() {
           gap: 14px;
         }
 
+        /* ── Burger mobile ── */
+        .dash-mobile-burger {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          border: 1px solid rgba(0,0,0,0.08);
+          background: rgba(255,255,255,0.85);
+          display: none;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: rgba(0,0,0,0.6);
+          flex-shrink: 0;
+          transition: background 0.15s, color 0.15s;
+        }
+        .dash-mobile-burger:hover { background: #fff; color: #111; }
+
         @media (max-width: 1200px) {
           .dash-grid-3 { grid-template-columns: 1fr 1fr !important; }
         }
@@ -465,6 +483,15 @@ export function DashboardShell() {
           .dash-grid-3 { grid-template-columns: 1fr !important; }
           .dash-header { flex-wrap: wrap; }
           .dash-search-wrap { min-width: 160px; }
+        }
+        @media (max-width: 768px) {
+          .dash-layout { grid-template-columns: 1fr !important; }
+          .dash-mobile-burger { display: flex !important; }
+          .dash-search-wrap { display: none !important; }
+          .dash-period-group { display: none !important; }
+          .dash-header { padding: 10px 14px; margin-bottom: 12px; gap: 10px; }
+          .dash-main { padding: 0 14px 24px !important; }
+          .dash-grid-2-1, .dash-grid-1-1, .dash-grid-3 { grid-template-columns: 1fr !important; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
@@ -479,10 +506,16 @@ export function DashboardShell() {
           userEmail={user.email}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
           active={activeSection}
           onNavigate={(section) => {
             if (section === 'drops') {
               router.push('/dashboard/drops');
+              return;
+            }
+            if (section === 'promotions') {
+              router.push('/dashboard/promotions');
               return;
             }
             if (section === 'products') {
@@ -511,7 +544,7 @@ export function DashboardShell() {
           notificationCount={pendingCount}
         />
 
-        <main style={{ padding: '20px 24px', minWidth: 0 }}>
+        <main className="dash-main" style={{ padding: '20px 24px', minWidth: 0 }}>
 
           {/* ══ HEADER ══════════════════════════════════════════════════════ */}
           <header className="dash-header">
@@ -528,6 +561,18 @@ export function DashboardShell() {
 
             {/* Right — controls */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+
+              {/* Burger — mobile only */}
+              <button
+                type="button"
+                className="dash-mobile-burger"
+                onClick={() => setMobileSidebarOpen(v => !v)}
+                aria-label="Ouvrir le menu"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+              </button>
 
               {/* Search */}
               <div className="dash-search-wrap">

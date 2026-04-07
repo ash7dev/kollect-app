@@ -151,4 +151,21 @@ export const API_ENDPOINTS = {
     CONFIRMER: (id: string) => `/commandes/${id}/confirmer`,
     ANNULER: (id: string) => `/commandes/${id}/annuler`,
   },
+
+  PROMOTIONS: {
+    CREATE_AUTO: '/promotions/auto',
+    CREATE_CODE: '/promotions/code',
+    CEO_LIST: (params?: { page?: number; limit?: number; isActive?: boolean; isAutoApplied?: boolean; scope?: string }) => {
+      const s = new URLSearchParams();
+      if (params?.page) s.set('page', String(params.page));
+      if (params?.limit) s.set('limit', String(params.limit));
+      if (typeof params?.isActive === 'boolean') s.set('isActive', String(params.isActive));
+      if (typeof params?.isAutoApplied === 'boolean') s.set('isAutoApplied', String(params.isAutoApplied));
+      if (params?.scope) s.set('scope', params.scope);
+      return `/promotions?${s.toString()}`;
+    },
+    TOGGLE: (id: string) => `/promotions/${id}/toggle`,
+    VALIDATE: (code: string, subtotal: number, brandSlug: string) => 
+      `/promotions/validate?code=${encodeURIComponent(code)}&subtotal=${subtotal}&brandSlug=${encodeURIComponent(brandSlug)}`,
+  },
 } as const;

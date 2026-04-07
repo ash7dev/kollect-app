@@ -91,6 +91,7 @@ export function CollectionDetailPage({ id }: { id: string }) {
   const { user, isLoading: authLoading } = useAuth();
   const { checking } = useOnboardingGuard();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal]     = useState(false);
 
@@ -172,6 +173,8 @@ export function CollectionDetailPage({ id }: { id: string }) {
           active="drops"
           onNavigate={handleNavigate}
           notificationCount={0}
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
         />
 
         <main className="cd-main">
@@ -182,6 +185,7 @@ export function CollectionDetailPage({ id }: { id: string }) {
             onEdit={()    => setShowEditModal(true)}
             onDelete={()  => setShowDeleteModal(true)}
             launchPending={launchMutation.isPending}
+            onOpenSidebar={() => setMobileSidebarOpen(true)}
           />
 
 

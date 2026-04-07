@@ -62,6 +62,7 @@ type Props = {
   onEdit: () => void;
   onDelete: () => void;
   launchPending: boolean;
+  onOpenSidebar?: () => void;
 };
 
 const F = 'Inter, -apple-system, BlinkMacSystemFont, sans-serif';
@@ -69,7 +70,7 @@ const F = 'Inter, -apple-system, BlinkMacSystemFont, sans-serif';
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CollectionTopBar({
-  collection, onBack, onLaunch, onEdit, onDelete, launchPending,
+  collection, onBack, onLaunch, onEdit, onDelete, launchPending, onOpenSidebar,
 }: Props) {
   const hasCollection = !!collection;
   const isTeaser = collection?.status === 'TEASER';
@@ -84,6 +85,11 @@ export function CollectionTopBar({
         @keyframes ctb-shimmer {
           0%   { background-position:-600px 0; }
           100% { background-position:600px 0; }
+        }
+        @media (max-width: 768px) {
+          .ctb-label     { display: none !important; }
+          .ctb-divider   { display: none !important; }
+          .ctb-edit      { padding: 0 10px !important; }
         }
         .ctb-back:hover   { 
           background:rgba(255,255,255,0.95) !important; 
@@ -112,41 +118,43 @@ export function CollectionTopBar({
 
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 32,
+        gap: 10, marginBottom: 32,
         fontFamily: F,
       }}>
         {/* ── Back ── */}
-        <button
-          type="button"
-          className="ctb-back"
-          onClick={onBack}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            height: 40, padding: '0 16px',
-            border: '1px solid rgba(0,0,0,0.07)', borderRadius: 12,
-            background: 'rgba(255,255,255,0.88)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            color: '#0A0A0A',
-            fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            fontFamily: F, flexShrink: 0,
-            transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.95)';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.06)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.88)';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)';
-          }}
-        >
-          <Ic d={ICONS.arrowLeft} size={15} sw={2.5} />
-          Retour aux drops
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            className="ctb-back"
+            onClick={onBack}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              height: 40, padding: '0 16px',
+              border: '1px solid rgba(0,0,0,0.07)', borderRadius: 12,
+              background: 'rgba(255,255,255,0.88)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              color: '#0A0A0A',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              fontFamily: F, flexShrink: 0,
+              transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.95)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.06)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.88)';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)';
+            }}
+          >
+            <Ic d={ICONS.arrowLeft} size={15} sw={2.5} />
+            <span className="ctb-label">Retour aux drops</span>
+          </button>
+        </div>
 
         {/* ── Right side ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
@@ -155,7 +163,7 @@ export function CollectionTopBar({
 
           {/* Divider */}
           {hasCollection && (
-            <div style={{ width: 1, height: 24, background: 'rgba(0,0,0,0.08)', margin: '0 6px' }} />
+            <div className="ctb-divider" style={{ width: 1, height: 24, background: 'rgba(0,0,0,0.08)', margin: '0 6px' }} />
           )}
 
           {/* Edit */}
@@ -188,7 +196,7 @@ export function CollectionTopBar({
               }}
             >
               <Ic d={ICONS.edit} size={16} sw={2} />
-              Modifier
+              <span className="ctb-label">Modifier</span>
             </button>
           )}
 
@@ -231,7 +239,7 @@ export function CollectionTopBar({
 
           {/* Launch divider */}
           {isTeaser && (
-            <div style={{ width: 1, height: 24, background: 'rgba(0,0,0,0.08)', margin: '0 6px' }} />
+            <div className="ctb-divider" style={{ width: 1, height: 24, background: 'rgba(0,0,0,0.08)', margin: '0 6px' }} />
           )}
 
           {/* Launch — TEASER only */}

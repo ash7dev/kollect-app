@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@nestjs/common';
 import { CollectionStatus, Prisma } from '@prisma/client';
 import {
@@ -9,9 +13,12 @@ import {
   PublicCollectionProductPreviewDto,
 } from './dto/public-collection.dto';
 import { PublicProductDto } from './dto/public-product.dto';
+import { PromotionsService } from '../promotions/promotions.service';
 
 @Injectable()
 export class PublicCatalogService {
+  constructor(private readonly promotionsService: PromotionsService) {}
+
   readonly publicCollectionStatuses: CollectionStatus[] = [
     CollectionStatus.TEASER,
     CollectionStatus.DISPONIBLE,
@@ -64,6 +71,22 @@ export class PublicCatalogService {
     };
   }
 
+  async applyPromotions(products: any[], brandId: string): Promise<any[]> {
+    return this.promotionsService.applyAutomaticPromotionsToProducts(
+      products,
+      brandId,
+    );
+  }
+
+  async applyPromotion(product: any): Promise<any> {
+    const products =
+      await this.promotionsService.applyAutomaticPromotionsToProducts(
+        [product],
+        product.brandId,
+      );
+    return products[0];
+  }
+
   isCollectionPublic(status: CollectionStatus): boolean {
     return this.publicCollectionStatuses.includes(status);
   }
@@ -85,13 +108,15 @@ export class PublicCatalogService {
       isFeatured: product.isFeatured ?? false,
       brandId: product.brandId,
       collectionId: product.collectionId,
-      brand: product.brand ? {
-        id: product.brand.id,
-        name: product.brand.name,
-        slug: product.brand.slug,
-        logo: product.brand.logo ?? null,
-        isVerified: product.brand.isVerified,
-      } : null,
+      brand: product.brand
+        ? {
+            id: product.brand.id,
+            name: product.brand.name,
+            slug: product.brand.slug,
+            logo: product.brand.logo ?? null,
+            isVerified: product.brand.isVerified,
+          }
+        : null,
       collection: {
         id: product.collection.id,
         name: product.collection.name,
@@ -103,6 +128,9 @@ export class PublicCatalogService {
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
       viewCount: product.viewCount,
+      originalPrice: product.originalPrice,
+      discountType: product.discountType,
+      discountValue: product.discountValue,
     };
   }
 
@@ -121,6 +149,9 @@ export class PublicCatalogService {
       colors: product.colors ?? [],
       sku: product.sku ?? null,
       isVisible: product.isVisible,
+      originalPrice: product.originalPrice,
+      discountType: product.discountType,
+      discountValue: product.discountValue,
     };
   }
 
@@ -137,6 +168,9 @@ export class PublicCatalogService {
       isFeatured: collection.isFeatured ?? false,
       coverImage: collection.coverImage ?? null,
       teaserVideo: collection.teaserVideo ?? null,
+      originalPrice: collection.originalPrice,
+      discountType: collection.discountType,
+      discountValue: collection.discountValue,
       createdAt: collection.createdAt ?? null,
       brandId: collection.brandId,
       brand: {

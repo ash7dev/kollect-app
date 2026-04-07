@@ -425,6 +425,7 @@ export function DropsPage() {
   const { user, isLoading } = useAuth();
   const { checking } = useOnboardingGuard();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const tabsRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState({ left: 0, width: 0 });
@@ -871,6 +872,40 @@ export function DropsPage() {
           color: #D1D5DB; text-transform: uppercase;
           font-family: inherit;
         }
+
+        /* ── Mobile burger ── */
+        .dp-mobile-burger {
+          display: none;
+          width: 38px; height: 38px;
+          border-radius: 10px;
+          border: 1.5px solid rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.12);
+          align-items: center; justify-content: center;
+          cursor: pointer; color: rgba(255,255,255,0.8);
+          flex-shrink: 0;
+          transition: background 0.15s, color 0.15s;
+        }
+        .dp-mobile-burger:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+          .dp-layout { grid-template-columns: 1fr !important; }
+          .dp-main { padding: 0 14px 40px !important; }
+          .dp-mobile-burger { display: flex !important; }
+          .dp-page-hero { padding: 20px 18px; margin-bottom: 20px; }
+          .dp-hero-title { font-size: 24px; }
+          .dp-hero-actions { margin-top: 18px; gap: 8px; flex-wrap: wrap; }
+          .dp-btn-hero { height: 38px; padding: 0 16px; font-size: 13px; }
+          .dp-kpi-row { gap: 8px; }
+          .dp-kpi-card { padding: 14px 16px; min-width: 80px; }
+          .dp-tabs-row { flex-wrap: wrap; gap: 10px; }
+          .dp-tabs-wrap { overflow-x: auto; }
+          .dp-grid { grid-template-columns: 1fr !important; gap: 14px; }
+        }
+        @media (max-width: 480px) {
+          .dp-grid { grid-template-columns: 1fr !important; }
+          .dp-hero-title { font-size: 20px; }
+        }
       `}</style>
 
       <div
@@ -891,6 +926,8 @@ export function DropsPage() {
             else router.push('/dashboard');
           }}
           notificationCount={0}
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
         />
 
         <main className="dp-main">
@@ -901,17 +938,21 @@ export function DropsPage() {
             <h1 className="dp-hero-title">Tes Drops</h1>
             <p className="dp-hero-sub">Crée, teaser, et lance tes collections — tout en un.</p>
             <div className="dp-hero-actions">
+              <button
+                type="button"
+                className="dp-mobile-burger"
+                onClick={() => setMobileSidebarOpen(true)}
+                aria-label="Ouvrir le menu"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+              </button>
               <button type="button" className="dp-btn-hero"
                 onClick={() => router.push('/dashboard/drops/new')}>
                 <Ic d={ICONS.plus} size={14} stroke="#fff" sw={2.5} />
                 Nouveau drop
               </button>
-              {!isLoading_ && kpis.total > 0 && (
-                <button type="button" className="dp-btn-hero-ghost">
-                  <Ic d={ICONS.grid} size={13} stroke="currentColor" />
-                  {kpis.total} collection{kpis.total > 1 ? 's' : ''}
-                </button>
-              )}
             </div>
           </div>
 

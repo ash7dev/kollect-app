@@ -28,6 +28,13 @@ const CSS = `
   @media (max-width: 700px) {
     .kpi-grid { grid-template-columns: repeat(2, 1fr); }
     .card-hero { grid-column: span 2; }
+    .kpi-value { font-size: 22px; letter-spacing: -0.8px; }
+    .kpi-card  { min-height: 120px; padding: 16px 14px 14px; }
+  }
+  @media (max-width: 400px) {
+    .kpi-grid  { grid-template-columns: 1fr; }
+    .card-hero { grid-column: span 1; }
+    .kpi-value { font-size: 26px; }
   }
 
   .kpi-card {

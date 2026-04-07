@@ -25,6 +25,9 @@ export type CollectionProduct = {
   name: string;
   description: string | null;
   price: number;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
   stock: number;
   sku: string | null;
   sizes: string[];
@@ -38,6 +41,9 @@ export type PublicCollectionProduct = {
   slug?: string;
   description?: string | null;
   price?: number;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
   stock?: number;
   sku?: string | null;
   sizes?: string[];
@@ -62,6 +68,9 @@ export type PublicCollection = {
   isFeatured: boolean;
   coverImage: string | null;
   teaserVideo: string | null;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
   brand: {
     id: string;
     slug: string;

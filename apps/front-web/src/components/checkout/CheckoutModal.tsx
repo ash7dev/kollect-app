@@ -6,6 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useBrandCartStore, type BrandCartItem } from '@/stores/brandCartStore';
 import { apiClient } from '@/services/api/client';
+import { API_ENDPOINTS } from '@/services/api/endpoints';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -243,6 +244,11 @@ export function CheckoutModal({ open, onClose, brandSlug, brandName, accent = '#
     address: '', city: '', notes: '',
   });
 
+  const [promoCode, setPromoCode] = useState('');
+  const [discount, setDiscount] = useState<{ amount: number; codeId: string } | null>(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+  const [promoMessage, setPromoMessage] = useState<{ text: string; kind: 'error' | 'success' } | null>(null);
+
   const set = useCallback((k: keyof FormFields) => (v: string) => {
     setFields(f => ({ ...f, [k]: v }));
     setTouched(t => ({ ...t, [k]: true }));
@@ -265,6 +271,9 @@ export function CheckoutModal({ open, onClose, brandSlug, brandName, accent = '#
         setOrderNumber(null);
         setSubmittedOnce(false);
         setTouched({});
+        setPromoCode('');
+        setDiscount(null);
+        setPromoMessage(null);
         setFields({ firstName: '', lastName: '', phone: '', address: '', city: '', notes: '' });
       }, 350);
     }
@@ -304,6 +313,7 @@ export function CheckoutModal({ open, onClose, brandSlug, brandName, accent = '#
           ville: fields.city.trim(),
           telephone: fields.phone.trim(),
         },
+        codePromo: discount ? promoCode.trim().toUpperCase() : undefined,
         notes: fields.notes.trim() || undefined,
       };
       const res = await apiClient.post<{ orderNumber: string }>('/commandes', dto);
@@ -328,6 +338,24 @@ export function CheckoutModal({ open, onClose, brandSlug, brandName, accent = '#
       return;
     }
     submitMutation.mutate();
+  };
+
+  const handleValidatePromo = async () => {
+    if (!promoCode.trim()) return;
+    setValidatingPromo(true);
+    setPromoMessage(null);
+    try {
+      const res = await apiClient.get<{ discount: number; promoCodeData: any }>(
+        API_ENDPOINTS.PROMOTIONS.VALIDATE(promoCode.trim().toUpperCase(), subtotal, brandSlug)
+      );
+      setDiscount({ amount: res.data.discount, codeId: res.data.promoCodeData.id });
+      setPromoMessage({ text: 'Code appliqué !', kind: 'success' });
+    } catch (e: any) {
+      setDiscount(null);
+      setPromoMessage({ text: e.response?.data?.message || 'Code invalide.', kind: 'error' });
+    } finally {
+      setValidatingPromo(false);
+    }
   };
 
   if (!open) return null;
@@ -469,6 +497,12 @@ export function CheckoutModal({ open, onClose, brandSlug, brandName, accent = '#
                     <span style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)' }}>Sous-total</span>
                     <span style={{ fontSize: 13, fontWeight: 700 }}>{fmtPrice(subtotal)}</span>
                   </div>
+                  {discount && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#10B981' }}>Remise ({promoCode.toUpperCase()})</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: '#10B981' }}>- {fmtPrice(discount.amount)}</span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                     <span style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)' }}>Livraison</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#10B981' }}>Gratuite</span>
@@ -479,7 +513,7 @@ export function CheckoutModal({ open, onClose, brandSlug, brandName, accent = '#
                   }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: '#0a0a0a' }}>Total</span>
                     <span style={{ fontSize: 22, fontWeight: 900, color: '#0a0a0a', letterSpacing: '-1px' }}>
-                      {fmtPrice(subtotal)}
+                      {fmtPrice(Math.max(0, subtotal - (discount?.amount || 0)))}
                     </span>
                   </div>
                 </div>
@@ -574,6 +608,55 @@ export function CheckoutModal({ open, onClose, brandSlug, brandName, accent = '#
                 <div style={{ marginBottom: 20 }}>
                   <Field label="Ville" value={fields.city} onChange={set('city')} error={visibleErrors.city} placeholder="Dakar" />
                 </div>
+
+                {/* ── Promo Code ── */}
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 28 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(0,0,0,0.35)' }}>
+                    Code promotionnel (optionnel)
+                  </span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      className="ck-textarea"
+                      value={promoCode}
+                      onChange={e => setPromoCode(e.target.value)}
+                      placeholder="Ex : SUMMER25"
+                      style={{
+                        flex: 1,
+                        padding: '12px 14px',
+                        borderRadius: 12,
+                        border: '1.5px solid rgba(0,0,0,0.12)',
+                        fontSize: 14,
+                        color: '#0a0a0a',
+                        textTransform: 'uppercase',
+                        background: '#fff',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={validatingPromo || !promoCode}
+                      onClick={handleValidatePromo}
+                      style={{
+                        padding: '0 20px',
+                        borderRadius: 12,
+                        background: '#0a0a0a',
+                        color: '#fff',
+                        border: 'none',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: validatingPromo || !promoCode ? 'not-allowed' : 'pointer',
+                        opacity: validatingPromo || !promoCode ? 0.6 : 1,
+                      }}
+                    >
+                      {validatingPromo ? '...' : 'Appliquer'}
+                    </button>
+                  </div>
+                  {promoMessage && (
+                    <span style={{ fontSize: 12, fontWeight: 600, color: promoMessage.kind === 'error' ? '#EF4444' : '#10B981', marginTop: 2 }}>
+                      {promoMessage.text}
+                    </span>
+                  )}
+                </label>
 
                 {/* ── Notes optionnelles ── */}
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 28 }}>

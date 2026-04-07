@@ -221,6 +221,47 @@ export function Navbar({ transparent = false, black = false }: { transparent?: b
           {/* ══ Spacer ══ */}
           <div style={{ flex: 1 }} />
 
+          {/* ── Bouton panier (toujours visible, desktop + mobile) ── */}
+          {mounted && (
+            <button
+              onClick={toggleCart}
+              aria-label="Ouvrir le panier"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                padding: '9px', borderRadius: '10px',
+                color: black ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.85)',
+                backgroundColor: cartCount > 0 ? (black ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.12)') : (black ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.07)'),
+                border: cartCount > 0 ? (black ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.20)') : (black ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(255,255,255,0.10)'),
+                cursor: 'pointer',
+                position: 'relative',
+                transition: 'all 200ms ease',
+                flexShrink: 0,
+                zIndex: 1,
+                marginRight: '8px',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <path d="M16 10a4 4 0 0 1-8 0" />
+              </svg>
+              {cartCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: '4px', right: '4px',
+                  minWidth: '17px', height: '17px', borderRadius: '9px',
+                  backgroundColor: '#FF3B30', color: '#fff',
+                  fontSize: '9px', fontWeight: 800,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 4px', lineHeight: 1,
+                  boxShadow: black ? '0 0 0 2px #000000' : '0 0 0 2px rgba(10,10,10,0.9)',
+                }}>
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* ══ CTA actions — desktop (droite) ══ */}
           <div
             className="nav-cta-desktop"
@@ -711,46 +752,6 @@ export function Navbar({ transparent = false, black = false }: { transparent?: b
             )}
           </div>
 
-          {/* ── Bouton panier (toujours visible, desktop + mobile) ── */}
-          {mounted && (
-            <button
-              onClick={toggleCart}
-              aria-label="Ouvrir le panier"
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                padding: '9px', borderRadius: '10px',
-                color: black ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.85)',
-                backgroundColor: cartCount > 0 ? (black ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.12)') : (black ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.07)'),
-                border: cartCount > 0 ? (black ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.20)') : (black ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(255,255,255,0.10)'),
-                cursor: 'pointer',
-                position: 'relative',
-                transition: 'all 200ms ease',
-                flexShrink: 0,
-                zIndex: 1,
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
-              {cartCount > 0 && (
-                <span style={{
-                  position: 'absolute', top: '4px', right: '4px',
-                  minWidth: '17px', height: '17px', borderRadius: '9px',
-                  backgroundColor: '#FF3B30', color: '#fff',
-                  fontSize: '9px', fontWeight: 800,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  padding: '0 4px', lineHeight: 1,
-                  boxShadow: black ? '0 0 0 2px #000000' : '0 0 0 2px rgba(10,10,10,0.9)',
-                }}>
-                  {cartCount > 99 ? '99+' : cartCount}
-                </span>
-              )}
-            </button>
-          )}
-
           {/* ══ Burger — mobile ══ */}
           <button
             className="nav-burger"
@@ -772,6 +773,7 @@ export function Navbar({ transparent = false, black = false }: { transparent?: b
               padding: '0',
               flexShrink: 0,
               zIndex: 1,
+              marginLeft: '8px',
             }}
           >
             {[0, 1, 2].map(i => (

@@ -4,6 +4,9 @@ export type PublicProduct = {
   slug: string;
   description: string | null;
   price: number;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
   images: string[];
   stock: number;
   sizes: string[];
@@ -23,6 +26,9 @@ export type ProductListItem = {
   name: string;
   slug: string;
   price: number;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
   images: string[];
   stock?: number | null;
   sizes?: string[];

@@ -21,7 +21,7 @@ interface JwtPayload {
 
 interface AuthenticatedUser {
   id: string;
-  supabaseId: string;
+  supabaseId: string | null;
   email: string;
   isAdmin: boolean;
   isCEO: boolean;

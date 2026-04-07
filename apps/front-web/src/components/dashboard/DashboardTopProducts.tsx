@@ -69,11 +69,11 @@ export function DashboardTopProducts({ products, isLoading }: Props) {
 
   // ── Content ───────────────────────────────────────────────────────────────
   return (
-    <article style={cardStyle}>
+    <article className="dtp-card" style={cardStyle}>
       <style dangerouslySetInnerHTML={{ __html: STYLES + ANIM }} />
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div className="dtp-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 3, height: 16, borderRadius: 2, background: 'linear-gradient(180deg, #FF3B30 0%, #E0321F 100%)' }} />
@@ -197,7 +197,7 @@ export function DashboardTopProducts({ products, isLoading }: Props) {
                 </div>
 
                 {/* View Stats */}
-                <div style={{ width: 90, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                <div className="dtp-view-stats" style={{ width: 90, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -339,6 +339,13 @@ const STYLES = `
   }
   .dtp-footer-btn:hover svg {
     transform: translateX(4px);
+  }
+
+  @media (max-width: 540px) {
+    .dtp-card { padding: 14px !important; }
+    .dtp-row  { padding: 10px 10px; gap: 8px; }
+    .dtp-view-stats { display: none !important; }
+    .dtp-header { flex-wrap: wrap; gap: 8px; }
   }
 `;
 

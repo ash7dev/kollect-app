@@ -20,6 +20,9 @@ export interface PublicCollectionProductPreviewDto {
   colors?: string[];
   sku?: string | null;
   isVisible?: boolean;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
 }
 
 export interface PublicCollectionDto {
@@ -34,6 +37,9 @@ export interface PublicCollectionDto {
   isFeatured: boolean;
   coverImage: string | null;
   teaserVideo: string | null;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
   brandId: string;
   brand: PublicCollectionBrandDto;
   products?: PublicCollectionProductPreviewDto[];

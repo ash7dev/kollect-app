@@ -14,6 +14,13 @@ function formatPrice(price: number) {
   );
 }
 
+function formatPriceWithCurrency(price: number) {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'decimal',
+    maximumFractionDigits: 0,
+  }).format(price) + ' FCFA';
+}
+
 function getStockMeta(stock: number) {
   if (stock === 0)
     return { label: 'Rupture',       color: '#991B1B', bg: '#FEE2E2', dot: '#EF4444' };
@@ -65,7 +72,7 @@ function NoImage() {
 const F = 'Inter, -apple-system, BlinkMacSystemFont, sans-serif';
 
 export function ProductCard({ product }: { product: CollectionProduct }) {
-  const { name, price, stock, sizes, images } = product;
+  const { name, price, originalPrice, discountType, discountValue, stock, sizes, images } = product;
   const stockValue = stock ?? 0;
   const primaryImage = images?.[0];
   const sm = getStockMeta(stockValue);
@@ -152,6 +159,25 @@ export function ProductCard({ product }: { product: CollectionProduct }) {
             </span>
           </div>
         )}
+
+        {/* Badge Promotion */}
+        {originalPrice && (
+          <div style={{
+            position: 'absolute', top: 10, right: 10,
+            background: '#FF3B30',
+            border: 'none',
+            borderRadius: 8, padding: '4px 8px',
+            display: 'flex', alignItems: 'center', gap: 3,
+            boxShadow: '0 2px 8px rgba(255,59,48,0.3)',
+          }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m3 11 18-5M3 18l18-5" />
+            </svg>
+            <span style={{ fontFamily: F, fontSize: 10, fontWeight: 800, color: '#fff', letterSpacing: '0.1px' }}>
+              {discountType === 'PERCENTAGE' ? `-${discountValue}%` : `-${formatPriceWithCurrency(discountValue ?? 0)}`}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ── Body ── */}
@@ -172,14 +198,28 @@ export function ProductCard({ product }: { product: CollectionProduct }) {
         </p>
 
         {/* Price — height:20px fixes footer alignment across entire grid */}
-        <p style={{
-          margin: '0 0 12px',
-          fontFamily: F, fontSize: 14.5, fontWeight: 800,
-          color: '#E63329', letterSpacing: '-0.4px',
-          lineHeight: '20px', height: 20,
-        }}>
-          {formatPrice(price)}
-        </p>
+        <div style={{ margin: '0 0 12px', display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {originalPrice && (
+            <span style={{ 
+              fontSize: 11, 
+              color: '#999', 
+              textDecoration: 'line-through', 
+              fontWeight: 500,
+              fontFamily: F,
+              lineHeight: '16px'
+            }}>
+              {formatPriceWithCurrency(originalPrice)}
+            </span>
+          )}
+          <p style={{
+            margin: 0,
+            fontFamily: F, fontSize: 14.5, fontWeight: 800,
+            color: originalPrice ? '#E63329' : '#E63329', letterSpacing: '-0.4px',
+            lineHeight: '20px', height: 20,
+          }}>
+            {formatPrice(price)}
+          </p>
+        </div>
 
         {/* Footer — stock + sizes, pushed to bottom */}
         <div style={{

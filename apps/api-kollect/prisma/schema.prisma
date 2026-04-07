@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ============================================
@@ -14,7 +13,7 @@ datasource db {
 
 model Utilisateur {
   id            String    @id @default(cuid())
-  supabaseId    String    @unique // ID venant de Supabase Auth
+  supabaseId    String?   @unique // ID venant de Supabase Auth
   email         String    @unique
   /// @zod.email()
   firstName     String?   @db.VarChar(100)
@@ -164,6 +163,7 @@ model Collection {
   
   // Relations
   products        Produit[]
+  promotions      CodePromo[]       // Promotions liées à cette collection
   
   @@unique([brandId, slug])
   @@index([brandId])
@@ -599,54 +599,69 @@ model Review {
 // ============================================
 
 model CodePromo {
-  id            String     @id @default(cuid())
-  code          String     @unique @db.VarChar(50)
-  description   String?    @db.Text
+  id            String         @id @default(cuid())
+  code          String         @unique @db.VarChar(50)
+  description   String?        @db.Text
+  
+  // Portée de la promotion
+  scope         PromotionScope @default(BRAND) // BRAND ou COLLECTION
   
   // Type de réduction
   discountType  DiscountType
-  discountValue Int        // Montant fixe ou pourcentage
+  discountValue Int            // Montant fixe ou pourcentage
   
   // Limites
-  minOrderAmount Int?      // Montant minimum de commande
-  maxDiscount    Int?      // Remise maximale (pour les pourcentages)
+  minOrderAmount Int?          // Montant minimum de commande
+  maxDiscount    Int?          // Remise maximale (pour les pourcentages)
   
   // Utilisation
-  usageLimit     Int?      // Nombre maximum d'utilisations
-  usageCount     Int       @default(0)
+  usageLimit     Int?          // Nombre maximum d'utilisations (null = illimité)
+  usageCount     Int           @default(0)
   
   // Période de validité
-  startsAt      DateTime   @default(now())
-  expiresAt     DateTime?
+  startsAt      DateTime       @default(now())
+  expiresAt     DateTime?      // null = sans date de fin
   
-  // Restrictions
-  isActive      Boolean    @default(true)
-  isSingleUse   Boolean    @default(false)
+  // Mode d'application
+  isActive      Boolean        @default(true)
+  isSingleUse   Boolean        @default(false)  // Usage unique par user
+  isAutoApplied Boolean        @default(false)  // true = promo auto, false = code promo
   
   // Relations
-  userId        String?    // Si réservé à un utilisateur
-  user          Utilisateur? @relation(fields: [userId], references: [id])
+  userId        String?        // Si réservé à un utilisateur spécifique
+  user          Utilisateur?   @relation(fields: [userId], references: [id])
   
-  brandId       String?    // Si spécifique à une marque
-  brand         Marque?    @relation(fields: [brandId], references: [id])
+  brandId       String?        // La marque propriétaire de la promo
+  brand         Marque?        @relation(fields: [brandId], references: [id])
+
+  collectionId  String?        // Rempli si scope = COLLECTION
+  collection    Collection?    @relation(fields: [collectionId], references: [id])
   
-  productIds    String[]   // Produits éligibles
+  productIds    String[]       // Produits éligibles (tableau vide = tous)
   
   // Timestamps
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   
   @@index([code])
   @@index([isActive])
+  @@index([isAutoApplied])
   @@index([expiresAt])
   @@index([brandId])
+  @@index([collectionId])
+  @@index([brandId, isActive, isAutoApplied]) // Index composite pour requête rapide
   @@map("promo_codes")
 }
 
 enum DiscountType {
   PERCENTAGE
   FIXED_AMOUNT
-  FREE_SHIPPING
+  FREE_SHIPPING // Gardé pour évolution future (livraison déjà gratuite au MVP)
+}
+
+enum PromotionScope {
+  BRAND       // S'applique à tous les produits de la marque
+  COLLECTION  // S'applique uniquement aux produits d'une collection
 }
 
 // ============================================

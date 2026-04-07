@@ -216,7 +216,7 @@ function OrderRow({ order, index, onView, onConfirm, onCancel, confirming, cance
     <div className="cmd-row" style={{ animationDelay: `${index * 0.04}s` }}>
 
       {/* Avatar + info */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}>
+      <div className="cmd-row-info">
         <div style={{
           width: 44, height: 44, borderRadius: 12, flexShrink: 0,
           background: avatarColor,
@@ -227,42 +227,40 @@ function OrderRow({ order, index, onView, onConfirm, onCancel, confirming, cance
           {initials}
         </div>
         <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: '#0A0A0A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {order.customer}
-            </p>
-          </div>
+          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: '#0A0A0A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {order.customer}
+          </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
             <code style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'monospace', letterSpacing: '0.3px' }}>
               #{order.orderNumber}
             </code>
-            <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#D1D5DB' }} />
-            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{timeAgo(order.date)}</span>
+            <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: '#9CA3AF', whiteSpace: 'nowrap' }}>{timeAgo(order.date)}</span>
           </div>
         </div>
       </div>
 
       {/* Status */}
-      <div style={{ flexShrink: 0 }}>
+      <div className="cmd-row-status">
         <StatusPill status={order.status} />
       </div>
 
       {/* Items */}
-      <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 70 }}>
-        <p style={{ margin: 0, fontSize: 12, color: '#6B7280', fontWeight: 500 }}>
+      <div className="cmd-row-items">
+        <p style={{ margin: 0, fontSize: 12, color: '#6B7280', fontWeight: 500, whiteSpace: 'nowrap' }}>
           {order.itemsCount} article{order.itemsCount > 1 ? 's' : ''}
         </p>
       </div>
 
       {/* Amount */}
-      <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 90 }}>
-        <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.5px' }}>
+      <div className="cmd-row-amount">
+        <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}>
           {fmtPrice(order.amount)}
         </p>
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+      <div className="cmd-row-actions">
         {order.status === 'EN_ATTENTE' && (
           <>
             <button
@@ -605,6 +603,7 @@ export function CommandesPage() {
   const { user, isLoading: authLoading } = useAuth();
   const { checking } = useOnboardingGuard();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
@@ -870,8 +869,71 @@ export function CommandesPage() {
         @keyframes cmd-spin    { to { transform: rotate(360deg); } }
         @keyframes cmd-pulse   { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
+        /* ── Row inner classes (desktop) ── */
+        .cmd-row-info {
+          display: flex; align-items: center; gap: 14px;
+          flex: 1; min-width: 0;
+        }
+        .cmd-row-status { flex-shrink: 0; }
+        .cmd-row-items  { text-align: right; flex-shrink: 0; min-width: 70px; }
+        .cmd-row-amount { text-align: right; flex-shrink: 0; min-width: 90px; }
+        .cmd-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+        /* ── Mobile burger ── */
+        .cmd-mobile-burger {
+          display: none;
+          width: 38px; height: 38px;
+          border-radius: 10px;
+          border: 1.5px solid rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.12);
+          align-items: center; justify-content: center;
+          cursor: pointer; color: rgba(255,255,255,0.8);
+          flex-shrink: 0;
+          transition: background 0.15s, color 0.15s;
+        }
+        .cmd-mobile-burger:hover { background: rgba(255,255,255,0.2); color: #fff; }
+        .cmd-hero-actions { display: flex; align-items: center; gap: 10px; margin-top: 24px; }
+
+        /* ── Responsive ── */
         @media (max-width: 900px) {
-          .cmd-row { flex-wrap: wrap; }
+          .cmd-table-head { display: none; }
+        }
+        @media (max-width: 768px) {
+          .cmd-layout { grid-template-columns: 1fr !important; }
+          .cmd-main { padding: 0 14px 40px !important; }
+          .cmd-mobile-burger { display: flex !important; }
+          .cmd-hero { padding: 20px 18px; margin-bottom: 20px; }
+          .cmd-hero-title { font-size: 24px; }
+
+          /* KPIs : grille 2 colonnes */
+          .cmd-kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+          .cmd-kpi { min-width: 0; padding: 14px 16px; }
+
+          /* Tabs */
+          .cmd-toolbar { flex-wrap: wrap; gap: 8px; }
+          .cmd-tabs-wrap { overflow-x: auto; max-width: 100%; }
+
+          /* Order rows : 2 lignes */
+          .cmd-row {
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 14px;
+          }
+          .cmd-row-info {
+            width: 100%;
+            flex: unset;
+          }
+          .cmd-row-items { display: none; }
+          .cmd-row-status { order: 2; }
+          .cmd-row-amount { order: 3; margin-left: auto; min-width: 0; }
+          .cmd-row-actions { order: 4; }
+          .cmd-btn-confirm { padding: 7px 12px; font-size: 12px; }
+          .cmd-btn-detail  { padding: 7px 12px; font-size: 12px; }
+        }
+        @media (max-width: 480px) {
+          .cmd-hero-title { font-size: 20px; }
+          .cmd-row-actions { width: 100%; order: 5; justify-content: flex-end; }
+          .cmd-btn-detail { flex: 1; justify-content: center; }
         }
       `}</style>
 
@@ -893,6 +955,8 @@ export function CommandesPage() {
             else if (section === 'orders')    router.push('/dashboard/commandes');
             else router.push('/dashboard');
           }}
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
         />
 
         <main className="cmd-main">
@@ -904,12 +968,24 @@ export function CommandesPage() {
             <p className="cmd-hero-sub">
               {stats ? `${stats.total} commande${stats.total !== 1 ? 's' : ''} au total · ${fmtPrice(stats.revenueTotal)} de CA confirmé` : 'Chargement…'}
             </p>
-            {(stats?.enAttente ?? 0) > 0 && (
-              <div className="cmd-hero-live">
-                <span className="cmd-live-dot" />
-                {stats!.enAttente} en attente de traitement
-              </div>
-            )}
+            <div className="cmd-hero-actions">
+              <button
+                type="button"
+                className="cmd-mobile-burger"
+                onClick={() => setMobileSidebarOpen(true)}
+                aria-label="Ouvrir le menu"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+              </button>
+              {(stats?.enAttente ?? 0) > 0 && (
+                <div className="cmd-hero-live">
+                  <span className="cmd-live-dot" />
+                  {stats!.enAttente} en attente de traitement
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ── KPIs ── */}

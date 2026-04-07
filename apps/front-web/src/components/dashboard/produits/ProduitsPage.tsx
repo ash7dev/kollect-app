@@ -175,13 +175,7 @@ function ProductCard({ product, index, onToggleVisibility, toggling, onEdit, onD
       }}
     >
       {/* Image */}
-      <div style={{
-        width: 100, minWidth: 100, height: 100,
-        background: '#0A0A0A',
-        position: 'relative', overflow: 'hidden',
-        borderRadius: '12px 0 0 12px',
-        flexShrink: 0,
-      }}>
+      <div className="pp-card-img">
         {img ? (
           <img src={img} alt={product.name}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -202,8 +196,8 @@ function ProductCard({ product, index, onToggleVisibility, toggling, onEdit, onD
       </div>
 
       {/* Info */}
-      <div style={{ flex: 1, padding: '14px 16px', minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+      <div className="pp-card-info">
+        <div className="pp-card-name-row">
           <h3 style={{
             margin: 0, fontSize: 14, fontWeight: 700,
             color: '#0A0A0A', letterSpacing: '-0.2px', lineHeight: 1.3,
@@ -212,10 +206,7 @@ function ProductCard({ product, index, onToggleVisibility, toggling, onEdit, onD
           }}>
             {product.name}
           </h3>
-          <span style={{
-            fontSize: 14, fontWeight: 800, color: '#0A0A0A',
-            whiteSpace: 'nowrap', flexShrink: 0, letterSpacing: '-0.3px',
-          }}>
+          <span className="pp-card-price">
             {fmtPrice(product.price)}
           </span>
         </div>
@@ -256,32 +247,31 @@ function ProductCard({ product, index, onToggleVisibility, toggling, onEdit, onD
       </div>
 
       {/* Actions */}
-      <div style={{ padding: '0 14px', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+      <div className="pp-card-actions">
         <button
           type="button"
           title={product.isVisible ? 'Masquer' : 'Afficher'}
           onClick={() => onToggleVisibility(product.id, product.isVisible)}
           disabled={toggling}
-          className="pp-btn-icon"
-          style={{ color: product.isVisible ? '#6B7280' : '#E63329' }}
+          className={`pp-btn-icon ${product.isVisible ? 'pp-btn-visibility-on' : 'pp-btn-visibility-off'}`}
         >
-          <Ic d={product.isVisible ? ICONS.eye : ICONS.eyeOff} size={14} />
+          <Ic d={product.isVisible ? ICONS.eye : ICONS.eyeOff} size={15} />
         </button>
         <button
           type="button"
           title="Modifier"
-          className="pp-btn-icon"
+          className="pp-btn-icon pp-btn-edit"
           onClick={() => onEdit(product.id)}
         >
-          <Ic d={ICONS.pencil} size={13} />
+          <Ic d={ICONS.pencil} size={14} />
         </button>
         <button
           type="button"
           title="Voir le produit"
-          className="pp-btn-icon"
+          className="pp-btn-icon pp-btn-view"
           onClick={() => window.open(`/product/${product.slug}`, '_blank')}
         >
-          <Ic d={ICONS.diagonal} size={13} />
+          <Ic d={ICONS.diagonal} size={14} />
         </button>
         <button
           type="button"
@@ -289,7 +279,7 @@ function ProductCard({ product, index, onToggleVisibility, toggling, onEdit, onD
           className="pp-btn-icon pp-btn-danger"
           onClick={() => onDelete(product.id, product.name)}
         >
-          <Ic d={ICONS.trash} size={13} />
+          <Ic d={ICONS.trash} size={14} />
         </button>
       </div>
     </article>
@@ -454,6 +444,7 @@ export function ProduitsPage() {
   const { user, isLoading: authLoading } = useAuth();
   const { checking } = useOnboardingGuard();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('flat');
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -770,15 +761,45 @@ export function ProduitsPage() {
         }
         .pp-btn-ghost:hover { background: rgba(255,255,255,0.12); color: #fff; }
         .pp-btn-icon {
-          width: 34px; height: 34px; border-radius: 10px;
+          width: 38px; height: 38px; border-radius: 11px;
           display: flex; align-items: center; justify-content: center;
-          background: #F3F4F6; border: none; cursor: pointer;
-          color: #6B7280; transition: background 0.15s, color 0.15s;
-          flex-shrink: 0;
+          border: none; cursor: pointer; flex-shrink: 0;
+          transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+          font-weight: 700;
         }
-        .pp-btn-icon:hover { background: #E5E7EB; color: #111; }
-        .pp-btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
-        .pp-btn-danger:hover { background: #FEE2E2 !important; color: #EF4444 !important; }
+        .pp-btn-icon:hover { transform: translateY(-2px); }
+        .pp-btn-icon:active { transform: scale(0.95); }
+        .pp-btn-icon:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+        .pp-btn-visibility-on {
+          background: #ECFDF5; color: #059669;
+          box-shadow: 0 2px 8px rgba(5,150,105,0.15);
+        }
+        .pp-btn-visibility-on:hover { background: #D1FAE5; box-shadow: 0 4px 12px rgba(5,150,105,0.25); }
+
+        .pp-btn-visibility-off {
+          background: #FFF1F0; color: #E63329;
+          box-shadow: 0 2px 8px rgba(230,51,41,0.15);
+        }
+        .pp-btn-visibility-off:hover { background: #FFE4E1; box-shadow: 0 4px 12px rgba(230,51,41,0.25); }
+
+        .pp-btn-edit {
+          background: #0A0A0A; color: #fff;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .pp-btn-edit:hover { background: #222; box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
+
+        .pp-btn-view {
+          background: #EEF2FF; color: #6366F1;
+          box-shadow: 0 2px 8px rgba(99,102,241,0.15);
+        }
+        .pp-btn-view:hover { background: #E0E7FF; box-shadow: 0 4px 12px rgba(99,102,241,0.25); }
+
+        .pp-btn-danger {
+          background: #FEF2F2; color: #EF4444;
+          box-shadow: 0 2px 8px rgba(239,68,68,0.15);
+        }
+        .pp-btn-danger:hover { background: #FEE2E2; box-shadow: 0 4px 12px rgba(239,68,68,0.25); }
 
         /* ── Shimmer ── */
         @keyframes pp-shimmer {
@@ -810,6 +831,90 @@ export function ProduitsPage() {
         }
         @keyframes pp-spin {
           to { transform: rotate(360deg); }
+        }
+
+        /* ── Card inner classes (desktop) ── */
+        .pp-card-img {
+          width: 100px; min-width: 100px; height: 100px;
+          background: #0A0A0A;
+          position: relative; overflow: hidden;
+          border-radius: 12px 0 0 12px;
+          flex-shrink: 0;
+        }
+        .pp-card-info {
+          flex: 1; padding: 14px 16px; min-width: 0;
+        }
+        .pp-card-name-row {
+          display: flex; align-items: flex-start;
+          justify-content: space-between; gap: 8px; margin-bottom: 6px;
+        }
+        .pp-card-price {
+          font-size: 14px; font-weight: 800; color: #0A0A0A;
+          white-space: nowrap; flex-shrink: 0; letter-spacing: -0.3px;
+        }
+        .pp-card-actions {
+          padding: 0 14px; display: flex; align-items: center;
+          gap: 6px; flex-shrink: 0;
+        }
+
+        /* ── Mobile burger ── */
+        .pp-mobile-burger {
+          display: none;
+          width: 38px; height: 38px;
+          border-radius: 10px;
+          border: 1.5px solid rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.12);
+          align-items: center; justify-content: center;
+          cursor: pointer; color: rgba(255,255,255,0.8);
+          flex-shrink: 0;
+          transition: background 0.15s, color 0.15s;
+        }
+        .pp-mobile-burger:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+          .pp-layout { grid-template-columns: 1fr !important; }
+          .pp-main { padding: 0 14px 40px !important; }
+          .pp-mobile-burger { display: flex !important; }
+          .pp-page-hero { padding: 20px 18px; margin-bottom: 20px; }
+          .pp-hero-title { font-size: 24px; }
+          .pp-hero-actions { margin-top: 18px; gap: 8px; flex-wrap: wrap; }
+
+          /* KPIs : 2 colonnes */
+          .pp-kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+          .pp-kpi-card { min-width: 0; padding: 14px 16px; }
+
+          /* Tabs */
+          .pp-toolbar { flex-wrap: wrap; gap: 8px; }
+          .pp-tabs-wrap { overflow-x: auto; max-width: 100%; }
+
+          /* Product cards : image en haut, infos en dessous */
+          .pp-product-card { flex-direction: column; min-height: unset; }
+          .pp-card-img {
+            width: 100%; min-width: 0; height: 160px;
+            border-radius: 12px 12px 0 0;
+          }
+          .pp-card-info { padding: 12px 14px 8px; }
+          .pp-card-name-row { flex-direction: column; gap: 4px; }
+          .pp-card-price { font-size: 15px; }
+
+          /* Actions : boutons grands, pleine largeur, avec labels */
+          .pp-card-actions {
+            padding: 10px 12px 14px;
+            border-top: 1px solid #F3F4F6;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 8px;
+          }
+          .pp-btn-icon {
+            width: 100% !important;
+            height: 42px !important;
+            border-radius: 12px !important;
+            font-size: 13px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .pp-hero-title { font-size: 20px; }
         }
       `}</style>
 
@@ -933,6 +1038,8 @@ export function ProduitsPage() {
             else if (section === 'products') router.push('/dashboard/produits');
             else router.push('/dashboard');
           }}
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
         />
 
         <main className="pp-main">
@@ -945,6 +1052,16 @@ export function ProduitsPage() {
               {isLoading ? 'Chargement…' : `${kpis.total} produit${kpis.total !== 1 ? 's' : ''} dans ta boutique`}
             </p>
             <div className="pp-hero-actions">
+              <button
+                type="button"
+                className="pp-mobile-burger"
+                onClick={() => setMobileSidebarOpen(true)}
+                aria-label="Ouvrir le menu"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+              </button>
               <button
                 type="button"
                 className="pp-btn-primary"

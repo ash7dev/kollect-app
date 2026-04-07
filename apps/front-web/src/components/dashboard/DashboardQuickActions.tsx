@@ -227,11 +227,10 @@ export function DashboardQuickActions({
         </div>
       </div>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
-        gap: 16,
-      }}>
+      <style>{`
+        .qa-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+      `}</style>
+      <div className="qa-grid">
         {actions.map((action) => (
           <ActionCard key={action.id} action={action} />
         ))}

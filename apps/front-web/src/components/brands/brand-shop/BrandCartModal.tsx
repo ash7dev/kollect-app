@@ -1,12 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useBrandCartStore } from '@/stores/brandCartStore';
+import { FONT_FAMILY_INTER } from '@/styles/typography';
+import { formatColorName } from '@/utils/colorUtils';
+
 import { useAuth } from '@/providers/AuthProvider';
 import { AuthRequiredModal } from '@/components/checkout/AuthRequiredModal';
 import { CheckoutModal } from '@/components/checkout/CheckoutModal';
+import { formatPrice } from '@/lib/price-utils';
 
 type BrandCartModalProps = {
   open: boolean;
@@ -16,9 +20,7 @@ type BrandCartModalProps = {
   accent?: string;
 };
 
-function formatPrice(price: number) {
-  return new Intl.NumberFormat('fr-FR').format(price);
-}
+
 
 export function BrandCartModal({ open, onClose, brandSlug, brandName, accent = '#0a0a0a' }: BrandCartModalProps) {
   const itemsByBrand = useBrandCartStore((s) => s.itemsByBrand);
@@ -237,9 +239,22 @@ export function BrandCartModal({ open, onClose, brandSlug, brandName, accent = '
                     }}>
                       {item.name}
                     </p>
-                    <p style={{ fontSize: 15, fontWeight: 900, margin: 0, letterSpacing: '-0.4px' }}>
-                      {formatPrice(item.price ?? 0)}&nbsp;<span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(0,0,0,0.4)' }}>CFA</span>
-                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 6 }}>
+                        {item.originalPrice && (
+                          <span style={{ fontSize: 11, color: '#999', textDecoration: 'line-through', fontWeight: 600 }}>
+                            {formatPrice(item.originalPrice)}
+                          </span>
+                        )}
+                      <p style={{ 
+                        fontSize: 15, 
+                        fontWeight: 900, 
+                        margin: 0, 
+                        letterSpacing: '-0.4px',
+                        color: item.originalPrice ? '#FF3B30' : '#000'
+                      }}>
+                        {formatPrice(item.price ?? 0)}&nbsp;<span style={{ fontSize: 11, fontWeight: 600, color: item.originalPrice ? '#FF3B30' : 'rgba(0,0,0,0.4)' }}>CFA</span>
+                      </p>
+                    </div>
 
                     {/* Variant selectors */}
                     {((item.availableSizes && item.availableSizes.length > 1) || (item.availableColors && item.availableColors.length > 1)) && (
@@ -276,7 +291,7 @@ export function BrandCartModal({ open, onClose, brandSlug, brandName, accent = '
                           >
                             <option value="">Couleur…</option>
                             {item.availableColors.map(c => (
-                              <option key={c} value={c}>{c}</option>
+                              <option key={c} value={c}>{formatColorName(c)}</option>
                             ))}
                           </select>
                         )}

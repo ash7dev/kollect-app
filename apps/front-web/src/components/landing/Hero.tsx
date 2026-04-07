@@ -12,6 +12,9 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
   images: string[];
   brand?: Brand;
 }
@@ -62,6 +65,10 @@ const FETCH_OPTS: RequestInit = { headers: { 'ngrok-skip-browser-warning': '1' }
 /* ─── Helpers ────────────────────────────────────────────────────── */
 function formatPrice(price: number) {
   return new Intl.NumberFormat('fr-FR').format(price) + ' CFA';
+}
+
+function formatPriceWithCurrency(price: number) {
+  return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA';
 }
 
 function daysUntil(date: string) {
@@ -283,12 +290,19 @@ function ProductMainCard({ product }: { product: Product }) {
               </span>
             </div>
           )}
-          <span style={{
-            fontSize: '16px', fontWeight: 900, color: '#0a0a0a', letterSpacing: '-0.5px',
-            padding: '4px 10px', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.05)',
-          }}>
-            {formatPrice(product.price)}
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+            {product.originalPrice && (
+              <span style={{ fontSize: '11px', color: 'rgba(0,0,0,0.4)', textDecoration: 'line-through', fontWeight: 500 }}>
+                {formatPriceWithCurrency(product.originalPrice)}
+              </span>
+            )}
+            <span style={{
+              fontSize: '16px', fontWeight: 900, color: product.originalPrice ? '#FF3B30' : '#0a0a0a', letterSpacing: '-0.5px',
+              padding: '4px 10px', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.05)',
+            }}>
+              {formatPrice(product.price)}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -376,12 +390,19 @@ function TrendingProductCard({ product }: { product: Product }) {
             {product.name}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-            {product.brand && (
-              <span style={{ fontSize: '11px', color: 'rgba(0,0,0,0.35)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {product.brand.name}
-              </span>
-            )}
-            <span style={{ fontSize: '13px', fontWeight: 900, color: '#FF3B30', flexShrink: 0, letterSpacing: '-0.3px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: 1 }}>
+              {product.brand && (
+                <span style={{ fontSize: '11px', color: 'rgba(0,0,0,0.35)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {product.brand.name}
+                </span>
+              )}
+              {product.originalPrice && (
+                <span style={{ fontSize: '10px', color: 'rgba(0,0,0,0.3)', textDecoration: 'line-through', fontWeight: 500 }}>
+                  {formatPriceWithCurrency(product.originalPrice)}
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: '13px', fontWeight: 900, color: product.originalPrice ? '#FF3B30' : '#FF3B30', flexShrink: 0, letterSpacing: '-0.3px' }}>
               {formatPrice(product.price)}
             </span>
           </div>

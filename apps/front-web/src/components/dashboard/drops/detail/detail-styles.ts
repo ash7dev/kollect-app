@@ -242,4 +242,18 @@ export const DETAIL_STYLES = `
   .cd-btn-ghost:hover { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 
   @keyframes cd-spin { to { transform: rotate(360deg); } }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .cd-layout { grid-template-columns: 1fr !important; }
+    .cd-main   { padding: 12px 14px 40px; }
+    .cd-hero   { height: 220px; margin-bottom: 12px; }
+    .cd-hero-name { font-size: 20px; }
+    .cd-meta-row  { gap: 8px; margin-bottom: 20px; }
+    .cd-meta-chip { padding: 7px 11px; font-size: 12px; }
+    .cd-products-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  }
+  @media (max-width: 400px) {
+    .cd-products-grid { grid-template-columns: 1fr; }
+  }
 `;

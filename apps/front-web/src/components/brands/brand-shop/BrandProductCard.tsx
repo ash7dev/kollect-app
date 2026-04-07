@@ -6,12 +6,16 @@ import { toast } from 'sonner';
 import { env } from '@/config/env';
 import { useBrandCartStore } from '@/stores/brandCartStore';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
+import { formatPrice, formatPriceWithCurrency } from '@/lib/price-utils';
 
 export type BrandProductCardItem = {
   id: string;
   slug: string;
   name: string;
   price: number;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
   images?: string[] | null;
   stock?: number | null;
   sizes?: string[];
@@ -383,6 +387,23 @@ export function BrandProductCard({ brandSlug, brandName, product, accent, isTeas
             </div>
           )}
 
+          {/* Badge Promotion */}
+          {product.originalPrice && !isTeaser && (
+            <div aria-hidden style={{ position: 'absolute', top: 10, right: 10, pointerEvents: 'none', zIndex: 10 }}>
+              <span style={{
+                padding: '6px 12px', borderRadius: 12,
+                backgroundColor: '#FF3B30', color: '#fff', fontSize: 12, fontWeight: 900,
+                boxShadow: '0 4px 12px rgba(255,59,48,0.3)',
+                display: 'flex', alignItems: 'center', gap: 4
+              }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m3 11 18-5M3 18l18-5" />
+                </svg>
+                {product.discountType === 'PERCENTAGE' ? `-${product.discountValue}%` : `-${formatPriceWithCurrency(product.discountValue ?? 0)}`}
+              </span>
+            </div>
+          )}
+
         </div>
 
         {/* ── Infos ── */}
@@ -412,12 +433,24 @@ export function BrandProductCard({ brandSlug, brandName, product, accent, isTeas
           </p>
 
           {/* Prix */}
-          <p style={{ margin: '0 0 14px', marginTop: 'auto', lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
-            <span className="product-card-price" style={{ fontSize: 24, fontWeight: 900, color: '#000', letterSpacing: '-1px' }}>
-              {priceFormatted}
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#888' }}>FCFA</span>
-          </p>
+          <div style={{ margin: '0 0 14px', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {product.originalPrice && (
+              <span style={{ fontSize: 13, color: '#999', textDecoration: 'line-through', fontWeight: 600, marginLeft: 2 }}>
+                {formatPriceWithCurrency(product.originalPrice)}
+              </span>
+            )}
+            <p style={{ margin: 0, lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
+              <span className="product-card-price" style={{ 
+                fontSize: 24, 
+                fontWeight: 900, 
+                color: product.originalPrice ? '#FF3B30' : '#000', 
+                letterSpacing: '-1px' 
+              }}>
+                {formatPrice(product.price)}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: product.originalPrice ? '#FF3B30' : '#888' }}>FCFA</span>
+            </p>
+          </div>
 
           <div className="product-card-actions" style={{
             display: 'flex', gap: 8, alignItems: 'stretch',

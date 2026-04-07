@@ -12,6 +12,7 @@ import { CommandesModule } from './commandes/commandes.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CollectionsModule } from './collections/collections.module';
+import { PromotionsModule } from './promotions/promotions.module';
 import { ProduitsModule } from './produits/produits.module';
 import { SuiviModule } from './suivi/suivi.module';
 import { MetricsModule } from './metrics/metrics.module';
@@ -48,6 +49,7 @@ import { RedisModule } from './common/redis/redis.module';
     ProduitsModule, // Module pour la gestion des produits
     CommandesModule,
     CollectionsModule,
+    PromotionsModule,
     SuiviModule, // Module pour la gestion des commandes
     MetricsModule,
     ShareModule,

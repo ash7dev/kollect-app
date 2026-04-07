@@ -340,9 +340,41 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
           }
         }
 
-        // ✅ Calculs en FCFA
+        // Calculate subtotal
         const shippingFee = 0; // MVP: gratuit
-        const total = subtotal + shippingFee;
+        
+        // --- 🎯 GESTION DES PROMOTIONS ---
+        let discount = 0;
+        let appliedPromoId: string | null = null;
+
+        // 1. Calcul du discount Automatique
+        const autoDiscountData = await this.calculateAutoPromotionDiscount(tx, brandId, items);
+        let autoDiscount = autoDiscountData.discount;
+
+        // 2. Calcul du discount Manuel (si fourni)
+        let manualDiscount = 0;
+        if (dto.codePromo) {
+          try {
+            manualDiscount = await this.calculateManualPromoDiscount(tx, dto.codePromo, brandId, items, subtotal);
+          } catch (e) {
+            // Optionnel: On pourrait throw l'erreur au client. Pour l'instant on throw pour bloquer la commande avec un code invalide.
+            throw e;
+          }
+        }
+
+        // 3. Choix du meilleur discount (Le plus avantageux pour le client)
+        if (manualDiscount > autoDiscount && dto.codePromo) {
+          discount = manualDiscount;
+          // Marquer le code manuel comme utilisé
+          await this.markPromoCodeAsUsed(tx, dto.codePromo);
+          this.logger.log(`Code promo manuel appliqué: -${discount} CFA`);
+        } else if (autoDiscount > 0) {
+          discount = autoDiscount;
+          appliedPromoId = autoDiscountData.promoId;
+          this.logger.log(`Promotion automatique appliquée: -${discount} CFA`);
+        }
+
+        const total = subtotal + shippingFee - discount;
 
         const orderNumber = await this.generateUniqueOrderNumber(tx);
 
@@ -356,15 +388,15 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
             shippingCity: dto.adresseLivraison.ville,
             shippingPhone: dto.adresseLivraison.telephone,
             notes: dto.notes?.trim() || null,
-            subtotal,           // ✅ En FCFA normal
-            shippingFee,        // ✅ En FCFA normal
-            discount: 0,
-            total,              // ✅ En FCFA normal
+            subtotal,           
+            shippingFee,        
+            discount,           
+            total,              
             status: 'EN_ATTENTE',
             items: {
               create: items.map((item) => ({
                 productId: item.productId,
-                variantId: item.variantId ?? null,
+                variantId: item.variantId,
                 productName: item.productName,
                 price: item.price,      // ✅ En FCFA normal
                 quantity: item.quantity,
@@ -492,52 +524,145 @@ async createCommande(userId: string, dto: CreateCommandeDto) {
   }
 
   /**
-   * Appliquer un code promo
+   * Calculer la remise d'une promotion automatique
    */
-  private async applyPromoCode(
+  private async calculateAutoPromotionDiscount(tx: any, brandId: string, items: CommandeItem[]): Promise<{discount: number, promoId: string | null}> {
+    // 1. Chercher S'IL Y A une promotion automatique active pour cette marque
+    const activeAutoPromo = await tx.codePromo.findFirst({
+      where: {
+        brandId,
+        isAutoApplied: true,
+        isActive: true,
+        startsAt: { lte: new Date() },
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } }
+        ]
+      }
+    });
+
+    if (!activeAutoPromo) return { discount: 0, promoId: null };
+
+    // 2. Calculer le total éligible selon le scope
+    let eligibleSubtotal = 0;
+
+    if (activeAutoPromo.scope === 'BRAND') {
+      // S'applique à toute la commande
+      eligibleSubtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    } else if (activeAutoPromo.scope === 'COLLECTION' && activeAutoPromo.collectionId) {
+      // S'applique uniquement aux items de cette collection
+      // Note: Il faut récupérer le collectionId des items. 
+      // Puisque items n'a pas collectionId dans CommandeItem actuellement, on doit les chercher
+      const productIds = Array.from(new Set(items.map(i => i.productId)));
+      const products = await tx.produit.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, collectionId: true }
+      });
+      
+      const eligibleProductIds = new Set(
+        products.filter((p: any) => p.collectionId === activeAutoPromo.collectionId).map((p: any) => p.id)
+      );
+
+      for (const item of items) {
+        if (eligibleProductIds.has(item.productId)) {
+          eligibleSubtotal += item.price * item.quantity;
+        }
+      }
+    }
+
+    if (eligibleSubtotal === 0) return { discount: 0, promoId: activeAutoPromo.id };
+
+    // Vérifier min Order
+    if (activeAutoPromo.minOrderAmount && eligibleSubtotal < activeAutoPromo.minOrderAmount) {
+      return { discount: 0, promoId: activeAutoPromo.id };
+    }
+
+    // Calcul
+    let discount = 0;
+    if (activeAutoPromo.discountType === 'PERCENTAGE') {
+      discount = Math.floor((eligibleSubtotal * activeAutoPromo.discountValue) / 100);
+      if (activeAutoPromo.maxDiscount) discount = Math.min(discount, activeAutoPromo.maxDiscount);
+    } else if (activeAutoPromo.discountType === 'FIXED_AMOUNT') {
+      discount = activeAutoPromo.discountValue;
+      // On ne peut pas réduire plus que le montant de la commande
+      discount = Math.min(discount, eligibleSubtotal);
+    }
+
+    return { discount, promoId: activeAutoPromo.id };
+  }
+
+  /**
+   * Calculer la remise d'un code manuel
+   */
+  private async calculateManualPromoDiscount(
     tx: any,
     code: string,
-    subtotal: number,
+    brandId: string,
+    items: CommandeItem[],
+    subtotal: number
   ): Promise<number> {
     const promo = await tx.codePromo.findUnique({
       where: { code: code.toUpperCase() },
     });
 
-    if (!promo || !promo.isActive) {
-      throw new BadRequestException('Code promo invalide');
+    if (!promo || !promo.isActive || promo.isAutoApplied || promo.brandId !== brandId) {
+      throw new BadRequestException('Code promo non valide pour cette boutique');
     }
 
-    if (promo.expiresAt && promo.expiresAt < new Date()) {
-      throw new BadRequestException('Code promo expiré');
-    }
+    const now = new Date();
+    if (now < promo.startsAt) throw new BadRequestException(`Ce code n'est pas encore actif`);
+    if (promo.expiresAt && now > promo.expiresAt) throw new BadRequestException('Ce code promo est expiré');
 
     if (promo.usageLimit && promo.usageCount >= promo.usageLimit) {
-      throw new BadRequestException('Code promo épuisé');
+      throw new BadRequestException("Plafond d'utilisation atteint pour ce code");
     }
 
-    if (promo.minOrderAmount && subtotal < promo.minOrderAmount) {
-      throw new BadRequestException(
-        `Montant minimum de ${promo.minOrderAmount.toLocaleString('fr-FR')} FCFA requis pour ce code promo`,
+    // Pour un code promo, on doit aussi vérifier le scope
+    let eligibleSubtotal = 0;
+    if (promo.scope === 'BRAND') {
+      eligibleSubtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    } else if (promo.scope === 'COLLECTION' && promo.collectionId) {
+      const productIds = Array.from(new Set(items.map(i => i.productId)));
+      const products = await tx.produit.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, collectionId: true }
+      });
+      const eligibleProductIds = new Set(
+        products.filter((p: any) => p.collectionId === promo.collectionId).map((p: any) => p.id)
       );
+      for (const item of items) {
+        if (eligibleProductIds.has(item.productId)) {
+          eligibleSubtotal += item.price * item.quantity;
+        }
+      }
+      
+      if (eligibleSubtotal === 0) {
+        throw new BadRequestException("Ce code promo ne s'applique à aucun de vos articles");
+      }
+    }
+
+    if (promo.minOrderAmount && eligibleSubtotal < promo.minOrderAmount) {
+      throw new BadRequestException(`Un minimum d'achat de ${promo.minOrderAmount} CFA est requis pour la sélection éligible`);
     }
 
     let discount = 0;
     if (promo.discountType === 'PERCENTAGE') {
-      discount = Math.floor((subtotal * promo.discountValue) / 100);
-      if (promo.maxDiscount) {
-        discount = Math.min(discount, promo.maxDiscount);
-      }
+      discount = Math.floor((eligibleSubtotal * promo.discountValue) / 100);
+      if (promo.maxDiscount) discount = Math.min(discount, promo.maxDiscount);
     } else if (promo.discountType === 'FIXED_AMOUNT') {
       discount = promo.discountValue;
+      discount = Math.min(discount, eligibleSubtotal);
     }
 
-    // Incrémenter le compteur d'utilisation
-    await tx.codePromo.update({
-      where: { id: promo.id },
-      data: { usageCount: { increment: 1 } },
-    });
-
     return discount;
+  }
+
+  private async markPromoCodeAsUsed(tx: any, code: string) {
+    if (!code) return;
+    await tx.codePromo.update({
+      where: { code: code.toUpperCase() },
+      data: { usageCount: { increment: 1 } }
+    });
   }
 
   /**

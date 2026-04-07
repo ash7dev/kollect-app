@@ -895,11 +895,21 @@ export function AddProductPage() {
           animation: ap-spin 0.65s linear infinite; flex-shrink: 0;
         }
 
+        .ap-fields-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
         @media (max-width: 860px) {
           .ap-grid { grid-template-columns: 1fr; }
           .ap-content { padding: 24px 20px 120px; }
           .ap-bottombar { padding: 14px 20px; }
-          .ap-topbar { padding: 0 20px; }
+          .ap-topbar { padding: 0 14px; }
+        }
+        @media (max-width: 768px) {
+          .ap-layout { grid-template-columns: 1fr !important; }
+          .ap-content { padding: 16px 14px 100px; }
+          .ap-card { padding: 18px 16px; }
+          .ap-topbar { padding: 0 12px; height: 52px; }
+          .ap-bottombar { padding: 12px 14px; }
+          .ap-fields-2col { grid-template-columns: 1fr; }
         }
       `}</style>
 
@@ -1050,7 +1060,7 @@ export function AddProductPage() {
                       />
                     </Field>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div className="ap-fields-2col">
                       <Field label="Prix" required error={fieldError('price')}>
                         <div className="ap-price-wrap">
                           <input

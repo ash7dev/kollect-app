@@ -29,6 +29,9 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
   images: string[];
   brand?: Brand;
 }
@@ -47,6 +50,10 @@ const AVATAR_COLORS = ['#FF3B30', '#FF9500', '#34C759', '#007AFF', '#AF52DE'];
 /* ─── Helpers ────────────────────────────────────────────────────── */
 function formatPrice(price: number) {
   return new Intl.NumberFormat('fr-FR').format(price) + ' CFA';
+}
+
+function formatPriceWithCurrency(price: number) {
+  return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA';
 }
 function pad(n: number) {
   return String(n).padStart(2, '0');
@@ -706,8 +713,15 @@ function ShowcaseFallback({ products }: { products: Product[] }) {
                   <p style={{ fontSize: '10px', color: 'rgba(0,0,0,0.35)', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>En ce moment</p>
                   <p style={{ fontSize: '16px', fontWeight: 900, color: '#0a0a0a', margin: '0 0 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.4px' }}>{products[0].name}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {products[0].brand && <span style={{ fontSize: '12px', color: 'rgba(0,0,0,0.4)', fontWeight: 600 }}>{products[0].brand.name}</span>}
-                    <span style={{ fontSize: '15px', fontWeight: 900, color: '#0a0a0a', padding: '3px 8px', borderRadius: '7px', backgroundColor: 'rgba(0,0,0,0.05)' }}>{formatPrice(products[0].price)}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {products[0].brand && <span style={{ fontSize: '12px', color: 'rgba(0,0,0,0.4)', fontWeight: 600 }}>{products[0].brand.name}</span>}
+                      {products[0].originalPrice && (
+                        <span style={{ fontSize: '10px', color: 'rgba(0,0,0,0.3)', textDecoration: 'line-through', fontWeight: 500 }}>
+                          {formatPriceWithCurrency(products[0].originalPrice)}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '15px', fontWeight: 900, color: products[0].originalPrice ? '#FF3B30' : '#0a0a0a', padding: '3px 8px', borderRadius: '7px', backgroundColor: 'rgba(0,0,0,0.05)' }}>{formatPrice(products[0].price)}</span>
                   </div>
                 </div>
               </div>
@@ -725,7 +739,14 @@ function ShowcaseFallback({ products }: { products: Product[] }) {
                   <div style={{ flex: 1, padding: '12px 14px', minWidth: 0 }}>
                     <p style={{ fontSize: '9px', color: 'rgba(0,0,0,0.3)', margin: '0 0 4px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.7px' }}>La communauté porte</p>
                     <p style={{ fontSize: '12px', fontWeight: 800, color: '#111', margin: '0 0 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{products[1].name}</p>
-                    <span style={{ fontSize: '12px', fontWeight: 900, color: '#FF3B30' }}>{formatPrice(products[1].price)}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {products[1].originalPrice && (
+                        <span style={{ fontSize: '9px', color: 'rgba(0,0,0,0.3)', textDecoration: 'line-through', fontWeight: 500 }}>
+                          {formatPriceWithCurrency(products[1].originalPrice)}
+                        </span>
+                      )}
+                      <span style={{ fontSize: '12px', fontWeight: 900, color: products[1].originalPrice ? '#FF3B30' : '#FF3B30' }}>{formatPrice(products[1].price)}</span>
+                    </div>
                   </div>
                 </div>
               </div>

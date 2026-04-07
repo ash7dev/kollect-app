@@ -426,6 +426,12 @@ export class BrandsService {
         const brand = await this.fetchBrandWithRelations({ slug });
         if (!brand) throw new NotFoundException('Boutique non trouvée');
         if (!brand.isActive) throw new NotFoundException("Cette boutique n'est plus disponible");
+
+        // Appliquer les promotions automatiques aux produits de la marque
+        if (brand.products && brand.products.length > 0) {
+          brand.products = await this.publicCatalogService.applyPromotions(brand.products, brand.id);
+        }
+
         return this.publicCatalogService.mapPublicBrandDetail(brand);
       },
       BrandsService.CACHE_TTL_DETAIL,
@@ -443,6 +449,12 @@ export class BrandsService {
         const brand = await this.fetchBrandWithRelations({ id });
         if (!brand) throw new NotFoundException('Boutique non trouvée');
         if (!brand.isActive) throw new NotFoundException("Cette boutique n'est plus disponible");
+
+        // Appliquer les promotions automatiques aux produits de la marque
+        if (brand.products && brand.products.length > 0) {
+          brand.products = await this.publicCatalogService.applyPromotions(brand.products, brand.id);
+        }
+
         return this.publicCatalogService.mapPublicBrandDetail(brand);
       },
       BrandsService.CACHE_TTL_DETAIL,

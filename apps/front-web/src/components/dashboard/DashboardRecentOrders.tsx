@@ -95,11 +95,11 @@ export function DashboardRecentOrders({ orders, isLoading }: Props) {
 
   // ── Content ───────────────────────────────────────────────────────────────
   return (
-    <article style={cardStyle}>
+    <article className="dro-card" style={cardStyle}>
       <style dangerouslySetInnerHTML={{ __html: STYLES + ANIM }} />
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div className="dro-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 3, height: 16, borderRadius: 2, background: 'linear-gradient(180deg, #FF3B30 0%, #E0321F 100%)' }} />
@@ -180,7 +180,7 @@ export function DashboardRecentOrders({ orders, isLoading }: Props) {
                 </div>
 
                 {/* Status Badge */}
-                <div style={{
+                <div className="dro-status" style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '6px 10px 6px 8px',
                   borderRadius: 12,
@@ -288,6 +288,13 @@ const STYLES = `
   }
   @keyframes droPing {
     75%, 100% { transform: scale(2.5); opacity: 0; }
+  }
+
+  @media (max-width: 540px) {
+    .dro-card   { padding: 14px !important; }
+    .dro-row    { padding: 10px 10px; gap: 10px; }
+    .dro-status { display: none !important; }
+    .dro-header { flex-wrap: wrap; gap: 8px; }
   }
 `;
 

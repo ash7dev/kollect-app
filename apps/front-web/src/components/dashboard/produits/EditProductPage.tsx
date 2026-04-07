@@ -754,11 +754,21 @@ export function EditProductPage({ productId }: { productId: string }) {
           animation: ep-spin 0.65s linear infinite; flex-shrink: 0;
         }
 
+        .ep-fields-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
         @media (max-width: 860px) {
           .ep-grid { grid-template-columns: 1fr; }
           .ep-content { padding: 24px 20px 120px; }
           .ep-bottombar { padding: 14px 20px; }
-          .ep-topbar { padding: 0 20px; }
+          .ep-topbar { padding: 0 14px; }
+        }
+        @media (max-width: 768px) {
+          .ep-layout { grid-template-columns: 1fr !important; }
+          .ep-content { padding: 16px 14px 100px; }
+          .ep-card { padding: 18px 16px; }
+          .ep-topbar { padding: 0 12px; height: 52px; }
+          .ep-bottombar { padding: 12px 14px; }
+          .ep-fields-2col { grid-template-columns: 1fr; }
         }
       `}</style>
 
@@ -894,7 +904,7 @@ export function EditProductPage({ productId }: { productId: string }) {
                       </select>
                     </Field>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div className="ep-fields-2col">
                       <Field label="Prix" required error={fieldError('price')}>
                         <div className="ep-price-wrap">
                           <input

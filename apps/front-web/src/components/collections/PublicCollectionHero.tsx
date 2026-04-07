@@ -7,6 +7,10 @@ import Link from 'next/link';
 import { env } from '@/config/env';
 import type { PublicCollection } from '@/types/drops';
 
+function formatPriceWithCurrency(price: number) {
+  return new Intl.NumberFormat('fr-FR').format(price) + ' FCFA';
+}
+
 function mediaUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith('http')) return url;
@@ -27,7 +31,7 @@ export function PublicCollectionHero({ collection }: PublicCollectionHeroProps) 
 
   useEffect(() => { setIsVisible(true); }, []);
 
-  const { name, coverImage, teaserVideo, brand, status, _count } = collection;
+  const { name, coverImage, teaserVideo, brand, status, _count, originalPrice, discountType, discountValue } = collection;
   const productCount = _count?.products ?? 0;
 
   // Résoudre le média : vidéo > image > fallback produit
@@ -242,6 +246,30 @@ export function PublicCollectionHero({ collection }: PublicCollectionHeroProps) 
             }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#fff', display: 'inline-block' }} />
               À Venir
+            </span>
+          )}
+
+          {/* Badge Promotion Collection */}
+          {originalPrice && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 14px',
+              borderRadius: 999,
+              backgroundColor: '#FF3B30',
+              backdropFilter: 'blur(10px)',
+              fontSize: 10,
+              fontWeight: 900,
+              letterSpacing: '1.5px',
+              textTransform: 'uppercase',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(255,59,48,0.4)',
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m3 11 18-5M3 18l18-5" />
+              </svg>
+              PROMO {discountType === 'PERCENTAGE' ? `-${discountValue}%` : `-${formatPriceWithCurrency(discountValue ?? 0)}`}
             </span>
           )}
 

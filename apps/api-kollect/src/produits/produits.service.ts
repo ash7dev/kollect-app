@@ -98,8 +98,11 @@ export class ProduitsService {
     // Mélange simple des résultats de la page pour simuler de l'aléatoire
     const shuffled = [...products].sort(() => Math.random() - 0.5);
 
+    // Apply promotions
+    const productsWithPromos = await this.applyPromotionsToProducts(shuffled);
+
     return {
-      data: shuffled.map((product) => this.publicCatalogService.mapPublicProduct(product)),
+      data: productsWithPromos.map((product) => this.publicCatalogService.mapPublicProduct(product)),
       meta: {
         total,
         page,
@@ -287,7 +290,8 @@ export class ProduitsService {
       },
     );
 
-    return this.publicCatalogService.mapPublicProduct(product);
+    const [productWithPromo] = await this.applyPromotionsToProducts([product]);
+    return this.publicCatalogService.mapPublicProduct(productWithPromo);
   }
 
   async findOnePublic(id: string): Promise<PublicProductDto> {
@@ -321,7 +325,8 @@ export class ProduitsService {
       },
     );
 
-    return this.publicCatalogService.mapPublicProduct(product);
+    const [productWithPromo] = await this.applyPromotionsToProducts([product]);
+    return this.publicCatalogService.mapPublicProduct(productWithPromo);
   }
 
   async update(userId: string, id: string, dto: UpdateProduitDto) {
@@ -490,7 +495,9 @@ export class ProduitsService {
       take: limit,
     });
 
-    return products.map((product) => this.publicCatalogService.mapPublicProduct(product));
+    const productsWithPromos = await this.applyPromotionsToProducts(products);
+
+    return productsWithPromos.map((product) => this.publicCatalogService.mapPublicProduct(product));
   }
 
   /**
@@ -552,7 +559,9 @@ export class ProduitsService {
       take: limit,
     });
 
-    return products.map((product) => this.publicCatalogService.mapPublicProduct(product));
+    const productsWithPromos = await this.applyPromotionsToProducts(products);
+
+    return productsWithPromos.map((product) => this.publicCatalogService.mapPublicProduct(product));
   }
 
   /**
@@ -593,7 +602,9 @@ export class ProduitsService {
       take: limit,
     });
 
-    return products.map((product) => this.publicCatalogService.mapPublicProduct(product));
+    const productsWithPromos = await this.applyPromotionsToProducts(products);
+
+    return productsWithPromos.map((product) => this.publicCatalogService.mapPublicProduct(product));
   }
 
   /**
@@ -673,7 +684,9 @@ export class ProduitsService {
       );
     }
 
-    return mappedProducts.slice(0, limit);
+    const finalProductsWithPromos = await this.applyPromotionsToProducts(mappedProducts);
+
+    return finalProductsWithPromos;
   }
 
   /**
@@ -710,9 +723,10 @@ export class ProduitsService {
     });
 
     // Mélanger aléatoirement
-    return products
-      .sort(() => Math.random() - 0.5)
-      .map((product) => this.publicCatalogService.mapPublicProduct(product));
+    const shuffled = products.sort(() => Math.random() - 0.5);
+    const productsWithPromos = await this.applyPromotionsToProducts(shuffled);
+
+    return productsWithPromos.map((product) => this.publicCatalogService.mapPublicProduct(product));
   }
 
   /**
@@ -888,8 +902,10 @@ export class ProduitsService {
       this.prisma.produit.count({ where }),
     ]);
 
+    const productsWithPromos = await this.applyPromotionsToProducts(products);
+
     return {
-      data: products.map((product) => this.publicCatalogService.mapPublicProduct(product)),
+      data: productsWithPromos.map((product) => this.publicCatalogService.mapPublicProduct(product)),
       meta: {
         total,
         page,
@@ -897,6 +913,12 @@ export class ProduitsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  private async applyPromotionsToProducts(products: any[]): Promise<any[]> {
+    if (!products || products.length === 0) return products;
+    const firstBrandId = products[0].brandId || products[0].brand?.id;
+    return this.publicCatalogService.applyPromotions(products, firstBrandId);
   }
 
   private async generateUniqueSlug(

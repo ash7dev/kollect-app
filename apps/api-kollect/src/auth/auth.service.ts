@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -48,7 +51,7 @@ export class AuthService {
 
   private toUserProfile(user: {
     id: string;
-    supabaseId: string;
+    supabaseId: string | null;
     email: string;
     firstName: string | null;
     lastName: string | null;
@@ -57,7 +60,6 @@ export class AuthService {
     isAdmin: boolean;
     isCEO: boolean;
     isClient: boolean;
-    address?: string | null;
     has_seen_creator_prompt?: boolean;
     brand?: {
       id: string;
@@ -65,6 +67,7 @@ export class AuthService {
       name: string;
       isVerified: boolean;
     } | null;
+    address?: string | null;
     city?: string | null;
     postalCode?: string | null;
     country?: string | null;
@@ -99,7 +102,7 @@ export class AuthService {
   private generateJwtToken(
     user: {
       id: string;
-      supabaseId: string;
+      supabaseId: string | null;
       email: string;
       isAdmin: boolean;
       isCEO: boolean;
@@ -301,7 +304,7 @@ export class AuthService {
       const token = this.generateJwtToken(
         {
           id: updatedUser.id,
-          supabaseId: updatedUser.supabaseId,
+          supabaseId: updatedUser.supabaseId || '',
           email: updatedUser.email,
           isAdmin: updatedUser.isAdmin,
           isCEO: updatedUser.isCEO,

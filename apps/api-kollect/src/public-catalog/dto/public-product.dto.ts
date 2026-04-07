@@ -38,4 +38,7 @@ export interface PublicProductDto {
   createdAt?: Date;
   updatedAt?: Date;
   viewCount?: number;
+  originalPrice?: number;
+  discountType?: string;
+  discountValue?: number;
 }

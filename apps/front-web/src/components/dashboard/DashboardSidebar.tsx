@@ -9,6 +9,7 @@ export type SidebarSection =
   | 'overview'
   | 'drops'
   | 'products'
+  | 'promotions'
   | 'orders'
   | 'clients'
   | 'analytics'
@@ -24,6 +25,8 @@ type SidebarProps = {
   active?: SidebarSection;
   onNavigate?: (section: SidebarSection) => void;
   notificationCount?: number;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 };
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -52,6 +55,7 @@ const ICONS: Record<string, string | string[]> = {
   overview: ['M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M9 22V12h6v10'],
   drops: ['M12 2L2 7l10 5 10-5-10-5z', 'M2 17l10 5 10-5', 'M2 12l10 5 10-5'],
   products: ['M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z', 'M3 6h18', 'M16 10a4 4 0 0 1-8 0'],
+  promotions: ['M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z', 'M7 7h.01'],
   orders: ['M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2', 'M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z', 'M9 14l2 2 4-4'],
   clients: ['M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8', 'M23 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'],
   analytics: ['M18 20V10', 'M12 20V4', 'M6 20v-6'],
@@ -68,6 +72,7 @@ const MAIN_ITEMS: { id: SidebarSection; label: string }[] = [
   { id: 'overview', label: 'Dashboard' },
   { id: 'drops', label: 'Drops' },
   { id: 'products', label: 'Produits' },
+  { id: 'promotions', label: 'Promotions' },
   { id: 'orders', label: 'Commandes' },
   { id: 'clients', label: 'Clients' },
   { id: 'analytics', label: 'Analytiques' },
@@ -260,6 +265,29 @@ const GLOBAL_CSS = `
   .kollect-label-reveal {
     animation: fadeSlideIn 0.18s ease forwards;
   }
+
+  /* ── Mobile drawer ── */
+  @media (max-width: 768px) {
+    .kollect-sidebar {
+      position: fixed !important;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      height: 100dvh !important;
+      width: 260px !important;
+      min-width: 260px !important;
+      z-index: 200;
+      transform: translateX(-100%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    .kollect-sidebar.mobile-open {
+      transform: translateX(0);
+      box-shadow: 4px 0 40px rgba(0,0,0,0.18);
+    }
+    .kollect-toggle-btn {
+      display: none;
+    }
+  }
 `;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -273,6 +301,8 @@ export function DashboardSidebar({
   active = 'overview',
   onNavigate,
   notificationCount = 0,
+  mobileOpen = false,
+  onMobileClose,
 }: SidebarProps) {
   const W = collapsed ? 68 : 256;
 
@@ -327,8 +357,22 @@ export function DashboardSidebar({
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />
+
+      {/* Backdrop mobile */}
+      {mobileOpen && (
+        <div
+          onClick={onMobileClose}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 199,
+            background: 'rgba(0,0,0,0.45)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+          }}
+        />
+      )}
+
       <aside
-        className="kollect-sidebar"
+        className={`kollect-sidebar${mobileOpen ? ' mobile-open' : ''}`}
         style={{
           width: W,
           minWidth: W,

@@ -9,6 +9,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { AuthRequiredModal } from './AuthRequiredModal';
 import { CheckoutModal } from './CheckoutModal';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
+import { formatColorName } from '@/utils/colorUtils';
 
 function fmtPrice(n: number) {
   return new Intl.NumberFormat('fr-FR').format(n) + ' CFA';
@@ -168,7 +169,7 @@ function CartItemRow({
                 }}
               >
                 <option value="">Couleur…</option>
-                {item.availableColors.map(c => <option key={c} value={c}>{c}</option>)}
+                {item.availableColors.map(c => <option key={c} value={c}>{formatColorName(c)}</option>)}
               </select>
             )}
           </div>

@@ -187,6 +187,7 @@ export function DashboardRevenueChart({ data, change }: Props) {
             ref={svgRef}
             viewBox={`0 0 ${W} ${H}`}
             preserveAspectRatio="none"
+            className="rc-chart-svg"
             style={{ width: '100%', height: 260, display: 'block', cursor: 'crosshair', overflow: 'visible' }}
             onMouseMove={handleMouseMove}
             onMouseLeave={() => setHoverIndex(null)}
@@ -526,5 +527,10 @@ const CSS = `
     border-radius: 8px;
     background: rgba(255,255,255,0.07);
     animation: rcPulse 1.4s ease-in-out infinite;
+  }
+
+  @media (max-width: 600px) {
+    .rc-header { flex-wrap: wrap; gap: 10px; }
+    .rc-chart-svg { height: 160px !important; }
   }
 `;

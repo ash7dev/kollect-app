@@ -752,7 +752,7 @@ export function FeaturedCard({ collection, index }: { collection: FeaturedCollec
           </div>
 
           {/* ════ OVERLAY BOTTOM: Titre + Stats + CTA ════ */}
-          <div style={{
+          <div className="fc-card-bottom" style={{
             position: 'absolute',
             bottom: 0,
             left: 0,
@@ -774,7 +774,7 @@ export function FeaturedCard({ collection, index }: { collection: FeaturedCollec
               }}>
                 Collection
               </span>
-              <h3 style={{
+              <h3 className="fc-card-title" style={{
                 color: '#FFFFFF',
                 fontSize: '26px',
                 fontWeight: '800',
@@ -788,7 +788,7 @@ export function FeaturedCard({ collection, index }: { collection: FeaturedCollec
             </div>
 
             {/* Stats inline + CTA */}
-            <div style={{
+            <div className="fc-card-stats" style={{
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
@@ -1031,8 +1031,8 @@ export function FeaturedCollections() {
           scrollSnapType: 'x mandatory',
           scrollBehavior: 'smooth',
           WebkitOverflowScrolling: 'touch',
-          scrollbarWidth: 'none', // Cacher scrollbar sur Firefox
-          msOverflowStyle: 'none', // Cacher scrollbar sur IE/Edge
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
         }}>
           {loading ? (
             [0, 1, 2].map(i => (
@@ -1163,13 +1163,24 @@ export function FeaturedCollections() {
           }
         }
         @media (max-width: 640px) {
-          #featured-collections { padding: 64px 16px 0 !important; margin: 0 6px !important; }
+          #featured-collections { padding: 48px 0 0 !important; margin: 0 6px !important; }
+          .featured-carousel { padding: 16px 20px !important; gap: 16px !important; }
           .carousel-item {
-            min-width: 85vw !important;
-            max-width: 85vw !important;
+            min-width: calc(100vw - 56px) !important;
+            max-width: calc(100vw - 56px) !important;
           }
-          .featured-card-wrapper { height: 420px !important; }
-          .featured-card h3 { font-size: 20px !important; line-height: 24px !important; }
+          .featured-card-wrapper { height: 380px !important; }
+          .fc-card-bottom { padding: 14px !important; gap: 8px !important; }
+          .fc-card-title { font-size: 20px !important; line-height: 24px !important; }
+          .fc-card-stats { gap: 6px !important; flex-wrap: wrap; }
+        }
+        @media (max-width: 400px) {
+          .featured-carousel { padding: 12px 16px !important; gap: 12px !important; }
+          .carousel-item {
+            min-width: calc(100vw - 40px) !important;
+            max-width: calc(100vw - 40px) !important;
+          }
+          .featured-card-wrapper { height: 340px !important; }
         }
       `}</style>
     </div>

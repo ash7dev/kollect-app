@@ -10,6 +10,7 @@ export type BrandCartItem = {
   name: string;
   slug: string;
   price: number;
+  originalPrice?: number;
   image?: string | null;
   quantity: number;
   stock?: number | null;

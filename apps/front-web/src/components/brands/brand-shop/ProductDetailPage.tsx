@@ -12,6 +12,7 @@ import { Footer } from '@/components/landing/Footer';
 import { fetchProducts } from '@/lib/api';
 import type { PublicProduct } from '@/types/product';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
+import { formatPrice, formatPriceWithCurrency } from '@/lib/price-utils';
 
 type ConflictDialogProps = {
   conflictingBrands: string[];
@@ -152,7 +153,7 @@ export function ProductDetailPage({ product }: { product: PublicProduct }) {
   }, [product.id]);
 
   const images = product.images.length > 0 ? product.images : [];
-  const priceFormatted = new Intl.NumberFormat('fr-FR').format(product.price);
+  const priceFormatted = formatPrice(product.price);
   const outOfStock = typeof product.stock === 'number' && product.stock <= 0;
   const needsSize = product.sizes.length > 0 && !selectedSize;
   const canAdd = !outOfStock && !needsSize;
@@ -209,12 +210,17 @@ export function ProductDetailPage({ product }: { product: PublicProduct }) {
 
   return (
     <>
-      <div style={{
-        maxWidth: 1200,
-        margin: '0 auto',
-        padding: '100px 24px 80px',
-        fontFamily: FONT_FAMILY_INTER,
-      }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .pdp-wrap { max-width: 1200px; margin: 0 auto; padding: 100px 24px 80px; font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
+        .pdp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
+        .pdp-actions { display: flex; gap: 12px; margin-bottom: 32px; }
+        @media (max-width: 768px) {
+          .pdp-wrap { padding: 80px 16px 60px; }
+          .pdp-grid { grid-template-columns: 1fr; gap: 32px; }
+          .pdp-actions { flex-direction: column; }
+        }
+      ` }} />
+      <div className="pdp-wrap">
         {/* Breadcrumb */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 36 }}>
           <Link
@@ -240,12 +246,7 @@ export function ProductDetailPage({ product }: { product: PublicProduct }) {
         </div>
 
         {/* Main layout */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 64,
-          alignItems: 'start',
-        }}>
+        <div className="pdp-grid">
           {/* ── Left: Gallery ── */}
           <div style={{
             borderRadius: 24,
@@ -320,6 +321,24 @@ export function ProductDetailPage({ product }: { product: PublicProduct }) {
               {product.brand.name}
             </Link>
 
+            {/* Promotion Badge Overlay */}
+            {product.originalPrice && (
+              <div style={{ marginBottom: 12, marginTop: 4 }}>
+                <span style={{
+                  padding: '6px 14px', borderRadius: 10,
+                  backgroundColor: '#FF3B30', color: '#fff', fontSize: 13, fontWeight: 900,
+                  boxShadow: '0 4px 15px rgba(255,59,48,0.25)',
+                  display: 'inline-flex', alignItems: 'center', gap: 7,
+                  letterSpacing: '0.4px', textTransform: 'uppercase'
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m3 11 18-5M3 18l18-5" />
+                  </svg>
+                  -{product.discountType === 'PERCENTAGE' ? `${product.discountValue}%` : formatPriceWithCurrency(product.discountValue ?? 0)}
+                </span>
+              </div>
+            )}
+
             {/* Name */}
             <h1 style={{
               fontSize: 'clamp(1.6rem, 3vw, 2.4rem)',
@@ -333,11 +352,28 @@ export function ProductDetailPage({ product }: { product: PublicProduct }) {
             </h1>
 
             {/* Price */}
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 22 }}>
-              <span style={{ fontSize: 'clamp(1.6rem, 2.5vw, 2rem)', fontWeight: 900, color: '#16a34a', letterSpacing: '-1px' }}>
-                {priceFormatted}
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#16a34a', letterSpacing: '0.5px' }}>FCFA</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 26 }}>
+              {product.originalPrice && (
+                <span style={{ fontSize: 15, color: '#999', textDecoration: 'line-through', fontWeight: 600, marginLeft: 2 }}>
+                  {formatPriceWithCurrency(product.originalPrice)}
+                </span>
+              )}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ 
+                  fontSize: 'clamp(1.6rem, 2.5vw, 2rem)', 
+                  fontWeight: 900, 
+                  color: product.originalPrice ? '#FF3B30' : '#16a34a', 
+                  letterSpacing: '-1px' 
+                }}>
+                  {priceFormatted}
+                </span>
+                <span style={{ 
+                  fontSize: 13, 
+                  fontWeight: 800, 
+                  color: product.originalPrice ? '#FF3B30' : '#16a34a', 
+                  letterSpacing: '0.5px' 
+                }}>FCFA</span>
+              </div>
             </div>
 
             {/* Product Type and Gender */}
@@ -486,7 +522,7 @@ export function ProductDetailPage({ product }: { product: PublicProduct }) {
             )}
 
             {/* Action buttons */}
-            <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
+            <div className="pdp-actions">
               <button
                 type="button"
                 onClick={handleAddToCart}
@@ -564,7 +600,7 @@ export function ProductDetailPage({ product }: { product: PublicProduct }) {
             </div>
           </div>
         </div>
-      </div>
+      </div>{/* pdp-wrap */}
 
       {conflictingBrands && (
         <ConflictDialog
