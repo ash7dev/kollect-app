@@ -14,7 +14,7 @@ import {
   Param,
   Patch,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
 import { SyncUserDto } from './dto/sync-user.dto';
@@ -56,6 +56,31 @@ function jwtCookieOptions(isProd: boolean) {
   };
 }
 
+function clearJwtCookies(req: Request, res: Response, isProd: boolean) {
+  const cookieOpts = jwtCookieOptions(isProd);
+  const { maxAge, ...baseClearOpts } = cookieOpts;
+
+  const clearCandidates: Array<Record<string, unknown>> = [
+    baseClearOpts,
+    { ...baseClearOpts, path: '/api' as const },
+  ];
+
+  const requestHost = req.headers.host?.split(':')[0];
+  if (requestHost && requestHost !== 'localhost') {
+    clearCandidates.push({ ...baseClearOpts, domain: requestHost });
+    clearCandidates.push({ ...baseClearOpts, path: '/api' as const, domain: requestHost });
+  }
+
+  clearCandidates.forEach((opts) => {
+    res.clearCookie(JWT_COOKIE_NAME, opts);
+  });
+}
+
+function replaceJwtCookie(req: Request, res: Response, token: string, isProd: boolean) {
+  clearJwtCookies(req, res, isProd);
+  res.cookie(JWT_COOKIE_NAME, token, jwtCookieOptions(isProd));
+}
+
 @Controller('auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AuthController {
@@ -85,6 +110,7 @@ export class AuthController {
   @Post('sync')
   @HttpCode(HttpStatus.OK)
   async syncUser(
+    @Req() req: Request,
     @Body() syncUserDto: SyncUserDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseWithToken> {
@@ -98,15 +124,17 @@ export class AuthController {
 
       // Set du JWT backend en cookie httpOnly (web)
       // Le token est aussi retourné dans le body pour la compat mobile
-      res.cookie(JWT_COOKIE_NAME, result.access_token, jwtCookieOptions(this.isProd));
+      replaceJwtCookie(req, res, result.access_token, this.isProd);
 
       console.log('✅ [AUTH] Sync successful:', {
         userId: result.user.id,
+        email: result.user.email,
         roles: {
           isAdmin: result.user.isAdmin,
           isCEO: result.user.isCEO,
           isClient: result.user.isClient,
         },
+        cookieReplaced: true,
       });
 
       return result;
@@ -145,15 +173,17 @@ export class AuthController {
       const result = await this.authService.getUserProfile(req.user.supabaseId);
 
       // Renouvelle le cookie à chaque /me (sliding session)
-      res.cookie(JWT_COOKIE_NAME, result.access_token, jwtCookieOptions(this.isProd));
+      replaceJwtCookie(req, res, result.access_token, this.isProd);
 
       console.log('✅ [AUTH] Profile fetched:', {
         userId: result.user.id,
+        email: result.user.email,
         roles: {
           isAdmin: result.user.isAdmin,
           isCEO: result.user.isCEO,
           isClient: result.user.isClient,
         },
+        cookieReplaced: true,
       });
 
       return result;
@@ -184,12 +214,7 @@ export class AuthController {
       });
 
       // Efface le cookie JWT — le browser ne l'enverra plus
-      res.clearCookie(JWT_COOKIE_NAME, {
-        httpOnly: true,
-        secure: this.isProd,
-        sameSite: 'lax',
-        path: '/',
-      });
+      clearJwtCookies(req, res, this.isProd);
 
       return {
         message: 'Logged out successfully',

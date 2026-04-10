@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { DashboardGuard } from '@/components/dashboard/DashboardGuard';
 
 export const metadata: Metadata = {
   title: 'Dashboard CEO | Kollect',
@@ -6,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <DashboardGuard>
+      {children}
+    </DashboardGuard>
+  );
 }

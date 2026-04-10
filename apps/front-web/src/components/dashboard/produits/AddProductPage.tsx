@@ -608,7 +608,7 @@ export function AddProductPage() {
   // ── Collections ──
   const collectionsQuery = useQuery({
     queryKey: ['dashboard', 'collections', 'ceo'],
-    queryFn: fetchCeoCollections,
+    queryFn: () => fetchCeoCollections(),
     enabled: !!user?.isCEO,
   });
   const collections = collectionsQuery.data?.data ?? [];

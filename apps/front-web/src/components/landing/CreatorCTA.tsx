@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FONT_FAMILY_INTER } from '@/styles/typography';
 
 const CREATOR_FEATURES = [
@@ -143,7 +144,7 @@ export function CreatorCTA() {
 
             {/* CTA */}
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <a
+              <Link
                 href="/become-seller"
                 className="creator-btn-primary"
                 style={{
@@ -162,8 +163,8 @@ export function CreatorCTA() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/how-it-works"
                 className="creator-btn-ghost"
                 style={{
@@ -178,7 +179,7 @@ export function CreatorCTA() {
                 }}
               >
                 En savoir plus
-              </a>
+              </Link>
             </div>
           </div>
 

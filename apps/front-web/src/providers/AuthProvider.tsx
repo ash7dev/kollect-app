@@ -24,6 +24,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/config/supabaseClient';
 import { apiClient } from '@/services/api/client';
 import { API_ENDPOINTS } from '@/services/api/endpoints';
@@ -49,6 +50,8 @@ interface AuthContextValue {
     lastName: string;
   }) => Promise<void>;
   signInWithEmail: (params: { email: string; password: string }) => Promise<void>;
+  verifyOtp: (params: { email: string; token: string }) => Promise<void>;
+  resendOtp: (email: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateUserRole: (role: 'client' | 'vendeur') => Promise<AuthResponse>;
@@ -85,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<BackendUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
+  const router = useRouter();
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -200,6 +204,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // onAuthStateChange SIGNED_IN prend le relais
   }, []);
 
+  const verifyOtp = useCallback(async ({
+    email, token,
+  }: {
+    email: string; token: string;
+  }) => {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'signup',
+    });
+    if (error) throw new Error(error.message);
+    // Après succès, onAuthStateChange SIGNED_IN synchronisera le compte avec le backend.
+  }, []);
+
+  const resendOtp = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+    });
+    if (error) throw new Error(error.message);
+  }, []);
+
   const signInWithGoogle = useCallback(async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -216,7 +242,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       apiClient.post(API_ENDPOINTS.AUTH.LOGOUT),
       supabase.auth.signOut(),
     ]);
-  }, [clearAuth]);
+    router.replace('/');
+  }, [clearAuth, router]);
 
   const updateUserRole = useCallback(async (role: 'client' | 'vendeur'): Promise<AuthResponse> => {
     if (!user) throw new Error('Aucun utilisateur connecté.');
@@ -246,6 +273,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isInitialized,
       signUpWithEmail,
       signInWithEmail,
+      verifyOtp,
+      resendOtp,
       signInWithGoogle,
       signOut,
       updateUserRole,

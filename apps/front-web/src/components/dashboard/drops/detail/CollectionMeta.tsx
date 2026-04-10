@@ -3,33 +3,13 @@
 import { useEffect, useState } from 'react';
 import type { CeoCollectionDetail } from '@/types/drops';
 
-// ─── Icons ───────────────────────────────────────────────────────────────────
+import {
+  DropIcon as Ic,
+  DROP_ICONS as ICONS,
+  formatDropDate as formatDate,
+} from '../drop-shared';
 
-function Ic({ d, size = 14, stroke = 'currentColor', sw = 1.8 }: {
-  d: string | string[]; size?: number; stroke?: string; sw?: number;
-}) {
-  const paths = Array.isArray(d) ? d : [d];
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
-      {paths.map((p, i) => <path key={i} d={p} />)}
-    </svg>
-  );
-}
 
-const ICONS = {
-  cube:     'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z',
-  clock:    ['M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z', 'M12 6v6l4 2'],
-  calendar: ['M3 9h18M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z', 'M16 3v4M8 3v4'],
-  rocket:   'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
-  check:    'M20 6L9 17l-5-5',
-};
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-}
 
 function calcCountdown(target: string) {
   const diff = new Date(target).getTime() - Date.now();
@@ -85,7 +65,7 @@ function getModeLabel(status: string) {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function CollectionMeta({ collection }: { collection: CeoCollectionDetail }) {
-  const { status, launchDate, launchedAt, _count } = collection;
+  const { status, launchDate, launchedAt, endDate, _count } = collection;
   const productCount = _count?.products ?? collection.products.length;
   const modeInfo = getModeLabel(status);
 
@@ -125,6 +105,14 @@ export function CollectionMeta({ collection }: { collection: CeoCollectionDetail
         <div className="cd-meta-chip">
           <Ic d={ICONS.calendar} stroke="rgba(0,0,0,0.35)" />
           <span>Lancée le {formatDate(launchedAt)}</span>
+        </div>
+      )}
+
+      {/* End date (optional) */}
+      {endDate && (
+        <div className="cd-meta-chip" style={{ borderColor: 'rgba(239,68,68,0.2)' }}>
+          <Ic d={ICONS.clock} stroke="#EF4444" />
+          <span>Finit le {formatDate(endDate)}</span>
         </div>
       )}
     </div>

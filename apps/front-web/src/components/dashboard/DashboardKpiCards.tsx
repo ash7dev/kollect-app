@@ -11,6 +11,7 @@ export type KpiCard = {
   trend?:  number;       // ex: 12.5 ou -3.2
   variant: KpiVariant;
   icon:    JSX.Element;  // passer directement le SVG
+  chartData?: number[];  // Données pour le mini graphique
 };
 
 // ─── CSS ─────────────────────────────────────────────────────────────────────
@@ -276,7 +277,7 @@ function Arrow({ up }: { up: boolean }) {
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-function Card({ label, value, hint, trend, variant, icon }: KpiCard) {
+function Card({ label, value, hint, trend, variant, icon, chartData }: KpiCard) {
   const v  = variant;
   const up = (trend ?? 0) >= 0;
 
@@ -300,9 +301,36 @@ function Card({ label, value, hint, trend, variant, icon }: KpiCard) {
       </div>
 
       {/* ── Body ── */}
-      <div>
-        <div className={`kpi-label kpi-label-${v}`}>{label}</div>
-        <div className={`kpi-value kpi-value-${v}`}>{value}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 }}>
+        <div>
+          <div className={`kpi-label kpi-label-${v}`}>{label}</div>
+          <div className={`kpi-value kpi-value-${v}`}>{value}</div>
+        </div>
+
+        {/* ── Mini Bar Chart ── */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 32, paddingBottom: 2, flexShrink: 0 }}>
+          {(chartData || Array.from({length: 8}, () => 20 + Math.random() * 80)).map((val, idx, arr) => {
+            const max = Math.max(...arr, 1);
+            const h = (val / max) * 100;
+            const isLast = idx === arr.length - 1;
+            
+            // Couleurs adaptées à la variante
+            let barColor = '#FF3B30';
+            if (v === 'hero') barColor = isLast ? '#FF3B30' : 'rgba(255,59,48,0.3)';
+            else if (v === 'accent') barColor = isLast ? '#fff' : 'rgba(255,255,255,0.4)';
+            else barColor = isLast ? '#111' : 'rgba(0,0,0,0.15)';
+
+            return (
+              <div key={idx} style={{
+                width: 4,
+                height: `${Math.max(h, 15)}%`,
+                background: barColor,
+                borderRadius: 2,
+                transition: 'height 0.3s ease'
+              }} />
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Separator ── */}

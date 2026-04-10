@@ -18,7 +18,10 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "cli": "ts-node src/cli.ts",
+    "create-admin": "node scripts/create-admin.js",
+    "list-admins": "ts-node src/cli.ts list-admins"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.2",
@@ -50,6 +53,7 @@
     "helmet": "^8.1.0",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
+    "nestjs-console": "^10.0.0",
     "nestjs-zod": "^5.0.1",
     "nodemailer": "^7.0.10",
     "passport-jwt": "^4.0.1",

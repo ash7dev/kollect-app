@@ -11,51 +11,18 @@ import { useCeoCollections } from '@/hooks/dashboard/useCeoCollections';
 import { DashboardSidebar, type SidebarSection } from '@/components/dashboard/DashboardSidebar';
 import { apiClient } from '@/services/api/client';
 import { API_ENDPOINTS } from '@/services/api/endpoints';
+import { CeoStatCard } from '../CeoStatCard';
 import type { CeoCollection, CollectionStatus } from '@/types/drops';
+import {
+  DropIcon as Ic,
+  DROP_ICONS as ICONS,
+  DROP_COLORS,
+  getDropStatusMeta,
+  formatDropDate as fmtDate,
+} from './drop-shared';
 
-// ─── Icons ──────────────────────────────────────────────────────────────────────
-
-function Ic({ d, size = 16, stroke = 'currentColor', sw = 1.5 }: {
-  d: string | string[]; size?: number; stroke?: string; sw?: number;
-}) {
-  const paths = Array.isArray(d) ? d : [d];
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
-      {paths.map((p, i) => <path key={i} d={p} />)}
-    </svg>
-  );
-}
-
-const ICONS = {
-  plus: ['M12 5v14', 'M5 12h14'],
-  drop: ['M12 2L2 7l10 5 10-5-10-5z', 'M2 17l10 5 10-5', 'M2 12l10 5 10-5'],
-  eye: ['M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z', 'M12 12m-3 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0'],
-  rocket: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
-  clock: ['M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z', 'M12 6v6l4 2'],
-  cube: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z',
-  play: 'M5 3l14 9-14 9V3z',
-  check: 'M20 6L9 17l-5-5',
-  star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
-  video: ['M23 7l-7 5 7 5V7z', 'M1 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5z'],
-  arrow_right: 'M5 12h14M12 5l7 7-7 7',
-  layers: ['M12 2L2 7l10 5 10-5-10-5z', 'M2 17l10 5 10-5', 'M2 12l10 5 10-5'],
-  grid: ['M3 3h7v7H3z', 'M14 3h7v7h-7z', 'M3 14h7v7H3z', 'M14 14h7v7h-7z'],
-  sparkle: ['M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z'],
-  diagonal: 'M7 17L17 7M7 7h10v10',
-};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────────
-
-function getStatusMeta(status: CollectionStatus) {
-  switch (status) {
-    case 'TEASER':     return { label: 'Teaser',    color: '#C8860A', bg: '#FEF3C7', dot: '#F59E0B' };
-    case 'DISPONIBLE': return { label: 'Live',      color: '#065F46', bg: '#D1FAE5', dot: '#10B981' };
-    case 'EPUISEE':    return { label: 'Épuisée',   color: '#991B1B', bg: '#FEE2E2', dot: '#EF4444' };
-    case 'TERMINE':    return { label: 'Terminée',  color: '#374151', bg: '#F3F4F6', dot: '#9CA3AF' };
-    default:           return { label: 'Brouillon', color: '#374151', bg: '#F3F4F6', dot: '#9CA3AF' };
-  }
-}
 
 function calcCountdown(target: string) {
   const diff = new Date(target).getTime() - Date.now();
@@ -67,9 +34,6 @@ function calcCountdown(target: string) {
   return { d, h, m, s };
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-}
 
 // ─── Full Page Spinner ────────────────────────────────────────────────────────
 
@@ -114,7 +78,7 @@ function SkeletonCard() {
 // ─── Status Pill ──────────────────────────────────────────────────────────────
 
 function StatusPill({ status }: { status: CollectionStatus }) {
-  const m = getStatusMeta(status);
+  const m = getDropStatusMeta(status);
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -166,7 +130,7 @@ function DropCard({ item, onLaunch, onView, index }: {
   index: number;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const meta = getStatusMeta(item.status);
+  const meta = getDropStatusMeta(item.status);
   const isVideo = !!item.teaserVideo;
   const productCount = item._count?.products ?? 0;
 
@@ -265,7 +229,7 @@ function DropCard({ item, onLaunch, onView, index }: {
             </button>
           )}
           <button type="button" className="dp-btn-icon" onClick={() => onView?.(item.id)}>
-            <Ic d={ICONS.diagonal} size={13} stroke="currentColor" />
+            <Ic d={ICONS.arrowDiag} size={13} stroke="currentColor" />
           </button>
         </div>
       </div>
@@ -328,26 +292,6 @@ function EmptyState({ onNewDrop }: { onNewDrop: () => void }) {
         <Ic d={ICONS.plus} size={15} stroke="#fff" sw={2.5} />
         Créer un drop
       </button>
-    </div>
-  );
-}
-
-// ─── KPI Card ────────────────────────────────────────────────────────────────
-
-function KpiCard({ label, value, accent, sub }: {
-  label: string; value: number | string; accent: string; sub?: string;
-}) {
-  return (
-    <div className="dp-kpi-card">
-      <div style={{ fontSize: 28, fontWeight: 800, color: accent, letterSpacing: '-1px', fontFamily: 'inherit', lineHeight: 1 }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', marginTop: 4, fontFamily: 'inherit', letterSpacing: '0.3px' }}>
-        {label}
-      </div>
-      {sub && (
-        <div style={{ fontSize: 10, color: '#D1D5DB', marginTop: 2, fontFamily: 'inherit' }}>{sub}</div>
-      )}
     </div>
   );
 }
@@ -896,7 +840,7 @@ export function DropsPage() {
           .dp-hero-title { font-size: 24px; }
           .dp-hero-actions { margin-top: 18px; gap: 8px; flex-wrap: wrap; }
           .dp-btn-hero { height: 38px; padding: 0 16px; font-size: 13px; }
-          .dp-kpi-row { gap: 8px; }
+          .dp-kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
           .dp-kpi-card { padding: 14px 16px; min-width: 80px; }
           .dp-tabs-row { flex-wrap: wrap; gap: 10px; }
           .dp-tabs-wrap { overflow-x: auto; }
@@ -925,7 +869,6 @@ export function DropsPage() {
             else if (section === 'products')  router.push('/dashboard/produits');
             else router.push('/dashboard');
           }}
-          notificationCount={0}
           mobileOpen={mobileSidebarOpen}
           onMobileClose={() => setMobileSidebarOpen(false)}
         />
@@ -958,14 +901,31 @@ export function DropsPage() {
 
           {/* ── KPIs ── */}
           {!isLoading_ && kpis.total > 0 && (
-            <div className="dp-kpi-row">
-              <KpiCard label="Total" value={kpis.total} accent="#0A0A0A" />
-              <KpiCard label="En ligne" value={kpis.live} accent="#10B981" />
-              <KpiCard label="Teaser" value={kpis.teaser} accent="#F59E0B" />
-              <KpiCard
-                label="Produits"
+            <div className="dp-kpi-row" style={{ display: 'flex', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
+              <CeoStatCard 
+                label="Total Collections" 
+                value={kpis.total} 
+                color="#0A0A0A"
+                subLabel="Toute période confondue"
+              />
+              <CeoStatCard 
+                label="Drops Actifs" 
+                value={kpis.live} 
+                color="#10B981"
+                pulse={kpis.live > 0}
+                subLabel="Actuellement en ligne"
+              />
+              <CeoStatCard 
+                label="Teasers" 
+                value={kpis.teaser} 
+                color="#F59E0B"
+                subLabel="Hype en cours"
+              />
+              <CeoStatCard 
+                label="Total Produits" 
                 value={collections.reduce((s, c) => s + (c._count?.products ?? 0), 0)}
-                accent="#E63329"
+                color="#E63329"
+                subLabel="Stock global"
               />
             </div>
           )}

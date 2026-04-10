@@ -670,7 +670,7 @@ function ShowcaseFallback({ products }: { products: Product[] }) {
                 Explorer
               </Link>
             </div>
-            <Link href="/create-brand" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none', width: 'fit-content' }}>
+            <Link href="/become-seller" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none', width: 'fit-content' }}>
               <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)' }}>Tu es créateur ?</span>
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#FF9500' }}>Lance ta boutique →</span>
             </Link>

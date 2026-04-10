@@ -34,7 +34,13 @@ export default function RegisterPage() {
       // le redirigera vers /onboarding automatiquement.
       router.replace('/onboarding');
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'inscription.");
+      const errorMessage = err instanceof Error ? err.message : "Erreur lors de l'inscription.";
+      // Si c'est le message de confirmation d'email (levé intentionnellement par signUpWithEmail)
+      if (errorMessage.includes('Un email de confirmation vous a été envoyé')) {
+        router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

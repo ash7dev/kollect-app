@@ -49,8 +49,14 @@ export function buildCreateCollectionFormData(draft: WizardDraft) {
   return fd;
 }
 
-export async function fetchCeoCollections() {
-  const { data } = await apiClient.get<Paginated<CeoCollection>>(API_ENDPOINTS.COLLECTIONS.LIST_CEO);
+/**
+ * Retourne les collections du CEO.
+ * @param limit - Nombre max de collections (défaut 50 pour éviter la limite serveur de 10)
+ */
+export async function fetchCeoCollections(limit = 50) {
+  const { data } = await apiClient.get<Paginated<CeoCollection>>(
+    `${API_ENDPOINTS.COLLECTIONS.LIST_CEO}?page=1&limit=${limit}`,
+  );
   return data;
 }
 
@@ -65,10 +71,28 @@ export async function deleteCollection(id: string): Promise<void> {
   await apiClient.delete(API_ENDPOINTS.COLLECTIONS.DELETE(id));
 }
 
+/**
+ * Passe une collection de BROUILLON → TEASER.
+ * Le media (coverImage / teaserVideo) de la collection est réutilisé tel quel.
+ * Pour changer le media, utiliser `updateCollectionCover` d'abord.
+ */
+export async function activateTeaserCollection(id: string): Promise<CeoCollection> {
+  // L'API requiert au moins un des deux champs.
+  // On passe un objet vide — le serveur utilisera le media déjà en base.
+  // ⚠️ Si la collection n'a PAS de media, l'API retournera une 400.
+  const { data } = await apiClient.post<CeoCollection>(
+    API_ENDPOINTS.COLLECTIONS.ACTIVATE_TEASER(id),
+    {},
+  );
+  return data;
+}
+
 export async function updateCollection(id: string, fields: {
   name?: string;
   description?: string;
   launchDate?: string | null;
+  /** Date de fin du drop (ISO string). null = supprimer la date de fin. */
+  endDate?: string | null;
   isFeatured?: boolean;
 }): Promise<CeoCollection> {
   const { data } = await apiClient.patch<CeoCollection>(

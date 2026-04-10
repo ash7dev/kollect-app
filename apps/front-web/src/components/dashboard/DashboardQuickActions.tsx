@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 type Action = {
   id: string;
@@ -20,9 +21,49 @@ function ArrowIcon() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const CARD_BASE_STYLE = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  justifyContent: 'space-between',
+  gap: 18,
+  padding: '22px 20px',
+  borderRadius: 18,
+  border: '1px solid rgba(0,0,0,0.08)',
+  background: 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.6) 100%)',
+  cursor: 'pointer',
+  textAlign: 'left' as const,
+  transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+  transform: 'translateY(0) scale(1)',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.4)',
+  position: 'relative' as const,
+  overflow: 'hidden',
+  minHeight: '130px',
+  backdropFilter: 'blur(8px)',
+};
+
+const CONTAINER_STYLE = {
+  borderRadius: 20,
+  border: '1px solid rgba(0,0,0,0.07)',
+  background: 'rgba(255,255,255,0.85)',
+  backdropFilter: 'blur(24px)',
+  WebkitBackdropFilter: 'blur(24px)',
+  padding: '24px 24px',
+  boxShadow: '0 4px 16px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.05)',
+};
+
 function ActionCard({ action }: { action: Action }) {
   const [hovered, setHovered] = useState(false);
   const paths = action.icon;
+
+  const cardStyle = hovered ? {
+    ...CARD_BASE_STYLE,
+    border: `1px solid ${action.accent + '50'}`,
+    background: `linear-gradient(135deg, rgba(255,255,255,0.95) 0%, ${action.accent}08 100%)`,
+    transform: 'translateY(-4px) scale(1.02)',
+    boxShadow: `0 16px 32px ${action.accent}20, 0 4px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)`,
+  } : CARD_BASE_STYLE;
 
   return (
     <button
@@ -30,29 +71,7 @@ function ActionCard({ action }: { action: Action }) {
       onClick={action.onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        gap: 18,
-        padding: '22px 20px',
-        borderRadius: 18,
-        border: `1px solid ${hovered ? action.accent + '50' : 'rgba(0,0,0,0.08)'}`,
-        background: hovered
-          ? `linear-gradient(135deg, rgba(255,255,255,0.95) 0%, ${action.accent}08 100%)`
-          : 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.6) 100%)',
-        cursor: 'pointer',
-        textAlign: 'left',
-        transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        transform: hovered ? 'translateY(-4px) scale(1.02)' : 'translateY(0) scale(1)',
-        boxShadow: hovered
-          ? `0 16px 32px ${action.accent}20, 0 4px 12px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)`
-          : '0 4px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.4)',
-        position: 'relative',
-        overflow: 'hidden',
-        minHeight: '130px',
-        backdropFilter: 'blur(8px)',
-      }}
+      style={cardStyle}
     >
       {/* Animated gradient overlay */}
       {hovered && (
@@ -154,6 +173,8 @@ export function DashboardQuickActions({
   onCreatePromo,
   pendingOrdersCount = 0,
 }: Props) {
+  const router = useRouter();
+  
   const actions: Action[] = [
     {
       id: 'drop',
@@ -161,7 +182,7 @@ export function DashboardQuickActions({
       description: 'Lance un drop exclusif avec timer',
       icon: ['M12 2L2 7l10 5 10-5-10-5z', 'M2 17l10 5 10-5', 'M2 12l10 5 10-5'],
       accent: '#FF3B30',
-      onClick: () => onCreateDrop?.(),
+      onClick: () => router.push('/dashboard/drops/new'),
     },
     {
       id: 'product',
@@ -169,7 +190,7 @@ export function DashboardQuickActions({
       description: 'Ajoute un produit à ton catalogue',
       icon: ['M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z', 'M3 6h18', 'M16 10a4 4 0 0 1-8 0'],
       accent: '#7C3AED',
-      onClick: () => onAddProduct?.(),
+      onClick: () => router.push('/dashboard/produits/new'),
     },
     {
       id: 'orders',
@@ -177,7 +198,7 @@ export function DashboardQuickActions({
       description: pendingOrdersCount > 0 ? `${pendingOrdersCount} commande(s) en attente` : 'Consulter les commandes',
       icon: ['M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2', 'M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z', 'M9 14l2 2 4-4'],
       accent: '#F59E0B',
-      onClick: () => onViewOrders?.(),
+      onClick: () => router.push('/dashboard/commandes'),
     },
     {
       id: 'promo',
@@ -185,36 +206,28 @@ export function DashboardQuickActions({
       description: 'Générer des réductions pour les clients',
       icon: ['M15 6v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3z', 'M10 9h4', 'M10 12h2', 'M10 15h3'],
       accent: '#8B5CF6',
-      onClick: () => window.location.href = '/dashboard/promos',
+      onClick: () => router.push('/dashboard/promotions/create'),
     },
     {
       id: 'brand',
-      label: 'Ma Boutique',
-      description: 'Modifier le profil et la marque',
+      label: 'Paramètres',
+      description: 'Gérer les paramètres de la boutique',
       icon: ['M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M9 22V12h6v10', 'M12 6h.01'],
       accent: '#10B981',
-      onClick: () => window.location.href = '/dashboard/boutique',
+      onClick: () => router.push('/dashboard/settings'),
     },
     {
       id: 'share',
       label: 'Partager le Profil',
-      description: 'Copier le lien de ta boutique',
+      description: 'Aperçu ou lien',
       icon: ['M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8', 'M16 6l-4-4-4 4', 'M12 2v13'],
       accent: '#EC4899',
-      onClick: () => window.location.href = '/dashboard/partager',
+      onClick: onShareProfile || (() => router.push('/profile')),
     },
   ];
 
   return (
-    <article style={{
-      borderRadius: 20,
-      border: '1px solid rgba(0,0,0,0.07)',
-      background: 'rgba(255,255,255,0.85)',
-      backdropFilter: 'blur(24px)',
-      WebkitBackdropFilter: 'blur(24px)',
-      padding: '24px 24px',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.05)',
-    }}>
+    <article style={CONTAINER_STYLE}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>

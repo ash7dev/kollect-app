@@ -54,21 +54,78 @@ const PERKS: { icon: ReactNode; text: string }[] = [
   { icon: <IconBellOutline />, text: 'Notifications de drops en temps réel' },
 ];
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const SECTION_STYLE = {
+  padding: '120px 24px',
+  backgroundColor: '#000',
+  position: 'relative' as const,
+  overflow: 'hidden',
+  borderRadius: 'var(--radius-xxxl)',
+  margin: '0 12px',
+  border: '1px solid rgba(255,255,255,0.06)',
+  fontFamily: FONT_FAMILY_INTER,
+};
+
+const CONTAINER_STYLE = {
+  maxWidth: '740px',
+  margin: '0 auto',
+  textAlign: 'center' as const,
+  position: 'relative' as const,
+  display: 'flex',
+  flexDirection: 'column' as const,
+  alignItems: 'center',
+  gap: '32px',
+};
+
+const APP_BUTTON_STYLE = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '14px',
+  padding: '14px 24px',
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.15)',
+  backgroundColor: 'rgba(255,255,255,0.05)',
+  color: '#fff',
+  textDecoration: 'none',
+  transition: 'all 220ms ease',
+  minWidth: '180px',
+};
+
+const APP_BUTTON_PRIMARY_STYLE = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '14px',
+  padding: '14px 24px',
+  borderRadius: '14px',
+  backgroundColor: '#FF3B30',
+  color: '#fff',
+  textDecoration: 'none',
+  boxShadow: '0 8px 32px rgba(255,59,48,0.35)',
+  transition: 'all 220ms ease',
+  minWidth: '180px',
+};
+
+const PERKS_CONTAINER_STYLE = {
+  display: 'flex',
+  gap: '24px',
+  flexWrap: 'wrap' as const,
+  justifyContent: 'center',
+  paddingTop: '8px',
+};
+
+const PERK_ITEM_STYLE = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+};
+
 export function CTA() {
   return (
     <section
       id="download"
       aria-label="Télécharger l'application"
-      style={{
-        padding: '120px 24px',
-        backgroundColor: '#000',
-        position: 'relative',
-        overflow: 'hidden',
-        borderRadius: 'var(--radius-xxxl)',
-        margin: '0 12px',
-        border: '1px solid rgba(255,255,255,0.06)',
-        fontFamily: FONT_FAMILY_INTER,
-      }}
+      style={SECTION_STYLE}
     >
       {/* Background effects */}
       <div aria-hidden style={{
@@ -87,11 +144,7 @@ export function CTA() {
         pointerEvents: 'none',
       }} />
 
-      <div style={{
-        maxWidth: '740px', margin: '0 auto',
-        textAlign: 'center', position: 'relative',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px',
-      }}>
+      <div style={CONTAINER_STYLE}>
 
         {/* App icon */}
         <div style={{
@@ -141,17 +194,12 @@ export function CTA() {
 
         {/* App Store buttons */}
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <a href="#"
+          <a 
+            href="https://apps.apple.com"
+            target="_blank"
+            rel="noopener noreferrer"
             className="cta-app-btn"
-            style={{
-              display: 'flex', alignItems: 'center', gap: '14px',
-              padding: '14px 24px', borderRadius: '14px',
-              border: '1px solid rgba(255,255,255,0.15)',
-              backgroundColor: 'rgba(255,255,255,0.05)',
-              color: '#fff', textDecoration: 'none',
-              transition: 'all 220ms ease',
-              minWidth: '180px',
-            }}
+            style={APP_BUTTON_STYLE}
           >
             <IconApple />
             <div style={{ textAlign: 'left' }}>
@@ -160,17 +208,12 @@ export function CTA() {
             </div>
           </a>
 
-          <a href="#"
+          <a 
+            href="https://play.google.com"
+            target="_blank"
+            rel="noopener noreferrer"
             className="cta-app-btn-primary"
-            style={{
-              display: 'flex', alignItems: 'center', gap: '14px',
-              padding: '14px 24px', borderRadius: '14px',
-              backgroundColor: '#FF3B30',
-              color: '#fff', textDecoration: 'none',
-              boxShadow: '0 8px 32px rgba(255,59,48,0.35)',
-              transition: 'all 220ms ease',
-              minWidth: '180px',
-            }}
+            style={APP_BUTTON_PRIMARY_STYLE}
           >
             <IconPlay />
             <div style={{ textAlign: 'left' }}>
@@ -181,17 +224,9 @@ export function CTA() {
         </div>
 
         {/* Perks */}
-        <div className="cta-perks" style={{
-          display: 'flex',
-          gap: '24px',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          paddingTop: '8px',
-        }}>
+        <div className="cta-perks" style={PERKS_CONTAINER_STYLE}>
           {PERKS.map(p => (
-            <div key={p.text} style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-            }}>
+            <div key={p.text} style={PERK_ITEM_STYLE}>
               <span style={{ display: 'flex', flexShrink: 0 }}>{p.icon}</span>
               <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>
                 {p.text}

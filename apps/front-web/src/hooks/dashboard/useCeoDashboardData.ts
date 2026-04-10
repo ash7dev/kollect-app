@@ -11,6 +11,9 @@ type BrandIdentity = {
   id: string;
   name: string;
   slug: string;
+  logo?: string | null;
+  coverImage?: string | null;
+  description?: string | null;
 };
 
 type BrandStats = {
@@ -60,6 +63,7 @@ type ProductItem = {
   stock: number;
   viewCount?: number;
   images?: string[];
+  slug?: string;
 };
 
 type Paginated<T> = {

@@ -1,11 +1,12 @@
 'use client';
 
 import type { CeoCollectionDetail, CollectionStatus } from '@/types/drops';
+import { DROP_ICONS } from '../drop-shared';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
 function Ic({ d, size = 14, stroke = 'currentColor', sw = 1.8 }: {
-  d: string | string[]; size?: number; stroke?: string; sw?: number;
+  d: string | readonly string[]; size?: number; stroke?: string; sw?: number;
 }) {
   const paths = Array.isArray(d) ? d : [d];
   return (
@@ -57,11 +58,14 @@ function StatusBadge({ status }: { status: CollectionStatus }) {
 
 type Props = {
   collection: CeoCollectionDetail | null;
+  brandSlug?: string;
   onBack: () => void;
   onLaunch: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onActivateTeaser?: () => void;
   launchPending: boolean;
+  activatePending?: boolean;
   onOpenSidebar?: () => void;
 };
 
@@ -70,10 +74,12 @@ const F = 'Inter, -apple-system, BlinkMacSystemFont, sans-serif';
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CollectionTopBar({
-  collection, onBack, onLaunch, onEdit, onDelete, launchPending, onOpenSidebar,
+  collection, brandSlug, onBack, onLaunch, onEdit, onDelete, onActivateTeaser, launchPending, activatePending, onOpenSidebar,
 }: Props) {
   const hasCollection = !!collection;
   const isTeaser = collection?.status === 'TEASER';
+  const isDraft  = collection?.status === 'BROUILLON';
+  const isPublic = hasCollection && !isDraft;
 
   return (
     <>
@@ -238,8 +244,83 @@ export function CollectionTopBar({
           )}
 
           {/* Launch divider */}
-          {isTeaser && (
+          {(isTeaser || isDraft) && (
             <div className="ctb-divider" style={{ width: 1, height: 24, background: 'rgba(0,0,0,0.08)', margin: '0 6px' }} />
+          )}
+
+          {/* Public Link */}
+          {isPublic && (
+            <a
+              href={`/${brandSlug ?? 'brand'}/${collection!.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Voir la page publique"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                height: 40, padding: '0 16px',
+                border: '1px solid rgba(0,0,0,0.07)', borderRadius: 12,
+                background: 'rgba(255,255,255,0.88)',
+                color: '#0A0A0A', textDecoration: 'none',
+                fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                fontFamily: F, flexShrink: 0,
+                transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.95)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.06)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.88)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)';
+              }}
+            >
+              <Ic d={DROP_ICONS.externalLink} size={15} sw={2} />
+              <span className="ctb-label">Voir page publique</span>
+            </a>
+          )}
+
+          {/* Activate Teaser — DRAFT only */}
+          {isDraft && onActivateTeaser && (
+            <button
+              type="button"
+              className="ctb-launch"
+              disabled={activatePending}
+              onClick={onActivateTeaser}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                height: 40, padding: '0 20px',
+                border: 'none', borderRadius: 12,
+                background: activatePending 
+                  ? 'rgba(0,0,0,0.05)' 
+                  : 'linear-gradient(135deg, #0A0A0A 0%, #1a1a1a 100%)',
+                color: activatePending ? '#9CA3AF' : '#fff',
+                fontSize: 13, fontWeight: 800,
+                cursor: activatePending ? 'not-allowed' : 'pointer',
+                fontFamily: F, flexShrink: 0,
+                boxShadow: activatePending 
+                  ? '0 2px 8px rgba(0,0,0,0.06)' 
+                  : '0 4px 16px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.06)',
+                transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              }}
+              onMouseEnter={(e) => {
+                if (!activatePending) {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.25), 0 4px 8px rgba(0,0,0,0.06)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!activatePending) {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.06)';
+                }
+              }}
+            >
+              <Ic d={DROP_ICONS.clock} size={15} stroke={activatePending ? '#9CA3AF' : '#fff'} sw={2} />
+              {activatePending ? 'Activation…' : 'Activer le teaser'}
+            </button>
           )}
 
           {/* Launch — TEASER only */}
@@ -278,7 +359,7 @@ export function CollectionTopBar({
                 }
               }}
             >
-              <Ic d={ICONS.rocket} size={15} stroke={launchPending ? '#9CA3AF' : '#fff'} sw={2} />
+              <Ic d={DROP_ICONS.rocket} size={15} stroke={launchPending ? '#9CA3AF' : '#fff'} sw={2} />
               {launchPending ? 'Lancement…' : 'Lancer le drop'}
             </button>
           )}

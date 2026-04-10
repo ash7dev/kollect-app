@@ -86,7 +86,7 @@ function EmptyDrops() {
       {/* Divider hint */}
       <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', marginTop: '20px' }}>
         Marque ou label ?{' '}
-        <Link href="/create-brand" style={{ color: '#C9A962', textDecoration: 'none', fontWeight: 700 }}>
+        <Link href="/become-seller" style={{ color: '#C9A962', textDecoration: 'none', fontWeight: 700 }}>
           Planifier un lancement →
         </Link>
       </p>

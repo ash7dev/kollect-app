@@ -48,9 +48,15 @@ export async function GET(request: NextRequest) {
 
           // Redirection directe selon le rôle — aucun passage par la landing
           let destination: string;
-          if (next) {
+          const isSafeNext = !!next && next.startsWith('/');
+
+          if (user.isAdmin) {
+            destination = isSafeNext && !next.startsWith('/dashboard') && !next.startsWith('/onboarding')
+              ? next
+              : '/admin';
+          } else if (isSafeNext && next) {
             destination = next;
-          } else if (user.isCEO || user.isAdmin) {
+          } else if (user.isCEO) {
             destination = '/dashboard';
           } else if (!user.has_seen_creator_prompt) {
             destination = '/onboarding';

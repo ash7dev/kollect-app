@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
-
+import { CeoStatCard } from '@/components/dashboard/CeoStatCard';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import { useOnboardingGuard } from '@/hooks/useOnboardingGuard';
 import { DashboardSidebar, type SidebarSection } from '@/components/dashboard/DashboardSidebar';
 import { apiClient } from '@/services/api/client';
 import { API_ENDPOINTS } from '@/services/api/endpoints';
+import { DashboardStoryGenerator } from '@/components/dashboard/DashboardStoryGenerator';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -95,24 +96,6 @@ function FullPageSpinner({ message }: { message: string }) {
   );
 }
 
-// ─── KPI Card ────────────────────────────────────────────────────────────────
-
-function KpiCard({ label, value, accent, sub }: {
-  label: string; value: number | string; accent: string; sub?: string;
-}) {
-  return (
-    <div className="pp-kpi-card">
-      <div style={{ fontSize: 28, fontWeight: 800, color: accent, letterSpacing: '-1px', fontFamily: 'inherit', lineHeight: 1 }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', marginTop: 4, fontFamily: 'inherit', letterSpacing: '0.3px' }}>
-        {label}
-      </div>
-      {sub && <div style={{ fontSize: 10, color: '#D1D5DB', marginTop: 2, fontFamily: 'inherit' }}>{sub}</div>}
-    </div>
-  );
-}
-
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 
 function SkeletonCard() {
@@ -154,13 +137,14 @@ function StockBadge({ stock }: { stock: number }) {
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
 
-function ProductCard({ product, index, onToggleVisibility, toggling, onEdit, onDelete }: {
+function ProductCard({ product, index, onToggleVisibility, toggling, onEdit, onDelete, onStory }: {
   product: CeoProduct;
   index: number;
   onToggleVisibility: (id: string, current: boolean) => void;
   toggling: boolean;
   onEdit: (id: string) => void;
   onDelete: (id: string, name: string) => void;
+  onStory: (product: CeoProduct) => void;
 }) {
   const img = product.images?.[0];
   const isOutOfStock = product.stock === 0;
@@ -250,6 +234,15 @@ function ProductCard({ product, index, onToggleVisibility, toggling, onEdit, onD
       <div className="pp-card-actions">
         <button
           type="button"
+          title="Générer une Story"
+          onClick={() => onStory(product)}
+          className="pp-btn-icon pp-btn-story"
+          style={{ background: '#0A0A0A', color: '#FF3B30' }}
+        >
+          <Ic d={ICONS.plus} size={16} sw={2.5} />
+        </button>
+        <button
+          type="button"
           title={product.isVisible ? 'Masquer' : 'Afficher'}
           onClick={() => onToggleVisibility(product.id, product.isVisible)}
           disabled={toggling}
@@ -288,7 +281,7 @@ function ProductCard({ product, index, onToggleVisibility, toggling, onEdit, onD
 
 // ─── Collection Group ─────────────────────────────────────────────────────────
 
-function CollectionGroup({ name, products, onToggleVisibility, toggling, startIndex, onEdit, onDelete }: {
+function CollectionGroup({ name, products, onToggleVisibility, toggling, startIndex, onEdit, onDelete, onStory }: {
   name: string;
   products: CeoProduct[];
   onToggleVisibility: (id: string, current: boolean) => void;
@@ -296,6 +289,7 @@ function CollectionGroup({ name, products, onToggleVisibility, toggling, startIn
   startIndex: number;
   onEdit: (id: string) => void;
   onDelete: (id: string, name: string) => void;
+  onStory: (product: CeoProduct) => void;
 }) {
   const outOfStock = products.filter(p => p.stock === 0).length;
 
@@ -345,6 +339,7 @@ function CollectionGroup({ name, products, onToggleVisibility, toggling, startIn
             toggling={toggling}
             onEdit={onEdit}
             onDelete={onDelete}
+            onStory={onStory}
           />
         ))}
       </div>
@@ -449,6 +444,7 @@ export function ProduitsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('flat');
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [storyProduct, setStoryProduct] = useState<CeoProduct | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState({ left: 0, width: 0 });
   const qc = useQueryClient();
@@ -505,6 +501,10 @@ export function ProduitsPage() {
 
   const handleDeleteRequest = useCallback((id: string, name: string) => {
     setDeleteTarget({ id, name });
+  }, []);
+
+  const handleStoryRequest = useCallback((product: CeoProduct) => {
+    setStoryProduct(product);
   }, []);
 
   // ── Filtered list ──
@@ -1082,12 +1082,32 @@ export function ProduitsPage() {
           </div>
 
           {/* ── KPI row ── */}
-          <div className="pp-kpi-row">
-            <KpiCard label="Total produits"   value={kpis.total}      accent="#0A0A0A" />
-            <KpiCard label="Visibles"         value={kpis.visible}    accent="#10B981" />
-            <KpiCard label="Épuisés"          value={kpis.outOfStock} accent={kpis.outOfStock > 0 ? '#EF4444' : '#10B981'} />
-            <KpiCard label="Stock total"      value={kpis.stockTotal} accent="#6366F1" sub="unités" />
-            <KpiCard label="Masqués"          value={kpis.hidden}     accent={kpis.hidden > 0 ? '#F59E0B' : '#9CA3AF'} />
+          <div className="pp-kpi-row" style={{ display: 'flex', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
+            <CeoStatCard 
+              label="Total produits" 
+              value={kpis.total} 
+              color="#0A0A0A"
+              subLabel="Catalogue complet"
+            />
+            <CeoStatCard 
+              label="Visibles" 
+              value={kpis.visible} 
+              color="#10B981"
+              subLabel="En ligne sur le site"
+            />
+            <CeoStatCard 
+              label="Épuisés" 
+              value={kpis.outOfStock} 
+              color="#EF4444"
+              pulse={kpis.outOfStock > 0}
+              subLabel="Besoin de réappro"
+            />
+            <CeoStatCard 
+              label="Stock total" 
+              value={kpis.stockTotal} 
+              color="#6366F1"
+              subLabel="Unités en stock"
+            />
           </div>
 
           {/* ── Alert ── */}
@@ -1155,6 +1175,7 @@ export function ProduitsPage() {
                   startIndex={startIndex}
                   onEdit={handleEdit}
                   onDelete={handleDeleteRequest}
+                  onStory={handleStoryRequest}
                 />
               );
             })
@@ -1169,12 +1190,31 @@ export function ProduitsPage() {
                   toggling={togglingId === p.id}
                   onEdit={handleEdit}
                   onDelete={handleDeleteRequest}
+                  onStory={handleStoryRequest}
                 />
               ))}
             </div>
           )}
         </main>
       </div>
+
+      {storyProduct && (
+        <DashboardStoryGenerator 
+          data={{
+            brandName: user?.brand?.name || 'Ma Marque',
+            brandSlug: user?.brand?.slug || '',
+            period: new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+            product: {
+              name: storyProduct.name,
+              image: storyProduct.images?.[0] || '',
+              price: storyProduct.price,
+              stock: storyProduct.stock,
+              slug: storyProduct.slug,
+            }
+          }}
+          onClose={() => setStoryProduct(null)}
+        />
+      )}
     </>
   );
 }

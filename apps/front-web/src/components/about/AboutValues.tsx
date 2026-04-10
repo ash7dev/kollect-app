@@ -79,9 +79,8 @@ export function AboutValues() {
 
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div
-          className={visible ? 'val-in' : ''}
+          className={`values-header ${visible ? 'val-in' : ''}`.trim()}
           style={{ opacity: visible ? 1 : 0, textAlign: 'center', marginBottom: 40 }}
-          className="values-header"
         >
           <p style={{
             fontSize: 11, fontWeight: 900, letterSpacing: '3px',

@@ -23,8 +23,10 @@ export type Paginated<T> = {
 export type CollectionProduct = {
   id: string;
   name: string;
+  slug?: string;
   description: string | null;
   price: number;
+  /** Prix avant réduction — présent uniquement côté vue publique avec promos */
   originalPrice?: number;
   discountType?: string;
   discountValue?: number;
@@ -33,6 +35,16 @@ export type CollectionProduct = {
   sizes: string[];
   colors: string[];
   images: string[];
+  /**
+   * Retourné par l'API CEO.
+   * false = produit masqué (ex : collection en mode TEASER avant lancement)
+   */
+  isVisible?: boolean;
+  /**
+   * Retourné par l'API CEO uniquement (non-public).
+   * Suppression logique : le produit n'apparaît plus dans la boutique.
+   */
+  isDeleted?: boolean;
 };
 
 export type PublicCollectionProduct = {

@@ -17,6 +17,9 @@ export interface BackendUser {
         id: string;
         slug: string;
         name: string;
+        logo?: string | null;
+        coverImage?: string | null;
+        description?: string | null;
         isVerified: boolean;
     } | null;
     address?: string;
@@ -47,4 +50,30 @@ export interface PaginatedResponse<T> {
         limit: number;
         totalPages: number;
     };
+}
+
+// ─── Promotions ──────────────────────────────────────────────────────────────
+
+export type PromotionScope = 'BRAND' | 'COLLECTION';
+export type DiscountType = 'PERCENTAGE' | 'FIXED_AMOUNT';
+
+export interface Promotion {
+  id: string;
+  code: string;
+  description: string | null;
+  scope: PromotionScope;
+  discountType: DiscountType;
+  discountValue: number;
+  maxDiscount: number | null;
+  minOrderAmount: number | null;
+  usageLimit: number | null;
+  usageCount: number;
+  startsAt: string;
+  expiresAt: string | null;
+  isActive: boolean;
+  isAutoApplied: boolean;
+  collectionId: string | null;
+  collection?: { name: string } | null;
+  createdAt: string;
+  updatedAt: string;
 }

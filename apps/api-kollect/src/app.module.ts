@@ -30,6 +30,8 @@ import { NotificationsWorkerModule } from './queues/workers/notifications-worker
 import { OrdersWorkerModule } from './queues/workers/orders-worker.module';
 import { AnalyticsWorkerModule } from './queues/workers/analytics-worker.module';
 import { RedisModule } from './common/redis/redis.module';
+import { AdminModule } from './admin/admin.module';
+import { CommandsModule } from './commands/commands.module';
 
 @Module({
   imports: [
@@ -47,13 +49,15 @@ import { RedisModule } from './common/redis/redis.module';
     UploadModule, // 🆕 Ajout du module upload
     BrandsModule, // Module pour la gestion des marques
     ProduitsModule, // Module pour la gestion des produits
-    CommandesModule,
     CollectionsModule,
     PromotionsModule,
     SuiviModule, // Module pour la gestion des commandes
+    CommandesModule, // Module pour la gestion des commandes API
     MetricsModule,
     ShareModule,
     ShareLinksModule,
+    AdminModule, // 🆕 Module admin centralisé
+    CommandsModule, // 🆕 Module de commandes CLI
     DropsWorkerModule,
     NotificationsWorkerModule,
     OrdersWorkerModule,

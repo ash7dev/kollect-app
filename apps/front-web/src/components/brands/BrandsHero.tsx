@@ -13,11 +13,9 @@ export function BrandsHero({ brandCount, loading }: { brandCount: number; loadin
       style={{
         position: 'relative',
         overflow: 'hidden',
-        backgroundColor: '#070707',
-        padding: '110px var(--layout-container-padding) 72px',
-        margin: '0 12px',
-        borderRadius: 'var(--radius-xxxl)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        backgroundColor: '#0a0a0a',
+        padding: '110px var(--layout-container-padding) 80px',
+        borderRadius: '0 0 40px 40px',
         fontFamily: FONT_FAMILY_INTER,
       }}
     >

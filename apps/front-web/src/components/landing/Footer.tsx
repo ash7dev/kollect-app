@@ -8,11 +8,11 @@ const FOOTER_LINKS = {
     { label: 'Explorer', href: '/explorer' },
     { label: 'Collections', href: '/collections' },
     { label: 'Marques', href: '/brands' },
-    { label: 'Drops à venir', href: '/drops' },
+    { label: 'Drops à venir', href: '/collections' },
   ],
   Créateurs: [
     { label: 'Devenir vendeur', href: '/creators' },
-    { label: 'Dashboard CEO', href: '/ceo' },
+    { label: 'Dashboard CEO', href: '/dashboard' },
     { label: 'Comment ça marche', href: '/how-it-works' },
     { label: 'Ressources', href: '/resources' },
   ],

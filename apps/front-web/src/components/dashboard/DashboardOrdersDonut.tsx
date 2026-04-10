@@ -65,6 +65,38 @@ export function DashboardOrdersDonut({ orders }: { orders: Orders | null }) {
     );
   }
 
+  // ── Empty state ─────────────────────────────────────────────────────────
+  if (realTotal === 0) {
+    return (
+      <article style={cardStyle}>
+        <style>{ANIM}</style>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#0A0A0A', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 3, height: 16, borderRadius: 2, background: 'linear-gradient(180deg, #FF3B30 0%, #E0321F 100%)' }} />
+              Répartition des commandes
+            </h3>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(0,0,0,0.5)', fontWeight: 500 }}>Statistiques actuelles</p>
+          </div>
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '20px 0' }}>
+          <div style={{
+            width: 80, height: 80, borderRadius: '50%',
+            border: '3px dashed rgba(0,0,0,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+              <path d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"/>
+            </svg>
+          </div>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'rgba(0,0,0,0.5)' }}>Aucune commande</p>
+          <p style={{ margin: 0, fontSize: 12, color: 'rgba(0,0,0,0.35)', textAlign: 'center', lineHeight: 1.5 }}>Aucune commande reçue sur cette période.</p>
+        </div>
+      </article>
+    );
+  }
+
   // ── Content ───────────────────────────────────────────────────────────────
   return (
     <article style={cardStyle}>

@@ -2,6 +2,7 @@ import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from '@/components/landing/Footer';
 import { ContactHero } from '@/components/contact/ContactHero';
 import { ContactSection } from '@/components/contact/ContactSection';
+import { ContactFAQ } from '@/components/contact/ContactFAQ';
 
 export const metadata = {
   title: 'Contact - Kollect',
@@ -14,6 +15,7 @@ export default function Page() {
       <Navbar />
       <ContactHero />
       <ContactSection />
+      <ContactFAQ />
       <Footer />
     </>
   );

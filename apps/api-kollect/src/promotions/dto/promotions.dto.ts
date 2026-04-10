@@ -152,7 +152,18 @@ export const QueryPromotionsSchema = z.object({
 });
 export type QueryPromotionsDto = z.infer<typeof QueryPromotionsSchema>;
 
-// ─── Validation d'un code promo (pour le checkout) ────────────────────────────
+// ─── Mise à jour d'une promotion ──────────────────────────────────────────────
+export const UpdatePromotionSchema = z.object({
+  description: z.string().min(3).max(300).optional(),
+  discountValue: z.number().int().positive().optional(),
+  maxDiscount: z.number().int().positive().nullable().optional(),
+  minOrderAmount: z.number().int().positive().nullable().optional(),
+  usageLimit: z.number().int().positive().nullable().optional(),
+  startsAt: z.string().datetime().optional(),
+  expiresAt: z.string().datetime().nullable().optional(),
+  isActive: z.boolean().optional(),
+});
+export type UpdatePromotionDto = z.infer<typeof UpdatePromotionSchema>;
 
 export const ValidatePromoCodeSchema = z.object({
   code: z.string().min(1),

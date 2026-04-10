@@ -12,6 +12,7 @@ import { apiClient } from '@/services/api/client';
 const NAV_LINKS = [
   { label: 'Marques', href: '/brands' },
   { label: 'Drops', href: '/collections' },
+  { label: 'Découverte', href: '/discovery' },
   { label: 'Explorer', href: '/explorer' },
   { label: 'À propos', href: '/about' },
 ];
@@ -28,7 +29,7 @@ export function Navbar({ transparent = false, black = false }: { transparent?: b
   const menuRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshUser } = useAuth();
   const toggleCart = useBrandCartStore(s => s.toggleCart);
   const getTotalGlobalCount = useBrandCartStore(s => s.getTotalGlobalCount);
   const cartCount = getTotalGlobalCount();
@@ -46,14 +47,25 @@ export function Navbar({ transparent = false, black = false }: { transparent?: b
     }
   };
 
+  const openAdminPanel = async () => {
+    try {
+      await refreshUser();
+    } catch (error) {
+      console.error('Error refreshing admin session:', error);
+    } finally {
+      window.location.href = '/admin';
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const postLoginHref = useMemo(() => {
     if (!user) return null;
-    if (user.isCEO || user.isAdmin) return '/dashboard';
+    if (user.isAdmin) return '/admin';
     if (!user.has_seen_creator_prompt) return '/onboarding';
+    if (user.isCEO) return '/dashboard';
     return '/';
   }, [user]);
 
@@ -548,46 +560,93 @@ export function Navbar({ transparent = false, black = false }: { transparent?: b
                       zIndex: 1000,
                     }}>
                       <div style={{ padding: '8px' }}>
-                        <Link
-                          href="/onboarding"
-                          className="dropdown-item"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '12px',
-                            padding: '11px 14px',
-                            borderRadius: '10px',
-                            fontSize: '13px',
-                            fontWeight: 500,
-                            color: 'rgba(255,255,255,0.80)',
-                            textDecoration: 'none',
-                            transition: 'background-color 150ms ease',
-                          }}
-                          onClick={() => setProfileOpen(false)}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M19 21h-4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2z" />
-                              <path d="M9 3h4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
-                              <path d="M3 9h4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2z" />
-                            </svg>
-                            <span>Créer ma marque</span>
-                          </div>
-                          <span style={{
-                            fontSize: '10px',
-                            fontWeight: 800,
-                            color: '#FF3B30',
-                            backgroundColor: 'rgba(255,59,48,0.15)',
-                            padding: '3px 6px',
-                            borderRadius: '4px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            border: '1px solid rgba(255,59,48,0.25)',
-                          }}>
-                            PRO
-                          </span>
-                        </Link>
+                        {user?.isAdmin ? (
+                          <button
+                            type="button"
+                            className="dropdown-item"
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+                              padding: '11px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 500,
+                              color: 'rgba(255,255,255,0.80)', textDecoration: 'none', transition: 'background-color 150ms ease',
+                              background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                            }}
+                            onClick={async () => {
+                              setProfileOpen(false);
+                              await openAdminPanel();
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="3" y1="9" x2="21" y2="9"></line>
+                                <line x1="9" y1="21" x2="9" y2="9"></line>
+                              </svg>
+                              <span>Panneau Admin</span>
+                            </div>
+                            <span style={{
+                              fontSize: '10px', fontWeight: 800, color: '#fff',
+                              backgroundColor: '#111', padding: '3px 6px', borderRadius: '4px',
+                              textTransform: 'uppercase', letterSpacing: '0.5px', border: '1px solid rgba(255,255,255,0.2)',
+                            }}>
+                              ADMIN
+                            </span>
+                          </button>
+                        ) : user?.isCEO ? (
+                          <Link
+                            href="/dashboard"
+                            className="dropdown-item"
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+                              padding: '11px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 500,
+                              color: 'rgba(255,255,255,0.80)', textDecoration: 'none', transition: 'background-color 150ms ease',
+                            }}
+                            onClick={() => setProfileOpen(false)}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 3v18h18" />
+                                <path d="M18 17V9" />
+                                <path d="M13 17V5" />
+                                <path d="M8 17v-3" />
+                              </svg>
+                              <span>Mon Dashboard</span>
+                            </div>
+                            <span style={{
+                              fontSize: '10px', fontWeight: 800, color: '#FF3B30',
+                              backgroundColor: 'rgba(255,59,48,0.15)', padding: '3px 6px', borderRadius: '4px',
+                              textTransform: 'uppercase', letterSpacing: '0.5px', border: '1px solid rgba(255,59,48,0.25)',
+                            }}>
+                              CEO
+                            </span>
+                          </Link>
+                        ) : (
+                          <Link
+                            href="/onboarding"
+                            className="dropdown-item"
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+                              padding: '11px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 500,
+                              color: 'rgba(255,255,255,0.80)', textDecoration: 'none', transition: 'background-color 150ms ease',
+                            }}
+                            onClick={() => setProfileOpen(false)}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M19 21h-4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2z" />
+                                <path d="M9 3h4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                                <path d="M3 9h4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2z" />
+                              </svg>
+                              <span>Créer ma marque</span>
+                            </div>
+                            <span style={{
+                              fontSize: '10px', fontWeight: 800, color: '#007AFF',
+                              backgroundColor: 'rgba(0,122,255,0.15)', padding: '3px 6px', borderRadius: '4px',
+                              textTransform: 'uppercase', letterSpacing: '0.5px', border: '1px solid rgba(0,122,255,0.25)',
+                            }}>
+                              PRO
+                            </span>
+                          </Link>
+                        )}
 
                         <Link
                           href="/favorites"
@@ -896,9 +955,9 @@ export function Navbar({ transparent = false, black = false }: { transparent?: b
 
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {mounted && user ? (
-            /* Connecté → bouton Créer ma marque */
+            /* Connecté → bouton d'accès principal (Admin, Dashboard ou Onboarding) */
             <Link
-              href="/onboarding"
+              href={user.isAdmin ? '/admin' : user.isCEO ? '/dashboard' : '/onboarding'}
               style={{
                 padding: '14px',
                 borderRadius: '12px',
@@ -906,12 +965,17 @@ export function Navbar({ transparent = false, black = false }: { transparent?: b
                 fontWeight: 700,
                 color: '#fff',
                 textDecoration: 'none',
-                backgroundColor: '#FF3B30',
+                backgroundColor: user.isAdmin ? '#111' : '#FF3B30',
                 textAlign: 'center',
-                boxShadow: '0 4px 20px rgba(255,59,48,0.35)',
+                boxShadow: user.isAdmin ? '0 4px 20px rgba(0,0,0,0.35)' : '0 4px 20px rgba(255,59,48,0.35)',
+              }}
+              onClick={async (e) => {
+                if (!user.isAdmin) return;
+                e.preventDefault();
+                await openAdminPanel();
               }}
             >
-              Créer ma marque
+              {user.isAdmin ? 'Panneau Admin' : user.isCEO ? 'Mon Dashboard' : 'Créer ma marque'}
             </Link>
           ) : (
             /* Non connecté → boutons Se connecter + Commencer */

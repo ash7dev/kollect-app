@@ -5,6 +5,7 @@ import {
   Post,
   Body,
   Patch,
+  Delete,
   Param,
   UseGuards,
   Request,
@@ -23,11 +24,13 @@ import {
   CreatePromoCodeSchema,
   QueryPromotionsSchema,
   TogglePromotionSchema,
+  UpdatePromotionSchema,
   ValidatePromoCodeSchema,
   type CreateAutoPromotionDto,
   type CreatePromoCodeDto,
   type QueryPromotionsDto,
   type TogglePromotionDto,
+  type UpdatePromotionDto,
   type ValidatePromoCodeDto,
 } from './dto/promotions.dto';
 
@@ -104,7 +107,6 @@ export class PromotionsController {
   @Patch(':id/toggle')
   @Roles('isCEO')
   @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(TogglePromotionSchema))
   async toggle(
     @Request() req: any,
     @Param('id') id: string,
@@ -112,5 +114,37 @@ export class PromotionsController {
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     return this.promotionsService.togglePromotion(req.user.id, id, dto);
+  }
+
+  /**
+   * 🏪 CEO met à jour une promotion
+   * PATCH /api/promotions/:id
+   */
+  @Patch(':id')
+  @Roles('isCEO')
+  @UsePipes(new ZodValidationPipe(UpdatePromotionSchema))
+  async update(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdatePromotionDto,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+    return this.promotionsService.updatePromotion(req.user.id, id, dto);
+  }
+
+  /**
+   * 🏪 CEO supprime une promotion
+   * DELETE /api/promotions/:id
+   */
+  @Delete(':id')
+  @Roles('isCEO')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(
+    @Request() req: any,
+    @Param('id') id: string,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+    await this.promotionsService.deletePromotion(req.user.id, id);
+    return;
   }
 }

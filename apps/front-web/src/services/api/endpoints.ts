@@ -165,6 +165,8 @@ export const API_ENDPOINTS = {
       return `/promotions?${s.toString()}`;
     },
     TOGGLE: (id: string) => `/promotions/${id}/toggle`,
+    UPDATE: (id: string) => `/promotions/${id}`,
+    DELETE: (id: string) => `/promotions/${id}`,
     VALIDATE: (code: string, subtotal: number, brandSlug: string) => 
       `/promotions/validate?code=${encodeURIComponent(code)}&subtotal=${subtotal}&brandSlug=${encodeURIComponent(brandSlug)}`,
   },

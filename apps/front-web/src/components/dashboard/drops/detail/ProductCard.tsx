@@ -3,23 +3,7 @@
 
 import type { CollectionProduct } from '@/types/drops';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatPrice(price: number) {
-  return (
-    new Intl.NumberFormat('fr-FR', {
-      style: 'decimal',
-      maximumFractionDigits: 0,
-    }).format(price) + ' FCFA'
-  );
-}
-
-function formatPriceWithCurrency(price: number) {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'decimal',
-    maximumFractionDigits: 0,
-  }).format(price) + ' FCFA';
-}
+import { formatDropPrice } from '../drop-shared';
 
 function getStockMeta(stock: number) {
   if (stock === 0)
@@ -144,6 +128,40 @@ export function ProductCard({ product }: { product: CollectionProduct }) {
           </div>
         )}
 
+        {/* Deleted / Hidden overlays */}
+        {product.isDeleted ? (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(3px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5,
+          }}>
+            <span style={{
+              fontFamily: F, fontSize: 10, fontWeight: 800,
+              letterSpacing: '1px', textTransform: 'uppercase',
+              color: '#EF4444', padding: '6px 14px',
+              border: '2px solid #EF4444', borderRadius: 8,
+              background: '#fff', transform: 'rotate(-5deg)',
+            }}>
+              Supprimé
+            </span>
+          </div>
+        ) : !product.isVisible && (
+          <div style={{
+            position: 'absolute', top: 10, left: 10, zIndex: 5,
+            background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            borderRadius: 7, padding: '4px 10px',
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a2 2 0 1 1 2.83-2.83M1 1l22 22"/>
+            </svg>
+            <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, color: '#E4E4E7', letterSpacing: '0.2px' }}>
+              Masqué
+            </span>
+          </div>
+        )}
+
         {/* Low-stock floating badge */}
         {stockValue > 0 && stockValue <= 5 && (
           <div style={{
@@ -174,7 +192,7 @@ export function ProductCard({ product }: { product: CollectionProduct }) {
               <path d="m3 11 18-5M3 18l18-5" />
             </svg>
             <span style={{ fontFamily: F, fontSize: 10, fontWeight: 800, color: '#fff', letterSpacing: '0.1px' }}>
-              {discountType === 'PERCENTAGE' ? `-${discountValue}%` : `-${formatPriceWithCurrency(discountValue ?? 0)}`}
+              {discountType === 'PERCENTAGE' ? `-${discountValue}%` : `-${formatDropPrice(discountValue ?? 0)}`}
             </span>
           </div>
         )}
@@ -208,7 +226,7 @@ export function ProductCard({ product }: { product: CollectionProduct }) {
               fontFamily: F,
               lineHeight: '16px'
             }}>
-              {formatPriceWithCurrency(originalPrice)}
+              {formatDropPrice(originalPrice)}
             </span>
           )}
           <p style={{
@@ -217,7 +235,7 @@ export function ProductCard({ product }: { product: CollectionProduct }) {
             color: originalPrice ? '#E63329' : '#E63329', letterSpacing: '-0.4px',
             lineHeight: '20px', height: 20,
           }}>
-            {formatPrice(price)}
+            {formatDropPrice(price)}
           </p>
         </div>
 

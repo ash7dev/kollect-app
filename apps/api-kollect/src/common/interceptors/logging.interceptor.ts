@@ -15,6 +15,7 @@ interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email: string;
+    supabaseId?: string | null;
     isClient: boolean;
     isCEO: boolean;
     isAdmin: boolean;
@@ -36,6 +37,10 @@ export class LoggingInterceptor implements NestInterceptor {
 
     const startTime = Date.now();
     const userId = request.user?.id;
+    const email = request.user?.email;
+    const supabaseId = request.user?.supabaseId;
+    const cookieKeys = Object.keys(request.cookies ?? {});
+    const hasKollectJwt = cookieKeys.includes('kollect_jwt');
 
     this.logger.log('Incoming request', {
       module: 'HTTP',
@@ -45,6 +50,10 @@ export class LoggingInterceptor implements NestInterceptor {
       ip,
       userAgent,
       userId,
+      email,
+      supabaseId,
+      hasKollectJwt,
+      cookieKeys,
     });
 
     return next.handle().pipe(
@@ -60,6 +69,9 @@ export class LoggingInterceptor implements NestInterceptor {
             statusCode: response.statusCode,
             duration,
             userId,
+            email,
+            supabaseId,
+            hasKollectJwt,
           });
         },
         error: (error: Error) => {
@@ -73,6 +85,9 @@ export class LoggingInterceptor implements NestInterceptor {
             stack: error.stack,
             duration,
             userId,
+            email,
+            supabaseId,
+            hasKollectJwt,
           });
         },
       }),

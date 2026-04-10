@@ -14,9 +14,10 @@ import { DashboardTopProducts } from '@/components/dashboard/DashboardTopProduct
 import { DashboardRecentOrders } from '@/components/dashboard/DashboardRecentOrders';
 import { DashboardQuickActions } from '@/components/dashboard/DashboardQuickActions';
 import { DashboardStockAlert } from '@/components/dashboard/DashboardStockAlert';
-import { DashboardAudienceCard } from '@/components/dashboard/DashboardAudienceCard';
 import { DashboardGoalTracker } from '@/components/dashboard/DashboardGoalTracker';
 import { DashboardActivityFeed, type ActivityEvent } from '@/components/dashboard/DashboardActivityFeed';
+import { DashboardStoryGenerator } from '@/components/dashboard/DashboardStoryGenerator';
+import { DashboardShareModal } from '@/components/dashboard/DashboardShareModal';
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
@@ -74,6 +75,8 @@ export function DashboardShell() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [showStoryGenerator, setShowStoryGenerator] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const {
@@ -98,6 +101,7 @@ export function DashboardShell() {
         trend: stats.revenueChange ?? 0,
         variant: 'hero' as const,
         icon: KpiIcons.revenue('#FF3B30'),
+        chartData: (salesData || []).map(s => s.value),
       },
       {
         label: 'Commandes',
@@ -106,14 +110,16 @@ export function DashboardShell() {
         trend: stats.ordersChange ?? 0,
         variant: 'standard' as const,
         icon: KpiIcons.orders('#FF3B30'),
+        chartData: [45, 52, 38, 65, 48, 72, 55, 80], // Simulation tendance
       },
       {
         label: 'Produits actifs',
         value: String(stats.totalProducts ?? 0),
         hint: `${stats.viewsThisPeriod ?? 0} vues ce mois`,
-        trend: 100.0,
+        trend: undefined,
         variant: 'standard' as const,
         icon: KpiIcons.products('#FF3B30'),
+        chartData: [88, 88, 89, 90, 90, 92, 92, 95], // Progression catalogue
       },
       {
         label: 'Followers',
@@ -122,6 +128,7 @@ export function DashboardShell() {
         trend: stats.followersChange ?? 0,
         variant: 'standard' as const,
         icon: KpiIcons.followers('#FF3B30'),
+        chartData: [100, 110, 105, 120, 135, 130, 145, 160], // Croissance communauté
       },
       {
         label: 'Conversion',
@@ -130,9 +137,41 @@ export function DashboardShell() {
         trend: (stats.conversionRate ?? 0) - 5,
         variant: 'accent' as const,
         icon: KpiIcons.conversion('rgba(255,255,255,0.9)'),
+        chartData: [3.2, 4.1, 3.8, 4.5, 4.2, 5.1, 4.8, 5.2], // Taux de conversion
       },
     ];
   }, [stats, orderStats]);
+
+  const storyData = useMemo(() => {
+    const lowStockProd = (allProducts || [])
+      .filter(p => p.stock > 0 && p.stock <= 10)
+      .sort((a, b) => a.stock - b.stock)[0];
+
+    return {
+      brandName: brand?.name ?? user?.brand?.name ?? 'Ma Marque',
+      brandSlug: brand?.slug ?? user?.brand?.slug ?? 'kollect',
+      revenue: stats?.revenueThisPeriod ?? 0,
+      orders: stats?.ordersThisPeriod ?? 0,
+      views: stats?.viewsThisPeriod ?? 0,
+      conversionRate: stats?.conversionRate ?? 0,
+      salesHistory: (salesData || []).map(s => ({ value: s.value })),
+      topProduct: topProducts[0] ? {
+        name: topProducts[0].name,
+        image: topProducts[0].images?.[0] ?? '',
+        views: topProducts[0].viewCount ?? 0,
+        price: topProducts[0].price,
+        slug: topProducts[0].slug ?? topProducts[0].id ?? '',
+      } : undefined,
+      lowStockProduct: lowStockProd ? {
+        name: lowStockProd.name,
+        image: lowStockProd.images?.[0] ?? '',
+        stock: lowStockProd.stock,
+        price: lowStockProd.price,
+        slug: lowStockProd.slug ?? lowStockProd.id ?? ''
+      } : undefined,
+      period: period === '7days' ? '7 jours' : period === '30days' ? '30 jours' : '90 jours'
+    };
+  }, [brand, user, stats, topProducts, period, salesData, allProducts]);
 
   // Intersection observer pour sync sidebar active
   useEffect(() => {
@@ -303,6 +342,10 @@ export function DashboardShell() {
           align-items: center;
           justify-content: space-between;
           gap: 16px;
+        }
+
+        @media (max-width: 1024px) {
+          .dash-story-text { display: none; }
         }
 
         /* ── Search ── */
@@ -526,22 +569,12 @@ export function DashboardShell() {
               router.push('/dashboard/commandes');
               return;
             }
-            if (section === 'analytics') {
-              router.push('/dashboard/analytics');
-              return;
-            }
-            if (section === 'settings') {
-              router.push('/dashboard/settings');
-              return;
-            }
-            if (section === 'notifications') {
-              router.push('/dashboard/notifications');
-              return;
-            }
+            // Sections clients et analytics supprimées du sidebar
+    
             setActiveSection(section);
             document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
-          notificationCount={pendingCount}
+         // notificationCount={pendingCount}
         />
 
         <main className="dash-main" style={{ padding: '20px 24px', minWidth: 0 }}>
@@ -604,6 +637,28 @@ export function DashboardShell() {
                   </button>
                 ))}
               </div>
+
+              {/* Success Story Button */}
+              <button
+                type="button"
+                onClick={() => setShowStoryGenerator(true)}
+                title="Générer une Story Success"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7, 
+                  padding: '7px 14px', borderRadius: 10,
+                  background: 'linear-gradient(135deg, #FF3B30, #E63329)',
+                  color: '#fff', border: 'none', cursor: 'pointer',
+                  fontSize: 13, fontWeight: 700, boxShadow: '0 4px 12px rgba(255,59,48,0.25)',
+                  transition: 'transform 0.1s'
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                  <polyline points="16 6 12 2 8 6" />
+                  <line x1="12" y1="2" x2="12" y2="15" />
+                </svg>
+                <span className="dash-story-text">Story Success</span>
+              </button>
 
               {/* Notifications bell */}
               <div ref={notificationsRef} style={{ position: 'relative' }}>
@@ -845,13 +900,6 @@ export function DashboardShell() {
                           try {
                             await signOut();
                             setProfileMenuOpen(false);
-                            // Nettoyer le localStorage et sessionStorage
-                            if (typeof window !== 'undefined') {
-                              localStorage.clear();
-                              sessionStorage.clear();
-                            }
-                            // Rediriger vers l'accueil
-                            router.push('/');
                           } catch (error) {
                             console.error('Erreur lors de la déconnexion:', error);
                           }
@@ -917,47 +965,14 @@ export function DashboardShell() {
           {/* ══ ROW 3 — Donut (1/3) + Stock (1/3) + Quick Actions (1/3) ══ */}
           <section className="dash-section dash-grid-3">
             <DashboardOrdersDonut orders={dashboardLoading ? null : orderStats} />
-            {allProducts.some((p) => p.stock <= 5) ? (
-              <DashboardStockAlert
-                products={allProducts}
-                isLoading={productsLoading}
-                threshold={5}
-              />
-            ) : (
-              <DashboardAudienceCard
-                stats={stats}
-                isLoading={dashboardLoading}
-                onShare={() => {
-                  if (typeof navigator !== 'undefined' && navigator.clipboard && brand?.slug) {
-                    navigator.clipboard.writeText(`${window.location.origin}/brand/${brand.slug}`);
-                  }
-                }}
-              />
-            )}
+            <DashboardStockAlert
+              products={allProducts}
+              isLoading={productsLoading}
+              threshold={10}
+            />
             <DashboardQuickActions
               pendingOrdersCount={pendingCount}
-              onCreateDrop={() => {
-                setActiveSection('drops');
-                document.getElementById('drops')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              onAddProduct={() => {
-                setActiveSection('products');
-                document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              onViewOrders={() => {
-                setActiveSection('orders');
-                document.getElementById('orders')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              onCreatePromo={() => {
-                setActiveSection('products');
-                document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              onManageBrand={() => router.push('/brands/my-brand')}
-              onShareProfile={() => {
-                if (brand?.slug) {
-                  void navigator.clipboard.writeText(`${window.location.origin}/brand/${brand.slug}`);
-                }
-              }}
+              onShareProfile={() => setShowShareModal(true)}
             />
           </section>
 
@@ -972,11 +987,28 @@ export function DashboardShell() {
             <DashboardActivityFeed
               events={activityEvents}
               isLoading={dashboardLoading}
+              onViewAll={() => router.push('/dashboard/commandes')}
             />
           </section>
 
         </main>
       </div>
+
+      {showStoryGenerator && (
+        <DashboardStoryGenerator 
+          data={storyData} 
+          onClose={() => setShowStoryGenerator(false)} 
+        />
+      )}
+
+      {showShareModal && (
+        <DashboardShareModal
+          brandName={brand?.name ?? user?.brand?.name ?? 'Ma Marque'}
+          brandSlug={brand?.slug ?? user?.brand?.slug ?? 'kollect'}
+          brandLogo={brand?.logo ?? user?.brand?.logo ?? null}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </>
   );
 }

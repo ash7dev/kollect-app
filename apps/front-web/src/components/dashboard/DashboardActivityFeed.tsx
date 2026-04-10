@@ -17,6 +17,7 @@ export type ActivityEvent = {
 type Props = {
   events:    ActivityEvent[];
   isLoading: boolean;
+  onViewAll?: () => void;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -44,7 +45,7 @@ function timeAgo(iso: string) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function DashboardActivityFeed({ events, isLoading }: Props) {
+export function DashboardActivityFeed({ events, isLoading, onViewAll }: Props) {
   const [filter, setFilter] = useState<'all' | 'order' | 'product'>('all');
 
   const filtered = events.filter((e) => filter === 'all' || e.type === filter);
@@ -198,7 +199,7 @@ export function DashboardActivityFeed({ events, isLoading }: Props) {
 
       {/* Footer */}
       {filtered.length > 10 && (
-        <button type="button" className="daf-footer-btn">
+        <button type="button" className="daf-footer-btn" onClick={onViewAll}>
           Voir l&apos;historique complet
         </button>
       )}

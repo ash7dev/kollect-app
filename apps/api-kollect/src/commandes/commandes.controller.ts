@@ -67,7 +67,6 @@ export class CommandesController {
    * Liste des commandes de la boutique (CEO uniquement)
    */
   @Get('boutique/me')
-  @UseGuards(RolesGuard)
   @Roles('isCEO')
   async getBoutiqueCommandes(
     @CurrentUser() user: UserPayload,
@@ -81,7 +80,6 @@ export class CommandesController {
    * Statistiques des commandes de la boutique (CEO uniquement)
    */
   @Get('boutique/stats')
-  @UseGuards(RolesGuard)
   @Roles('isCEO')
   async getBoutiqueCommandesStats(@CurrentUser() user: UserPayload) {
     return this.commandesService.getCommandeStats(user.id);
@@ -117,8 +115,9 @@ export class CommandesController {
    * Annuler une commande (CEO ou Client)
    */
   @Patch(':id/annuler')
+  @Roles('isCEO', 'isClient')
   @HttpCode(HttpStatus.OK)
-  annulerCommande(
+  async annulerCommande(
     @CurrentUser() user: UserPayload,
     @Param('id') id: string,
     @Body() dto: UpdateCommandeStatusDto,

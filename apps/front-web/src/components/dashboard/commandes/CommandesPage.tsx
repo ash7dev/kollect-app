@@ -10,6 +10,7 @@ import { useOnboardingGuard } from '@/hooks/useOnboardingGuard';
 import { DashboardSidebar, type SidebarSection } from '@/components/dashboard/DashboardSidebar';
 import { apiClient } from '@/services/api/client';
 import { API_ENDPOINTS } from '@/services/api/endpoints';
+import { CeoStatCard } from '../CeoStatCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,6 +97,7 @@ const IC = {
   tag:         'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01',
   trending:    'M23 6l-9.5 9.5-5-5L1 18',
   fcfa:        ['M12 2v20', 'M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6', 'M3 10h18', 'M3 14h18'],
+  whatsapp:    'M22 11.08c0 5-4.07 9.08-9.08 9.08-1.5 0-2.9-.36-4.13-1L5 20l.85-3.61c-.69-1.22-1.1-2.62-1.1-4.11 0-5 4.07-9.08 9.08-9.08S22 7.07 22 11.08zM12.92 5.64c-3 0-5.44 2.44-5.44 5.44 0 1.3.45 2.48 1.21 3.44l-.81 2.52 2.6-.74c.9.52 1.94.82 3.04.82 3 0 5.44-2.43 5.44-5.44s-2.44-5.44-5.44-5.44zm2.5 7.42c-.14-.07-.81-.4-0.94-.45s-.22-.07-.31.07c-.09.15-.36.45-.44.54s-.16.1-.3 0c-1.39-.7-1.88-2.02-1.88-2.02-.08-.14-0.01-.21.06-.28.06-.06.14-.16.21-.24.07-.08.09-.13.13-.22.04-.09.02-.16-0.01-.23s-.31-.74-.42-1.01c-.11-.26-.22-.22-.31-.22s-.18 0-.27 0-.25.04-.38.18c-.13.14-.5.49-.5 1.19s.51 1.38.58 1.48c.07.1 1 1.53 2.42 2.14.34.15.61.24.82.31s.4.08.55.06c.16-.02.5-.21.57-.42s.07-.38.05-.42-.09-.07-.23-.14z',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -106,6 +108,22 @@ function fmtPrice(n: number) {
 
 function fmtDate(iso: string, opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }) {
   return new Date(iso).toLocaleDateString('fr-FR', opts);
+}
+
+function generateWhatsAppLink(order: OrderDetail) {
+  const phone = order.shippingPhone.replace(/\D/g, '');
+  const firstName = order.client.firstName || 'Client';
+  const amount = fmtPrice(order.total);
+  const orderId = order.orderNumber;
+  
+  let message = '';
+  if (order.status === 'EN_ATTENTE') {
+    message = `Bonjour ${firstName}, votre commande Kollect #${orderId} d'un montant de ${amount} a bien été reçue. Afin de valider votre expédition, pouvez-vous s'il vous plaît confirmer votre disponibilité ?`;
+  } else {
+    message = `Bonjour ${firstName}, bonne nouvelle ! Votre commande Kollect #${orderId} est en route. 🚀 Notre livreur arrivera très prochainement. Montant à payer à la livraison : ${amount}. Confirmez-vous votre disponibilité ?`;
+  }
+  
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
 function timeAgo(iso: string) {
@@ -137,25 +155,6 @@ function FullPageSpinner({ message }: { message: string }) {
         <p style={{ color: '#9CA3AF', fontSize: 13, margin: 0, fontFamily: 'inherit', fontWeight: 500 }}>{message}</p>
       </div>
       <style>{`@keyframes cmd-spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
-}
-
-// ─── KPI Card ────────────────────────────────────────────────────────────────
-
-function KpiCard({ label, value, accent, sub, pulse }: {
-  label: string; value: string | number; accent: string; sub?: string; pulse?: boolean;
-}) {
-  return (
-    <div className="cmd-kpi">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: '#9CA3AF' }}>
-          {label}
-        </span>
-        {pulse && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', animation: 'cmd-pulse 1.4s ease-in-out infinite' }} />}
-      </div>
-      <div style={{ fontSize: 30, fontWeight: 900, color: accent, letterSpacing: '-1.5px', lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
@@ -445,6 +444,33 @@ function DetailDrawer({ orderId, onClose, onConfirm, onCancel, confirming, cance
                     {order.shippingAddress}, {order.shippingCity}
                   </span>
                 </div>
+                
+                {/* WhatsApp Button */}
+                <a
+                  href={generateWhatsAppLink(order)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="cmd-whatsapp-btn"
+                  style={{
+                    marginTop: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    padding: '12px 16px',
+                    borderRadius: 12,
+                    background: '#0A0A0A',
+                    color: '#fff',
+                    textDecoration: 'none',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <Ic d={IC.whatsapp} size={18} stroke="#25D366" sw={2} />
+                  Contacter via WhatsApp
+                </a>
               </div>
             </div>
 
@@ -799,6 +825,15 @@ export function CommandesPage() {
           transition: transform 0.18s, box-shadow 0.18s;
           animation: cmd-rise 0.45s cubic-bezier(0.4,0,0.2,1) both;
         }
+
+        .cmd-whatsapp-btn:hover {
+          transform: translateY(-2px);
+          background: #1a1a1a;
+          box-shadow: 0 8px 16px rgba(37, 211, 102, 0.15);
+        }
+        .cmd-whatsapp-btn:active {
+          transform: scale(0.98);
+        }
         .cmd-row:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.07), 0 12px 32px rgba(0,0,0,0.07); }
 
         /* ── Buttons ── */
@@ -989,12 +1024,32 @@ export function CommandesPage() {
           </div>
 
           {/* ── KPIs ── */}
-          <div className="cmd-kpi-row">
-            <KpiCard label="Total"       value={stats?.total ?? '—'}      accent="#0A0A0A" />
-            <KpiCard label="En attente"  value={stats?.enAttente ?? '—'}  accent="#F59E0B" pulse={(stats?.enAttente ?? 0) > 0} />
-            <KpiCard label="Confirmées"  value={stats?.confirmees ?? '—'} accent="#10B981" />
-            <KpiCard label="Annulées"    value={stats?.annulees ?? '—'}   accent="#EF4444" />
-            <KpiCard label="CA confirmé" value={stats ? fmtPrice(stats.revenueTotal) : '—'} accent="#6366F1" sub="FCFA" />
+          <div className="cmd-kpi-row" style={{ display: 'flex', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
+            <CeoStatCard 
+              label="Volume Total" 
+              value={stats?.total ?? 0} 
+              color="#0A0A0A"
+              subLabel="Commandes passées"
+            />
+            <CeoStatCard 
+              label="En Attente" 
+              value={stats?.enAttente ?? 0} 
+              color="#F59E0B"
+              pulse={stats && stats.enAttente > 0}
+              subLabel="À traiter d'urgence"
+            />
+            <CeoStatCard 
+              label="Confirmées" 
+              value={stats?.confirmees ?? 0} 
+              color="#10B981"
+              subLabel="En cours de livraison"
+            />
+            <CeoStatCard 
+              label="Chiffre d'Affaires" 
+              value={stats ? fmtPrice(stats.revenueTotal) : '—'} 
+              color="#E63329"
+              subLabel="Revenu généré"
+            />
           </div>
 
           {/* ── Toolbar ── */}

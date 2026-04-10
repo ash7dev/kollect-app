@@ -28,6 +28,7 @@ export type EditCollectionFields = {
   description: string;
   isFeatured: boolean;
   launchDate: string;
+  endDate: string | null;
   /** undefined = pas de changement, null = supprimer, File = nouveau fichier */
   coverFile?: File | null;
 };
@@ -48,6 +49,10 @@ export function EditCollectionModal({ collection, isPending, onSave, onCancel }:
   const [launchDate, setLaunchDate] = useState(() => {
     if (!collection.launchDate) return '';
     return new Date(collection.launchDate).toISOString().slice(0, 16);
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    if (!collection.endDate) return '';
+    return new Date(collection.endDate).toISOString().slice(0, 16);
   });
   // undefined = pas de changement, null = supprimer, File = nouveau fichier
   const [coverFile, setCoverFile]   = useState<File | null | undefined>(undefined);
@@ -70,7 +75,7 @@ export function EditCollectionModal({ collection, isPending, onSave, onCancel }:
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSave) return;
-    onSave({ name: name.trim(), description: description.trim(), isFeatured, launchDate, coverFile });
+    onSave({ name: name.trim(), description: description.trim(), isFeatured, launchDate, endDate: endDate || null, coverFile });
   };
 
   return (
@@ -284,6 +289,19 @@ export function EditCollectionModal({ collection, isPending, onSave, onCancel }:
               />
             </div>
           )}
+
+          {/* End date */}
+          <div>
+            <label style={labelStyle}>Date de fin planifiée (optionnel)</label>
+            <input
+              type="datetime-local"
+              style={inputStyle}
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+              onFocus={e => (e.currentTarget.style.borderColor = '#FF3B30')}
+              onBlur={e => (e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)')}
+            />
+          </div>
 
           {/* Featured toggle */}
           <div

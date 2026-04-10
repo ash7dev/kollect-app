@@ -16,6 +16,7 @@ import type {
   CreatePromoCodeDto,
   QueryPromotionsDto,
   TogglePromotionDto,
+  UpdatePromotionDto,
   ValidatePromoCodeDto,
 } from './dto/promotions.dto';
 
@@ -249,6 +250,56 @@ export class PromotionsService {
     return this.prisma.codePromo.update({
       where: { id: promoId },
       data: { isActive },
+    });
+  }
+
+  /**
+   * ✅ 4.5. Mettre à jour une promotion (Dashboard)
+   */
+  async updatePromotion(
+    userId: string,
+    promoId: string,
+    dto: UpdatePromotionDto,
+  ) {
+    const brand = await this.prisma.marque.findUnique({ where: { userId } });
+    if (!brand) throw new NotFoundException('Marque introuvable');
+
+    const promo = await this.prisma.codePromo.findUnique({
+      where: { id: promoId },
+    });
+    if (!promo || promo.brandId !== brand.id)
+      throw new NotFoundException('Promotion introuvable');
+
+    return this.prisma.codePromo.update({
+      where: { id: promoId },
+      data: {
+        description: dto.description,
+        discountValue: dto.discountValue,
+        maxDiscount: dto.maxDiscount,
+        minOrderAmount: dto.minOrderAmount,
+        usageLimit: dto.usageLimit,
+        startsAt: dto.startsAt ? new Date(dto.startsAt) : undefined,
+        expiresAt: dto.expiresAt === null ? null : dto.expiresAt ? new Date(dto.expiresAt) : undefined,
+        isActive: dto.isActive,
+      },
+    });
+  }
+
+  /**
+   * ✅ 4.6. Supprimer une promotion (Dashboard)
+   */
+  async deletePromotion(userId: string, promoId: string) {
+    const brand = await this.prisma.marque.findUnique({ where: { userId } });
+    if (!brand) throw new NotFoundException('Marque introuvable');
+
+    const promo = await this.prisma.codePromo.findUnique({
+      where: { id: promoId },
+    });
+    if (!promo || promo.brandId !== brand.id)
+      throw new NotFoundException('Promotion introuvable');
+
+    return this.prisma.codePromo.delete({
+      where: { id: promoId },
     });
   }
 

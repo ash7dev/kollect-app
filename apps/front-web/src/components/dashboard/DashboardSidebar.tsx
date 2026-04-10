@@ -10,11 +10,7 @@ export type SidebarSection =
   | 'drops'
   | 'products'
   | 'promotions'
-  | 'orders'
-  | 'clients'
-  | 'analytics'
-  | 'settings'
-  | 'notifications';
+  | 'orders';
 
 type SidebarProps = {
   brandName?: string;
@@ -57,10 +53,6 @@ const ICONS: Record<string, string | string[]> = {
   products: ['M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z', 'M3 6h18', 'M16 10a4 4 0 0 1-8 0'],
   promotions: ['M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z', 'M7 7h.01'],
   orders: ['M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2', 'M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z', 'M9 14l2 2 4-4'],
-  clients: ['M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8', 'M23 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'],
-  analytics: ['M18 20V10', 'M12 20V4', 'M6 20v-6'],
-  notifications: ['M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9', 'M13.73 21a2 2 0 0 1-3.46 0'],
-  settings: ['M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'],
   collapse: 'M15 18l-6-6 6-6',
   expand: 'M9 18l6-6-6-6',
   dots: 'M5 12h.01M12 12h.01M19 12h.01',
@@ -74,13 +66,10 @@ const MAIN_ITEMS: { id: SidebarSection; label: string }[] = [
   { id: 'products', label: 'Produits' },
   { id: 'promotions', label: 'Promotions' },
   { id: 'orders', label: 'Commandes' },
-  { id: 'clients', label: 'Clients' },
-  { id: 'analytics', label: 'Analytiques' },
 ];
 
 const BOTTOM_ITEMS: { id: SidebarSection; label: string }[] = [
-  { id: 'notifications', label: 'Notifications' },
-  { id: 'settings', label: 'Paramètres' },
+  // Plus d'onglets en bas pour le mode desktop
 ];
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
@@ -300,7 +289,6 @@ export function DashboardSidebar({
   onToggleCollapse,
   active = 'overview',
   onNavigate,
-  notificationCount = 0,
   mobileOpen = false,
   onMobileClose,
 }: SidebarProps) {
@@ -434,7 +422,6 @@ export function DashboardSidebar({
               key={item.id}
               id={item.id}
               label={item.label}
-              badge={item.id === 'notifications' ? notificationCount : undefined}
             />
           ))}
         </div>

@@ -42,8 +42,47 @@ export function DashboardStockAlert({ products, isLoading, threshold = 5 }: Prop
     );
   }
 
-  // ── Content ───────────────────────────────────────────────────────────────
-  if (lowStock.length === 0) return null;
+  // ── Empty state — no alerts ───────────────────────────────────────────────
+  if (lowStock.length === 0) {
+    return (
+      <article style={cardStyle}>
+        <style dangerouslySetInnerHTML={{ __html: STYLES + ANIM }} />
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              Stocks
+              <span style={{
+                padding: '2px 8px', borderRadius: 99,
+                background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)',
+                fontSize: 10, fontWeight: 700, color: '#fff', letterSpacing: '0.5px'
+              }}>OK</span>
+            </h3>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.65)' }}>Aucun produit en alerte</p>
+          </div>
+        </div>
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 12,
+          padding: '16px 0'
+        }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.15)',
+            border: '2px solid rgba(255,255,255,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff', textAlign: 'center' }}>Tous vos stocks sont sains</p>
+          <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.6)', textAlign: 'center', lineHeight: 1.5 }}>
+            Aucun produit n&apos;est sous le seuil de {threshold} unités.
+          </p>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article style={cardStyle}>

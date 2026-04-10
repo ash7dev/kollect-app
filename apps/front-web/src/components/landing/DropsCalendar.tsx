@@ -211,7 +211,7 @@ export function DropsCalendar() {
                   </svg>
                 </Link>
                 <Link
-                  href="/create-brand"
+                  href="/become-seller"
                   className="drops-calendar-create"
                   style={{
                     display: 'inline-flex', 
@@ -425,7 +425,7 @@ export function DropsCalendar() {
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </Link>
-            <Link href="/create-brand" style={{
+            <Link href="/become-seller" style={{
               display: 'inline-flex', 
               alignItems: 'center', 
               gap: '8px',

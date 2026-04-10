@@ -8,7 +8,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useOnboardingGuard } from '@/hooks/useOnboardingGuard';
 import { useCeoCollection } from '@/hooks/dashboard/useCeoCollection';
 import { DashboardSidebar, type SidebarSection } from '@/components/dashboard/DashboardSidebar';
-import { deleteCollection, updateCollection, updateCollectionCover, removeCollectionCover } from '@/services/api/collections';
+import { deleteCollection, updateCollection, updateCollectionCover, removeCollectionCover, activateTeaserCollection } from '@/services/api/collections';
 import { apiClient } from '@/services/api/client';
 import { API_ENDPOINTS } from '@/services/api/endpoints';
 import { CollectionTopBar } from './CollectionTopBar';
@@ -122,6 +122,18 @@ export function CollectionDetailPage({ id }: { id: string }) {
     onError: () => toast.error('Erreur lors de la suppression', { id: 'delete' }),
   });
 
+  // ── Activate Teaser ──
+  const activateTeaserMutation = useMutation({
+    mutationFn: () => activateTeaserCollection(id),
+    onMutate:   () => toast.loading('Activation du teaser…', { id: 'activate-teaser' }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['dashboard', 'collections', 'ceo'] });
+      await qc.invalidateQueries({ queryKey: ['dashboard', 'collections', 'ceo', id] });
+      toast.success('Teaser activé avec succès !', { id: 'activate-teaser' });
+    },
+    onError: () => toast.error("Erreur lors de l'activation du teaser", { id: 'activate-teaser' }),
+  });
+
   // ── Edit ──
   const editMutation = useMutation({
     mutationFn: async (fields: EditCollectionFields) => {
@@ -172,19 +184,21 @@ export function CollectionDetailPage({ id }: { id: string }) {
           onToggleCollapse={() => setSidebarCollapsed(v => !v)}
           active="drops"
           onNavigate={handleNavigate}
-          notificationCount={0}
           mobileOpen={mobileSidebarOpen}
           onMobileClose={() => setMobileSidebarOpen(false)}
         />
 
         <main className="cd-main">
           <CollectionTopBar
+            brandSlug={user.brand?.slug}
             collection={collection ?? null}
             onBack={()   => router.push('/dashboard/drops')}
             onLaunch={()  => launchMutation.mutate()}
             onEdit={()    => setShowEditModal(true)}
             onDelete={()  => setShowDeleteModal(true)}
+            onActivateTeaser={() => activateTeaserMutation.mutate()}
             launchPending={launchMutation.isPending}
+            activatePending={activateTeaserMutation.isPending}
             onOpenSidebar={() => setMobileSidebarOpen(true)}
           />
 

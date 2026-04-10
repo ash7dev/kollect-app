@@ -12,9 +12,56 @@ function resolvePostLoginDestination(user: {
   isAdmin: boolean;
   has_seen_creator_prompt: boolean;
 }) {
-  if (user.isCEO || user.isAdmin) return '/dashboard';
+  if (user.isAdmin) return '/admin';
   if (!user.has_seen_creator_prompt) return '/onboarding';
+  if (user.isCEO) return '/dashboard';
   return '/';
+}
+
+function resolveSafePostLoginDestination(
+  user: {
+    isCEO: boolean;
+    isAdmin: boolean;
+    has_seen_creator_prompt: boolean;
+  },
+  nextParam: string | null,
+) {
+  const fallback = resolvePostLoginDestination(user);
+
+  if (!nextParam || !nextParam.startsWith('/')) {
+    return fallback;
+  }
+
+  if (user.isAdmin) {
+    if (nextParam.startsWith('/dashboard') || nextParam.startsWith('/onboarding')) {
+      return '/admin';
+    }
+    return nextParam;
+  }
+
+  if (user.isCEO) {
+    if (nextParam.startsWith('/admin') || nextParam.startsWith('/onboarding')) {
+      return '/dashboard';
+    }
+    return nextParam;
+  }
+
+  if (!user.has_seen_creator_prompt) {
+    if (nextParam.startsWith('/admin') || nextParam.startsWith('/dashboard')) {
+      return '/onboarding';
+    }
+    return nextParam;
+  }
+
+  if (
+    nextParam.startsWith('/admin') ||
+    nextParam.startsWith('/dashboard') ||
+    nextParam.startsWith('/onboarding')
+  ) {
+    return '/';
+  }
+
+  return nextParam;
 }
 
 export default function LoginPage() {
@@ -36,13 +83,13 @@ function LoginPageInner() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const busy = submitting || isLoading;
 
   const destination = useMemo(() => {
-    if (nextParam) return nextParam;
-    if (user) return resolvePostLoginDestination(user);
+    if (user) return resolveSafePostLoginDestination(user, nextParam);
     return null;
   }, [nextParam, user]);
 
@@ -51,6 +98,7 @@ function LoginPageInner() {
     if (!isInitialized) return;
     if (!user) return;
     if (!destination) return;
+    setIsRedirecting(true);
     router.replace(destination);
   }, [destination, isInitialized, router, user]);
 
@@ -82,6 +130,31 @@ function LoginPageInner() {
       setSubmitting(false);
     }
   };
+
+  // Écran de redirection — spinner plein écran
+  if (isRedirecting) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: '#fff',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        gap: 20,
+      }}>
+        <style dangerouslySetInnerHTML={{ __html: `@keyframes spin { to { transform: rotate(360deg); } }` }} />
+        <div style={{
+          width: 52, height: 52,
+          borderRadius: '50%',
+          border: '3px solid #f0f0f0',
+          borderTopColor: '#FF3B30',
+          animation: 'spin 0.7s linear infinite',
+        }} />
+        <p style={{ fontSize: 14, color: '#9ca3af', fontFamily: 'ui-sans-serif, system-ui, sans-serif', margin: 0 }}>
+          Connexion en cours…
+        </p>
+      </div>
+    );
+  }
 
   return (
     <main style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '1fr 1fr', background: '#fff', fontFamily: "var(--font-inter), ui-sans-serif, system-ui, sans-serif" }} className="auth-root">
