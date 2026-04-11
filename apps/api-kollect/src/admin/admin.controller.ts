@@ -27,6 +27,7 @@ import {
   ReviewModerationDto,
   BrandVerificationDto,
   GetGlobalStatsDto,
+  GetBrandsDto,
 } from './dto/admin.dto';
 
 /**
@@ -198,7 +199,7 @@ export class AdminController {
 
   @Get('brands')
   @HttpCode(HttpStatus.OK)
-  async getBrands(@Query() query: GetUsersDto) {
+  async getBrands(@Query() query: GetBrandsDto) {
     return await this.adminService.getBrands(query);
   }
 

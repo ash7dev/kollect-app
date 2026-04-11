@@ -19,6 +19,7 @@ import {
   ReviewModerationDto,
   BrandVerificationDto,
   GetGlobalStatsDto,
+  GetBrandsDto,
 } from './dto/admin.dto';
 
 @Injectable()
@@ -683,7 +684,7 @@ export class AdminService {
   // GESTION DES MARQUES
   // ========================================
 
-  async getBrands(query: GetUsersDto) {
+  async getBrands(query: GetBrandsDto) {
     const {
       page = 1,
       limit = 20,

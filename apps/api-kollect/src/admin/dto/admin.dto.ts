@@ -67,7 +67,7 @@ export class GetBrandsDto {
   status?: 'active' | 'inactive';
 
   @IsOptional()
-  @IsEnum(['createdAt', 'name'])
+  @IsEnum(['createdAt', 'name', 'revenue'])
   sortBy?: string = 'createdAt';
 
   @IsOptional()
