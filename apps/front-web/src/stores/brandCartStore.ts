@@ -11,7 +11,7 @@ export type BrandCartItem = {
   slug: string;
   price: number;
   originalPrice?: number;
-  image?: string | null;
+  image?: string;
   quantity: number;
   stock?: number | null;
   // Variants
