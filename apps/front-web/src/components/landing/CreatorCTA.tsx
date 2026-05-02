@@ -45,20 +45,62 @@ const CREATOR_FEATURES = [
 
 export function CreatorCTA() {
   return (
-    <section
-      id="creators"
-      aria-label="Rejoindre en tant que marque"
-      style={{
-        padding: '120px 24px',
+    <div style={{ position: 'relative', margin: '60px 12px 80px', zIndex: 10, fontFamily: FONT_FAMILY_INTER }}>
+      {/* TOP LEFT TAB */}
+      <div className="creator-tab-top" style={{
+        position: 'absolute',
+        top: '-40px',
+        left: '0',
+        height: '40px',
+        padding: '0 32px',
         backgroundColor: '#000',
-        position: 'relative',
-        overflow: 'hidden',
-        borderRadius: 'var(--radius-xxxl)',
-        margin: '0 12px',
-        border: '1px solid rgba(255,255,255,0.06)',
-        fontFamily: FONT_FAMILY_INTER,
-      }}
-    >
+        borderTopLeftRadius: '20px',
+        borderTopRightRadius: '20px',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        borderLeft: '1px solid rgba(255,255,255,0.06)',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        zIndex: 2,
+      }}>
+        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#C2923B', boxShadow: '0 0 10px rgba(194,146,59,0.8)' }} />
+        <span style={{ fontSize: '11px', color: '#C2923B', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>
+          Pour les marques & créateurs
+        </span>
+        {/* Border mask for the body */}
+        <div style={{
+          position: 'absolute',
+          bottom: '-1px', // Cover the 1px top border of the body
+          left: '1px',
+          right: '-24px', // Cover under the curve
+          height: '2px',
+          backgroundColor: '#000',
+          zIndex: 1,
+        }} />
+        {/* Inner curve */}
+        <svg 
+          style={{ position: 'absolute', bottom: '0', right: '-24px', width: '24px', height: '24px', zIndex: 3 }}
+          viewBox="0 0 24 24"
+        >
+          <path d="M0 0 Q0 24 24 24 L0 24 Z" fill="#000" />
+          <path d="M0 0 Q0 24 24 24" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" />
+        </svg>
+      </div>
+
+      <section
+        id="creators"
+        aria-label="Rejoindre en tant que marque"
+        style={{
+          padding: '80px 24px',
+          backgroundColor: '#000',
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: '0 32px 0 32px', // Asymmetrical Double-Folder shape!
+          border: '1px solid rgba(255,255,255,0.06)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
+        }}
+      >
       {/* BG glow */}
       <div aria-hidden style={{
         position: 'absolute',
@@ -89,13 +131,6 @@ export function CreatorCTA() {
           {/* ── Left : texte ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
             <div>
-              <p style={{
-                fontSize: '11px', fontWeight: 700, color: '#C2923B',
-                letterSpacing: '2.5px', textTransform: 'uppercase',
-                marginBottom: '16px',
-              }}>
-                Pour les marques & créateurs
-              </p>
               <h2 style={{
                 fontSize: 'clamp(2rem, 3.8vw, 3rem)',
                 fontWeight: 900, color: '#fff',
@@ -256,6 +291,48 @@ export function CreatorCTA() {
           .creator-feature-cards { grid-template-columns: 1fr !important; }
         }
       `}</style>
-    </section>
+      </section>
+
+      {/* BOTTOM RIGHT TAB */}
+      <div className="creator-tab-bottom" style={{
+        position: 'absolute',
+        bottom: '-40px',
+        right: '0',
+        height: '40px',
+        padding: '0 32px',
+        backgroundColor: '#000',
+        borderBottomLeftRadius: '20px',
+        borderBottomRightRadius: '20px',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        borderLeft: '1px solid rgba(255,255,255,0.06)',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        zIndex: 2,
+      }}>
+        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase' }}>
+          Espace Créateur
+        </span>
+        {/* Border mask for the body */}
+        <div style={{
+          position: 'absolute',
+          top: '-1px', // Cover the 1px bottom border of the body
+          left: '-24px', // Cover under the curve
+          right: '1px',
+          height: '2px',
+          backgroundColor: '#000',
+          zIndex: 1,
+        }} />
+        {/* Inner curve */}
+        <svg 
+          style={{ position: 'absolute', top: '0', left: '-24px', width: '24px', height: '24px', zIndex: 3 }}
+          viewBox="0 0 24 24"
+        >
+          <path d="M0 0 Q24 0 24 24 L24 0 Z" fill="#000" />
+          <path d="M0 0 Q24 0 24 24" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" />
+        </svg>
+      </div>
+    </div>
   );
 }

@@ -103,19 +103,63 @@ export function DropsCalendar() {
     <div style={{ fontFamily: FONT_FAMILY_INTER }}>
       {/* Header unifié quand les deux sections sont présentes */}
       {showBoth && (
-        <section
-          id="drops-calendar-header"
-          aria-label="Agenda des lancements"
-          style={{
-            padding: 'clamp(60px, 8vw, 100px) 24px',
+        <div style={{ position: 'relative', marginTop: '40px', margin: '40px 12px 24px', zIndex: 10 }}>
+          {/* Folder Tab */}
+          <div style={{
+            position: 'absolute',
+            top: '-36px',
+            left: '0',
+            height: '36px',
+            padding: '0 24px',
             backgroundColor: '#000',
-            position: 'relative',
-            overflow: 'hidden',
-            borderRadius: 'var(--radius-xxxl)',
-            margin: '0 12px 24px',
-            border: '1px solid rgba(255,255,255,0.06)',
-          }}
-        >
+            borderTopLeftRadius: '16px',
+            borderTopRightRadius: '16px',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+            borderLeft: '1px solid rgba(255,255,255,0.06)',
+            borderRight: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            zIndex: 2,
+          }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FF3B30', boxShadow: '0 0 10px rgba(255,59,48,0.8)', animation: 'dropsCalendarPulse 2s ease-in-out infinite' }} />
+            <span style={{ fontSize: '11px', color: '#fff', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>
+              Agenda
+            </span>
+            {/* Border mask for the body */}
+            <div style={{
+              position: 'absolute',
+              bottom: '-1px', // Cover the 1px top border of the body
+              left: '1px',
+              right: '-16px', // Cover under the curve
+              height: '2px',
+              backgroundColor: '#000',
+              zIndex: 1,
+            }} />
+            {/* Inner curve */}
+            <svg 
+              style={{ position: 'absolute', bottom: '0', right: '-16px', width: '16px', height: '16px', zIndex: 3 }}
+              viewBox="0 0 16 16"
+            >
+              <path d="M0 0 Q0 16 16 16 L0 16 Z" fill="#000" />
+              <path d="M0 0 Q0 16 16 16" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" />
+            </svg>
+          </div>
+
+          <section
+            id="drops-calendar-header"
+            aria-label="Agenda des lancements"
+            style={{
+              padding: 'clamp(60px, 8vw, 100px) 24px',
+              backgroundColor: '#000',
+              position: 'relative',
+              overflow: 'hidden',
+              borderRadius: 'var(--radius-xxxl)',
+              borderTopLeftRadius: '0',
+              border: '1px solid rgba(255,255,255,0.06)',
+              boxShadow: '0 24px 56px rgba(0,0,0,0.15)',
+            }}
+          >
           {/* Atmospheric bg */}
           <div aria-hidden style={{ 
             position: 'absolute', 
@@ -148,32 +192,6 @@ export function DropsCalendar() {
               gap: '20px' 
             }}>
               <div>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '10px', 
-                  marginBottom: '16px' 
-                }}>
-                  <span style={{
-                    width: '8px', 
-                    height: '8px', 
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #FF3B30 0%, #FF9500 100%)',
-                    display: 'inline-block',
-                    boxShadow: '0 0 10px rgba(255,59,48,0.8)',
-                    animation: 'dropsCalendarPulse 2s ease-in-out infinite',
-                  }} />
-                  <p style={{ 
-                    fontSize: '11px', 
-                    fontWeight: 700, 
-                    color: '#FF3B30', 
-                    letterSpacing: '2.5px', 
-                    textTransform: 'uppercase', 
-                    margin: 0 
-                  }}>
-                    Agenda des marques
-                  </p>
-                </div>
                 <h2 style={{ 
                   fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', 
                   fontWeight: 900, 
@@ -244,7 +262,8 @@ export function DropsCalendar() {
               color: #C9A962 !important;
             }
           `}</style>
-        </section>
+          </section>
+        </div>
       )}
 
       {/* Afficher les composants appropriés */}

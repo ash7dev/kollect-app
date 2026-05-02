@@ -930,50 +930,77 @@ export function FeaturedCollections() {
   }, []);
 
   return (
-    <div
-        id="featured-collections"
-        aria-label="Collections en vedette"
-        style={{
-          padding: '120px 24px 0 24px', // Supprimé le padding bas
-          backgroundColor: '#FFFFFF', // Fond blanc au lieu de noir
-          position: 'relative',
-          overflow: 'hidden',
-          borderRadius: 'var(--radius-xxxl)',
-          margin: '0 12px',
-          border: '1px solid rgba(0,0,0,0.06)', // Bordure grise au lieu de blanche
-          fontFamily: FONT_FAMILY_INTER,
-        }}
-    >
+    <div style={{ position: 'relative', margin: '60px 12px', zIndex: 10, fontFamily: FONT_FAMILY_INTER }}>
+      {/* INDEX CARD TOP-CENTER TAB */}
+      <div className="fc-tab-center" style={{
+        position: 'absolute',
+        top: '-40px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        height: '40px',
+        padding: '0 32px',
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: '20px',
+        borderTopRightRadius: '20px',
+        borderTop: '1px solid rgba(0,0,0,0.06)',
+        borderLeft: '1px solid rgba(0,0,0,0.06)',
+        borderRight: '1px solid rgba(0,0,0,0.06)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '12px',
+        zIndex: 2,
+      }}>
+        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FF9500', boxShadow: '0 0 10px rgba(255,149,0,0.5)' }} />
+        <span style={{ fontSize: '11px', color: '#666', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+          Collections en vedette
+        </span>
+        {/* Border mask for the body */}
+        <div style={{
+          position: 'absolute',
+          bottom: '-1px', // Cover the 1px top border of the body
+          left: '1px', right: '1px', 
+          height: '2px', backgroundColor: '#FFFFFF', zIndex: 1,
+        }} />
+        {/* Left inner curve */}
+        <svg 
+          style={{ position: 'absolute', bottom: '0', left: '-24px', width: '24px', height: '24px', zIndex: 3 }}
+          viewBox="0 0 24 24"
+        >
+          <path d="M24 0 Q24 24 0 24 L24 24 Z" fill="#FFFFFF" />
+          <path d="M24 0 Q24 24 0 24" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="1.5" />
+        </svg>
+        {/* Right inner curve */}
+        <svg 
+          style={{ position: 'absolute', bottom: '0', right: '-24px', width: '24px', height: '24px', zIndex: 3 }}
+          viewBox="0 0 24 24"
+        >
+          <path d="M0 0 Q0 24 24 24 L0 24 Z" fill="#FFFFFF" />
+          <path d="M0 0 Q0 24 24 24" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="1.5" />
+        </svg>
+      </div>
+
+      <div
+          id="featured-collections"
+          aria-label="Collections en vedette"
+          style={{
+            padding: '80px 24px 0 24px',
+            backgroundColor: '#FFFFFF',
+            position: 'relative',
+            overflow: 'hidden',
+            borderRadius: '32px',
+            border: '1px solid rgba(0,0,0,0.06)',
+            boxShadow: '0 12px 48px rgba(0,0,0,0.05)',
+          }}
+      >
       {/* Pas de background pattern sur fond blanc */}
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative' }}>
         {/* Header - Texte avant l'image */}
         <div style={{
-          marginBottom: '32px',
+          marginBottom: '48px',
           textAlign: 'center'
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '12px',
-            marginBottom: '16px'
-          }}>
-            <div style={{
-              width: '4px',
-              height: '20px',
-              borderRadius: '2px',
-              backgroundColor: '#FF9500', // Orange
-            }} />
-            <span style={{
-              fontSize: '18px',
-              fontWeight: '700',
-              letterSpacing: '-0.3px',
-              color: '#666', // Gris
-            }}>
-              Collections en vedette
-            </span>
-          </div>
           <h2 style={{
             fontSize: 'clamp(2rem, 3.5vw, 2.8rem)',
             fontWeight: 900,
@@ -1183,6 +1210,7 @@ export function FeaturedCollections() {
           .featured-card-wrapper { height: 340px !important; }
         }
       `}</style>
+      </div>
     </div>
   );
 }

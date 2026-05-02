@@ -204,7 +204,7 @@ function StatsStrip({ count }: { count: number }) {
   );
 }
 
-/* ─── Featured Brand Card (grille principale) ────────────────────── */
+/* ─── Featured Brand Card (VIP ID Badge Style) ────────────────────── */
 function BrandCard({ brand, index }: { brand: Brand; index: number }) {
   const [hovered, setHovered] = useState(false);
   const logoSrc = mediaUrl(brand.logo);
@@ -218,124 +218,148 @@ function BrandCard({ brand, index }: { brand: Brand; index: number }) {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px',
-        padding: '24px',
-        borderRadius: '24px',
+        padding: '36px 20px 20px', // Extra padding at top for the hole
+        borderRadius: '16px',
         background: hovered 
-          ? `linear-gradient(135deg, ${brandColor}08 0%, ${brandColor}04 100%)`
-          : 'linear-gradient(135deg, #FAFAFA 0%, #F8F8F8 100%)',
-        border: `1px solid ${hovered ? `${brandColor}20` : 'rgba(0,0,0,0.05)'}`,
+          ? `linear-gradient(180deg, #FAFAFA 0%, ${brandColor}08 100%)`
+          : 'linear-gradient(180deg, #FFFFFF 0%, #FAFAFA 100%)',
+        border: `1px solid ${hovered ? `${brandColor}30` : 'rgba(0,0,0,0.08)'}`,
         textDecoration: 'none',
         color: 'inherit',
         transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)',
         boxShadow: hovered
-          ? `0 12px 36px ${brandColor}15, 0 4px 12px rgba(0,0,0,0.08)`
-          : '0 2px 8px rgba(0,0,0,0.04)',
-        transform: hovered ? 'translateY(-4px) scale(1.02)' : 'translateY(0) scale(1)',
+          ? `0 16px 40px ${brandColor}15, 0 4px 12px rgba(0,0,0,0.05)`
+          : '0 4px 12px rgba(0,0,0,0.03)',
+        transform: hovered ? 'translateY(-6px) scale(1.01)' : 'translateY(0) scale(1)',
         cursor: 'pointer',
         position: 'relative',
         overflow: 'hidden',
         fontFamily: FONT_FAMILY_INTER,
+        minHeight: '280px', // Ensure enough height for the ID badge look
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* 1. Lanyard Hole Punch (Top Center) */}
+      <div style={{
+        position: 'absolute',
+        top: '12px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '50px',
+        height: '10px',
+        borderRadius: '6px',
+        backgroundColor: '#FFFFFF', // Matches the section background
+        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1), 0 1px 0 rgba(255,255,255,1)',
+        border: '1px solid rgba(0,0,0,0.08)',
+        zIndex: 2,
+      }} />
+
       {/* Badge NEW */}
       {brand.isNew && (
         <div style={{
-          position: 'absolute', top: '16px', right: '16px',
-          padding: '4px 10px', borderRadius: '999px',
-          background: `linear-gradient(135deg, ${brandColor} 0%, ${brandColor}CC 100%)`,
+          position: 'absolute', top: '12px', right: '12px',
+          padding: '4px 8px', borderRadius: '4px',
+          backgroundColor: '#FF3B30',
           fontSize: '9px', fontWeight: 800,
-          color: '#fff', letterSpacing: '1.2px', textTransform: 'uppercase',
-          boxShadow: `0 4px 12px ${brandColor}40`,
-          animation: 'spNewPulse 2s ease-in-out infinite',
+          color: '#fff', letterSpacing: '1px', textTransform: 'uppercase',
         }}>
           NEW
         </div>
       )}
 
-      {/* Logo avec badge vérifié en overlay */}
-      <div style={{ position: 'relative', display: 'inline-block', width: 'fit-content' }}>
-        <div style={{
-          width: '56px', height: '56px', borderRadius: '16px',
-          backgroundColor: logoSrc ? '#fff' : `${brandColor}10`,
-          border: `2px solid ${hovered ? brandColor : 'rgba(0,0,0,0.06)'}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          overflow: 'hidden',
-          boxShadow: hovered 
-            ? `0 8px 24px ${brandColor}20`
-            : '0 4px 12px rgba(0,0,0,0.08)',
-          transition: 'all 300ms ease',
-          transform: hovered ? 'rotate(5deg)' : 'rotate(0deg)',
-        }}>
-          {logoSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '8px' }} />
-          ) : (
-            <span style={{ fontSize: '20px', fontWeight: 900, color: brandColor, letterSpacing: '-1px' }}>
-              {initial}
-            </span>
+      {/* Content wrapper centered */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', flex: 1, marginTop: '8px' }}>
+        
+        {/* Logo */}
+        <div style={{ position: 'relative', display: 'inline-block', marginBottom: '16px' }}>
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '14px',
+            backgroundColor: logoSrc ? '#fff' : `${brandColor}10`,
+            border: `2px solid ${hovered ? brandColor : 'rgba(0,0,0,0.08)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden',
+            boxShadow: hovered 
+              ? `0 8px 24px ${brandColor}20`
+              : '0 4px 12px rgba(0,0,0,0.06)',
+            transition: 'all 300ms ease',
+            transform: hovered ? 'scale(1.05)' : 'scale(1)',
+          }}>
+            {logoSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '6px' }} />
+            ) : (
+              <span style={{ fontSize: '24px', fontWeight: 900, color: brandColor, letterSpacing: '-1px' }}>
+                {initial}
+              </span>
+            )}
+          </div>
+          {brand.isVerified && (
+            <div style={{
+              position: 'absolute', bottom: '-4px', right: '-4px',
+              width: '24px', height: '24px', borderRadius: '50%',
+              background: `linear-gradient(135deg, #34C759 0%, #30A14E 100%)`,
+              border: '3px solid #fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(52,199,89,0.4)',
+            }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
           )}
         </div>
-        {brand.isVerified && (
-          <div style={{
-            position: 'absolute', bottom: '-4px', right: '-4px',
-            width: '20px', height: '20px', borderRadius: '50%',
-            background: `linear-gradient(135deg, #34C759 0%, #30A14E 100%)`,
-            border: '3px solid #fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(52,199,89,0.4)',
+
+        {/* Nom + label */}
+        <div>
+          <p style={{
+            fontSize: '18px', fontWeight: 900, color: '#000',
+            letterSpacing: '-0.5px', lineHeight: 1.2, margin: '0 0 4px',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            maxWidth: '180px',
           }}>
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+            {brand.name}
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <p style={{ fontSize: '11px', color: 'rgba(0,0,0,0.45)', margin: 0, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Official Partner
+            </p>
           </div>
-        )}
+        </div>
+
       </div>
 
-      {/* Nom + label */}
-      <div>
-        <p style={{
-          fontSize: '16px', fontWeight: 900, color: '#000',
-          letterSpacing: '-0.4px', lineHeight: 1.2, margin: '0 0 4px',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {brand.name}
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div style={{
-            width: '6px', height: '6px', borderRadius: '50%',
-            backgroundColor: '#34C759',
-            boxShadow: '0 0 6px rgba(52,199,89,0.6)',
-          }} />
-          <p style={{ fontSize: '11px', color: 'rgba(0,0,0,0.42)', margin: 0, fontWeight: 600 }}>
-            Marque vérifiée
-          </p>
+      {/* VIP Access / Barcode Footer */}
+      <div style={{
+        marginTop: '24px',
+        paddingTop: '16px',
+        borderTop: '1px dashed rgba(0,0,0,0.1)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '8px',
+      }}>
+        {/* Fake Barcode using repeating linear gradient */}
+        <div style={{
+          width: '100%',
+          height: '20px',
+          backgroundImage: `repeating-linear-gradient(90deg, #000, #000 2px, transparent 2px, transparent 4px, #000 4px, #000 5px, transparent 5px, transparent 8px, #000 8px, #000 12px, transparent 12px, transparent 14px)`,
+          opacity: 0.15,
+        }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(0,0,0,0.3)', letterSpacing: '1.5px', fontFamily: 'monospace' }}>
+            ID-{brand.id.split('-')[0]?.toUpperCase() || 'KLCT-01'}
+          </span>
+          <span style={{ fontSize: '9px', fontWeight: 800, color: hovered ? brandColor : 'rgba(0,0,0,0.3)', letterSpacing: '1px', transition: 'color 300ms ease' }}>
+            ACCESS
+          </span>
         </div>
       </div>
 
-      {/* Flèche hover */}
-      <div style={{
-        position: 'absolute', bottom: '20px', right: '20px',
-        width: '32px', height: '32px', borderRadius: '10px',
-        background: hovered ? `linear-gradient(135deg, ${brandColor} 0%, ${brandColor}CC 100%)` : 'rgba(0,0,0,0.06)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'all 250ms ease',
-        transform: hovered ? 'translateX(4px)' : 'translateX(0)',
-      }}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-          stroke={hovered ? '#fff' : 'rgba(0,0,0,0.32)'}
-          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-        >
-          <path d="M7 17L17 7M17 7H7M17 7v10" />
-        </svg>
-      </div>
-
-      {/* Accent gradient overlay */}
+      {/* Accent gradient overlay at the bottom edge */}
       {hovered && (
         <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: '4px',
           background: `linear-gradient(90deg, ${brandColor} 0%, ${brandColor}80 50%, ${brandColor} 100%)`,
         }} />
       )}
